@@ -1,0 +1,26 @@
+{
+  "shop": {
+    "name": "naughty",
+    "displayName": "ノーティ",
+    "concept": "黒とピンクのかわいい寄りコンカフェ。",
+    "hours": "19:00-翌5:00",
+    "address": "広島県広島市中区流川町8-4 8MINXビル3F",
+    "instagram": "naughty_.1221"
+  },
+  "siteSections": {
+    "top": true,
+    "cast": true,
+    "todayShift": true,
+    "schedule": true,
+    "events": true,
+    "menu": true,
+    "recruit": true,
+    "access": true
+  },
+  "designNotes": {
+    "mustKeep": "Vすぽ風のトップ/ファーストビュー表現",
+    "tone": "小悪魔より、かわいい寄り",
+    "colors": ["black", "pink", "white"]
+  }
+}
+

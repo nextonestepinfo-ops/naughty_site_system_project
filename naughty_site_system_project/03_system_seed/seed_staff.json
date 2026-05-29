@@ -1,0 +1,43 @@
+[
+  {
+    "id": "staff_001",
+    "displayName": "めあ",
+    "role": "cast",
+    "hourlyWage": 1300,
+    "profileText": "明るく話しやすい雰囲気のキャストです。初めての方にもやさしく対応します。",
+    "photo": "assets/cast/real-1.png",
+    "publicVisible": true,
+    "workStatus": "off"
+  },
+  {
+    "id": "staff_002",
+    "displayName": "ふう",
+    "role": "cast",
+    "hourlyWage": 1350,
+    "profileText": "かわいい雰囲気と落ち着いた接客が得意です。",
+    "photo": "assets/cast/real-2.png",
+    "publicVisible": true,
+    "workStatus": "off"
+  },
+  {
+    "id": "staff_003",
+    "displayName": "うた",
+    "role": "cast",
+    "hourlyWage": 1400,
+    "profileText": "イベントの日を盛り上げるのが得意なキャストです。",
+    "photo": "assets/cast/real-3.png",
+    "publicVisible": true,
+    "workStatus": "scheduled"
+  },
+  {
+    "id": "staff_004",
+    "displayName": "えん",
+    "role": "cast",
+    "hourlyWage": 1300,
+    "profileText": "お客さまとゆっくり話すのが好きなキャストです。",
+    "photo": "assets/cast/real-4.png",
+    "publicVisible": true,
+    "workStatus": "working"
+  }
+]
+

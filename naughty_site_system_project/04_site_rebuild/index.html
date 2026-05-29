@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>naughty | ノーティ</title>
+  <link rel="icon" href="assets/logo-naughty-white-circle.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&family=Shippori+Mincho+B1:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=production-9" />
+</head>
+<body>
+  <div class="site-shell">
+    <canvas class="motion-canvas" id="motion-canvas" aria-hidden="true"></canvas>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="naughty top">
+        <img src="assets/logo-naughty-white-circle.png" alt="naughty" />
+      </a>
+      <nav class="main-nav" aria-label="メイン">
+        <a href="#concept">CONCEPT</a>
+        <a href="#cast">CAST</a>
+        <a href="#shift">SHIFT</a>
+        <a href="#menu">MENU</a>
+        <a href="#recruit">RECRUIT</a>
+        <a href="#access">ACCESS</a>
+      </nav>
+      <a class="admin-link" href="#access">ACCESS</a>
+    </header>
+
+    <nav class="mobile-dock" aria-label="スマホメニュー">
+      <a href="#top">TOP</a>
+      <a href="#cast">CAST</a>
+      <a href="#shift">SHIFT</a>
+      <a href="#menu">MENU</a>
+    </nav>
+
+    <main>
+      <section class="hero" id="top">
+        <div class="hero-wisps" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="hero-grid" aria-hidden="true"></div>
+        <div class="hero-scanlines" aria-hidden="true"></div>
+        <div class="hero-orbit orbit-one" aria-hidden="true"></div>
+        <div class="hero-orbit orbit-two" aria-hidden="true"></div>
+        <div class="cam-panel cam-left">
+          <div class="cam-top"><span>CAM 01</span><b>REC</b></div>
+          <div class="cam-frame"><img src="../01_existing_site/assets/icon-cat.png" alt="" /></div>
+          <div class="cam-bottom"><span>NAKAREKAWA</span><span>19:00</span></div>
+        </div>
+        <div class="hero-copy">
+          <p class="eyebrow" id="shop-hours">OPEN</p>
+          <h1 id="shop-name">ノーティ</h1>
+          <p class="hero-line">夜、こっそりはじまる。<br />ちょっとした、<em>いたずら。</em></p>
+          <div class="hero-actions">
+            <a class="hero-button primary" href="#shift">本日の出勤</a>
+            <a class="hero-button" href="#menu">メニューを見る</a>
+          </div>
+        </div>
+        <div class="hero-stage" id="hero-stage">
+          <div class="logo-plane">
+            <img src="assets/logo-naughty-white-transparent.png" alt="" />
+          </div>
+          <div class="cast-lineup" id="hero-cast" aria-hidden="true"></div>
+        </div>
+        <div class="cam-panel cam-right">
+          <div class="cam-top"><span>CAM 02</span><b>REC</b></div>
+          <div class="cam-frame alt"><img src="../01_existing_site/assets/icon-bubble.png" alt="" /></div>
+          <div class="cam-bottom"><span>BAR</span><span>05:00</span></div>
+        </div>
+      </section>
+
+      <section class="quick-status" aria-label="本日の出勤">
+        <div>
+          <p class="section-kicker">TODAY</p>
+          <h2>本日の出勤</h2>
+        </div>
+        <div class="today-list" id="today-list"></div>
+      </section>
+
+      <section class="section concept-section" id="concept">
+        <div class="section-head">
+          <span>01</span>
+          <div>
+            <p class="section-kicker">CONCEPT</p>
+            <h2>かわいい夜を、少しだけいたずらに。</h2>
+          </div>
+        </div>
+        <div class="concept-layout">
+          <p id="shop-concept">黒とピンクに、少し小悪魔な甘さを混ぜたコンカフェ。</p>
+          <div class="concept-points">
+            <span>BLACK</span>
+            <span>PINK</span>
+            <span>CUTE</span>
+            <span>NIGHT</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section material-section" id="gallery">
+        <div class="section-head">
+          <span>02</span>
+          <div>
+            <p class="section-kicker">GALLERY</p>
+            <h2>店内の雰囲気</h2>
+          </div>
+        </div>
+        <div class="material-grid" id="material-grid"></div>
+      </section>
+
+      <section class="section" id="cast">
+        <div class="section-head">
+          <span>03</span>
+          <div>
+            <p class="section-kicker">CAST</p>
+            <h2>キャスト紹介</h2>
+          </div>
+        </div>
+        <div class="cast-grid" id="cast-grid"></div>
+      </section>
+
+      <section class="section shift-section" id="shift">
+        <div class="section-head">
+          <span>04</span>
+          <div>
+            <p class="section-kicker">SCHEDULE</p>
+            <h2>2週間シフト</h2>
+          </div>
+        </div>
+        <div class="shift-wrap">
+          <div class="shift-table" id="shift-table"></div>
+        </div>
+      </section>
+
+      <section class="section menu-section" id="menu">
+        <div class="section-head">
+          <span>05</span>
+          <div>
+            <p class="section-kicker">MENU</p>
+            <h2>メニュー</h2>
+          </div>
+        </div>
+        <div class="menu-grid" id="menu-grid"></div>
+      </section>
+
+      <section class="section event-section">
+        <div class="section-head">
+          <span>06</span>
+          <div>
+            <p class="section-kicker">EVENT</p>
+            <h2>イベント</h2>
+          </div>
+        </div>
+        <div class="event-list" id="event-list"></div>
+      </section>
+
+      <section class="section recruit-section" id="recruit">
+        <div class="section-head">
+          <span>07</span>
+          <div>
+            <p class="section-kicker">RECRUIT</p>
+            <h2>キャスト募集</h2>
+          </div>
+        </div>
+        <div class="recruit-layout">
+          <div class="recruit-visual">
+            <img src="../01_existing_site/uploads/girls5_anime_transparent.png" alt="" />
+          </div>
+          <div class="flow-list">
+            <article><b>01</b><strong>未経験でも歓迎</strong><span>接客がはじめてでも、雰囲気に合わせて少しずつ慣れていけます。</span></article>
+            <article><b>02</b><strong>かわいい衣装と世界観</strong><span>黒とピンクを基調にした、写真映えするコンセプトです。</span></article>
+            <article><b>03</b><strong>シフト相談OK</strong><span>学業や本業に合わせて、無理なく働けるペースを相談できます。</span></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section access-section" id="access">
+        <div class="section-head">
+          <span>08</span>
+          <div>
+            <p class="section-kicker">ACCESS</p>
+            <h2>店舗情報</h2>
+          </div>
+        </div>
+        <div class="access-layout">
+          <div class="map-panel">
+            <div class="map-grid"></div>
+            <strong>naughty</strong>
+          </div>
+          <dl class="shop-info">
+            <dt>営業時間</dt>
+            <dd id="access-hours"></dd>
+            <dt>住所</dt>
+            <dd id="access-address"></dd>
+            <dt>Instagram</dt>
+            <dd id="access-instagram"></dd>
+          </dl>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <img src="assets/logo-naughty-white-circle.png" alt="naughty" />
+      <p>© 2026 naughty</p>
+    </footer>
+  </div>
+  <script src="../03_system_seed/naughty_site_data.js?v=production-9"></script>
+  <script src="app.js?v=production-9"></script>
+</body>
+</html>

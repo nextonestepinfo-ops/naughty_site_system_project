@@ -1,0 +1,205 @@
+{
+  "updatedAt": "2026-05-29T23:12:04+09:00",
+  "assetVersion": 3,
+  "shop": {
+    "name": "naughty",
+    "displayName": "ノーティ",
+    "concept": "黒とピンクに、少し小悪魔な甘さを混ぜたコンカフェ。",
+    "hours": "19:00-翌5:00",
+    "address": "広島県広島市中区流川町8-4 8MINXビル3F",
+    "instagram": "naughty_.1221",
+    "phone": "",
+    "line": "",
+    "accessNote": "流川エリア、8MINXビル3F"
+  },
+  "designNotes": {
+    "mustKeep": "Vすぽ風のトップ/ファーストビュー表現",
+    "tone": "黒基調で、少し小悪魔なかわいさ",
+    "colors": ["black", "pink", "white"]
+  },
+  "staff": [
+    {
+      "id": "staff_001",
+      "displayName": "めあ",
+      "romanName": "MEA",
+      "role": "cast",
+      "hourlyWage": 1300,
+      "profileText": "明るく話しやすい雰囲気のキャストです。初めての方にもやさしく対応します。",
+      "shortComment": "はじめての夜も、ふわっと楽しく。",
+      "photo": "uploads/589075374_17899015803346662_1699630616090166901_n.jpg",
+      "heroPhoto": "uploads/girl1_black_hair.png",
+      "tags": ["friendly", "talk"],
+      "publicVisible": true,
+      "workStatus": "off",
+      "sns": ""
+    },
+    {
+      "id": "staff_002",
+      "displayName": "ふう",
+      "romanName": "FUU",
+      "role": "cast",
+      "hourlyWage": 1350,
+      "profileText": "かわいい雰囲気と落ち着いた接客が得意です。",
+      "shortComment": "ゆっくり話せる、やさしい時間。",
+      "photo": "uploads/588544113_17898882816346662_4283904444155605536_n.jpg",
+      "heroPhoto": "uploads/girl2_silver_hair.png",
+      "tags": ["soft", "drink"],
+      "publicVisible": true,
+      "workStatus": "off",
+      "sns": ""
+    },
+    {
+      "id": "staff_003",
+      "displayName": "うた",
+      "romanName": "UTA",
+      "role": "cast",
+      "hourlyWage": 1400,
+      "profileText": "イベントの日を盛り上げるのが得意なキャストです。",
+      "shortComment": "イベント日は少しだけテンション高め。",
+      "photo": "uploads/588428122_17898882777346662_180949440932027811_n.jpg",
+      "heroPhoto": "uploads/girl3_dark_center.png",
+      "tags": ["event", "music"],
+      "publicVisible": true,
+      "workStatus": "scheduled",
+      "sns": ""
+    },
+    {
+      "id": "staff_004",
+      "displayName": "えん",
+      "romanName": "EN",
+      "role": "cast",
+      "hourlyWage": 1300,
+      "profileText": "お客さまとゆっくり話すのが好きなキャストです。",
+      "shortComment": "カウンターで、のんびり寄り道。",
+      "photo": "uploads/588968046_17899015830346662_4725148562869947640_n.jpg",
+      "heroPhoto": "uploads/girl4_blonde.png",
+      "tags": ["bar", "calm"],
+      "publicVisible": true,
+      "workStatus": "working",
+      "sns": ""
+    }
+  ],
+  "products": [
+    {
+      "id": "prod_001",
+      "name": "通常ドリンク",
+      "category": "drink",
+      "salePrice": 1000,
+      "backAmount": 200,
+      "eventOnly": false,
+      "active": true
+    },
+    {
+      "id": "prod_002",
+      "name": "キャストドリンク",
+      "category": "drink",
+      "salePrice": 1500,
+      "backAmount": 500,
+      "eventOnly": false,
+      "active": true
+    },
+    {
+      "id": "prod_003",
+      "name": "イベント限定ショット",
+      "category": "event",
+      "salePrice": 2000,
+      "backAmount": 700,
+      "eventOnly": true,
+      "active": true
+    },
+    {
+      "id": "prod_004",
+      "name": "チェキ",
+      "category": "photo",
+      "salePrice": 1200,
+      "backAmount": 400,
+      "eventOnly": false,
+      "active": true
+    }
+  ],
+  "events": [
+    {
+      "id": "event_001",
+      "date": "2026-06-07",
+      "title": "小悪魔ピンクナイト",
+      "summary": "ピンク差し色の衣装DAY。イベント限定ショットあり。",
+      "publicVisible": true
+    },
+    {
+      "id": "event_002",
+      "date": "2026-06-14",
+      "title": "はじめまして割",
+      "summary": "初来店のお客さま向けの軽いキャンペーン。",
+      "publicVisible": true
+    }
+  ],
+  "materials": [
+    {
+      "id": "mat_001",
+      "title": "naughty cast",
+      "caption": "黒とピンクの衣装でそろえた、ノーティらしいビジュアル。",
+      "image": "uploads/girls5_anime_transparent.png",
+      "kind": "lineup"
+    },
+    {
+      "id": "mat_002",
+      "title": "pink mood",
+      "caption": "少し甘く、少しだけいたずらな夜の雰囲気。",
+      "image": "uploads/589820627_17899106706346662_4066901980983006318_n.jpg",
+      "kind": "photo"
+    },
+    {
+      "id": "mat_003",
+      "title": "black ribbon",
+      "caption": "落ち着いた黒をベースに、かわいさを足したスタイル。",
+      "image": "uploads/589075374_17899015803346662_1699630616090166901_n.jpg",
+      "kind": "photo"
+    },
+    {
+      "id": "mat_004",
+      "title": "soft light",
+      "caption": "はじめてでも入りやすい、やわらかいコンカフェ感。",
+      "image": "uploads/588968046_17899015830346662_4725148562869947640_n.jpg",
+      "kind": "photo"
+    },
+    {
+      "id": "mat_005",
+      "title": "silver tone",
+      "caption": "写真映えする衣装と、すっきりした世界観。",
+      "image": "uploads/588544113_17898882816346662_4283904444155605536_n.jpg",
+      "kind": "photo"
+    }
+  ],
+  "shifts": [
+    { "date": "2026-06-01", "staffId": "staff_001", "status": "scheduled", "start": "19:00", "end": "23:00", "publicNote": "19時から" },
+    { "date": "2026-06-01", "staffId": "staff_002", "status": "off", "start": "", "end": "", "publicNote": "お休み" },
+    { "date": "2026-06-01", "staffId": "staff_003", "status": "scheduled", "start": "21:00", "end": "05:00", "publicNote": "21時から" },
+    { "date": "2026-06-01", "staffId": "staff_004", "status": "working", "start": "19:00", "end": "05:00", "publicNote": "出勤中" },
+    { "date": "2026-06-02", "staffId": "staff_001", "status": "off", "start": "", "end": "", "publicNote": "お休み" },
+    { "date": "2026-06-02", "staffId": "staff_002", "status": "scheduled", "start": "20:00", "end": "01:00", "publicNote": "20時から" },
+    { "date": "2026-06-02", "staffId": "staff_003", "status": "scheduled", "start": "20:00", "end": "05:00", "publicNote": "20時から" },
+    { "date": "2026-06-02", "staffId": "staff_004", "status": "off", "start": "", "end": "", "publicNote": "お休み" },
+    { "date": "2026-06-03", "staffId": "staff_001", "status": "scheduled", "start": "19:00", "end": "02:00", "publicNote": "19時から" },
+    { "date": "2026-06-03", "staffId": "staff_002", "status": "scheduled", "start": "21:00", "end": "05:00", "publicNote": "21時から" },
+    { "date": "2026-06-03", "staffId": "staff_003", "status": "off", "start": "", "end": "", "publicNote": "お休み" },
+    { "date": "2026-06-03", "staffId": "staff_004", "status": "scheduled", "start": "19:00", "end": "05:00", "publicNote": "19時から" },
+    { "date": "2026-06-04", "staffId": "staff_001", "status": "scheduled", "start": "20:00", "end": "03:00", "publicNote": "20時から" },
+    { "date": "2026-06-04", "staffId": "staff_002", "status": "off", "start": "", "end": "", "publicNote": "お休み" },
+    { "date": "2026-06-04", "staffId": "staff_003", "status": "scheduled", "start": "21:00", "end": "05:00", "publicNote": "21時から" },
+    { "date": "2026-06-04", "staffId": "staff_004", "status": "scheduled", "start": "19:00", "end": "01:00", "publicNote": "19時から" },
+    { "date": "2026-06-05", "staffId": "staff_001", "status": "scheduled", "start": "19:00", "end": "05:00", "publicNote": "19時から" },
+    { "date": "2026-06-05", "staffId": "staff_002", "status": "scheduled", "start": "20:00", "end": "05:00", "publicNote": "20時から" },
+    { "date": "2026-06-05", "staffId": "staff_003", "status": "scheduled", "start": "20:00", "end": "02:00", "publicNote": "20時から" },
+    { "date": "2026-06-05", "staffId": "staff_004", "status": "off", "start": "", "end": "", "publicNote": "お休み" },
+    { "date": "2026-06-06", "staffId": "staff_001", "status": "scheduled", "start": "20:00", "end": "05:00", "publicNote": "20時から" },
+    { "date": "2026-06-06", "staffId": "staff_002", "status": "scheduled", "start": "19:00", "end": "02:00", "publicNote": "19時から" },
+    { "date": "2026-06-06", "staffId": "staff_003", "status": "scheduled", "start": "21:00", "end": "05:00", "publicNote": "21時から" },
+    { "date": "2026-06-06", "staffId": "staff_004", "status": "scheduled", "start": "19:00", "end": "05:00", "publicNote": "19時から" },
+    { "date": "2026-06-07", "staffId": "staff_001", "status": "off", "start": "", "end": "", "publicNote": "お休み" },
+    { "date": "2026-06-07", "staffId": "staff_002", "status": "scheduled", "start": "19:00", "end": "01:00", "publicNote": "19時から" },
+    { "date": "2026-06-07", "staffId": "staff_003", "status": "scheduled", "start": "20:00", "end": "05:00", "publicNote": "イベント" },
+    { "date": "2026-06-07", "staffId": "staff_004", "status": "scheduled", "start": "20:00", "end": "05:00", "publicNote": "イベント" }
+  ],
+  "sales": [],
+  "lastPaidAt": ""
+}

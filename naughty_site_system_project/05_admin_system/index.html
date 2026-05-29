@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>naughty admin</title>
+  <link rel="icon" href="../04_site_rebuild/assets/logo-naughty-white-circle.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=production-3" />
+</head>
+<body>
+  <div class="admin-app">
+    <header class="admin-header">
+      <a class="admin-brand" href="../04_site_rebuild/index.html">
+        <img src="../04_site_rebuild/assets/logo-naughty-white-circle.png" alt="naughty" />
+      </a>
+      <div class="header-actions">
+        <a class="icon-link" href="../04_site_rebuild/index.html" aria-label="公開サイトを開く" title="公開サイト">
+          <span aria-hidden="true">↗</span>
+        </a>
+        <button class="primary-action" id="save-button" type="button">
+          <span aria-hidden="true">✓</span>
+          <span>保存して反映</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="admin-layout">
+      <nav class="admin-nav" aria-label="管理メニュー">
+        <button class="nav-item active" type="button" data-view="dashboard"><span>⌂</span><b>ホーム</b></button>
+        <button class="nav-item" type="button" data-view="site"><span>✦</span><b>サイト</b></button>
+        <button class="nav-item" type="button" data-view="staff"><span>＋</span><b>スタッフ</b></button>
+        <button class="nav-item" type="button" data-view="gallery"><span>□</span><b>ギャラリー</b></button>
+        <button class="nav-item" type="button" data-view="shift"><span>▦</span><b>シフト</b></button>
+        <button class="nav-item" type="button" data-view="menu"><span>￥</span><b>メニュー</b></button>
+        <button class="nav-item" type="button" data-view="events"><span>◇</span><b>イベント</b></button>
+        <button class="nav-item" type="button" data-view="sales"><span>⇩</span><b>売上</b></button>
+        <button class="nav-item" type="button" data-view="payroll"><span>＝</span><b>給与</b></button>
+      </nav>
+
+      <main class="admin-main">
+        <section class="view active" id="view-dashboard">
+          <div class="view-head">
+            <p>DASHBOARD</p>
+            <h1>管理トップ</h1>
+          </div>
+          <div class="metric-grid" id="metric-grid"></div>
+          <div class="dashboard-grid">
+            <div class="panel ops-panel">
+              <div class="panel-head">
+                <h2>今日の現場操作</h2>
+                <span id="operation-date"></span>
+              </div>
+              <label class="compact-field">スタッフ
+                <select id="operation-staff"></select>
+              </label>
+              <div class="big-actions">
+                <button class="op-button in" id="clock-in" type="button">出勤</button>
+                <button class="op-button break" id="clock-scheduled" type="button">予定</button>
+                <button class="op-button out" id="clock-out" type="button">退勤</button>
+              </div>
+              <p class="help-text">スマホ運用想定の大きいボタン。QR打刻に置き換えやすい構成です。</p>
+            </div>
+            <div class="panel site-sync-panel">
+              <div class="panel-head">
+                <h2>公開サイト反映</h2>
+                <a class="mini-link" href="../04_site_rebuild/index.html?v=production-9">開く</a>
+              </div>
+              <div class="sync-list" id="site-sync-list"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h2>勤務ステータス</h2>
+              <span id="last-updated"></span>
+            </div>
+            <div class="status-list" id="quick-status-list"></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-site">
+          <div class="view-head">
+            <p>SITE CONTROL</p>
+            <h1>サイト設定</h1>
+          </div>
+          <div class="two-column">
+            <form class="panel edit-form" id="site-form">
+              <div class="panel-head">
+                <h2>店舗情報</h2>
+                <a class="mini-link" href="../04_site_rebuild/index.html?v=production-9">確認</a>
+              </div>
+              <label>表示名<input id="shop-display-name" type="text" /></label>
+              <label>コンセプト<textarea id="shop-concept-input" rows="4"></textarea></label>
+              <label>営業時間<input id="shop-hours-input" type="text" /></label>
+              <label>住所<textarea id="shop-address-input" rows="3"></textarea></label>
+              <label>Instagram<input id="shop-instagram-input" type="text" /></label>
+            </form>
+            <div class="panel">
+              <div class="panel-head">
+                <h2>公開状態</h2>
+                <button class="small-action" id="copy-public-url" type="button">URL</button>
+              </div>
+              <div class="sync-list" id="site-preview-list"></div>
+              <div class="backup-actions">
+                <button class="small-command" id="download-backup" type="button">バックアップ</button>
+                <button class="small-command" id="restore-backup" type="button">復元</button>
+                <input id="backup-file" type="file" accept="application/json" hidden />
+              </div>
+              <div class="admin-preview">
+                <img src="../04_site_rebuild/assets/logo-naughty-white-circle.png" alt="" />
+                <strong id="preview-shop-name"></strong>
+                <span id="preview-shop-concept"></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-staff">
+          <div class="view-head">
+            <p>CAST MASTER</p>
+            <h1>スタッフ管理</h1>
+          </div>
+          <div class="two-column">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>一覧</h2>
+                <button class="small-action" id="add-staff" type="button">＋</button>
+              </div>
+              <div class="list-stack" id="staff-list"></div>
+            </div>
+            <form class="panel edit-form" id="staff-form">
+              <div class="panel-head">
+                <h2>編集</h2>
+                <label class="switch">
+                  <input type="checkbox" id="staff-visible" />
+                  <span>Web表示</span>
+                </label>
+              </div>
+              <label>表示名<input id="staff-name" type="text" /></label>
+              <label>ローマ字<input id="staff-roman" type="text" /></label>
+              <label>紹介文<textarea id="staff-profile" rows="4"></textarea></label>
+              <label>写真パス<input id="staff-photo" type="text" /></label>
+              <label>トップ用写真<input id="staff-hero-photo" type="text" /></label>
+              <label>時給<input id="staff-wage" type="number" min="0" step="50" /></label>
+              <label>タグ<input id="staff-tags" type="text" /></label>
+              <div class="segmented" id="staff-status-buttons">
+                <button type="button" data-status="working">出勤中</button>
+                <button type="button" data-status="scheduled">予定</button>
+                <button type="button" data-status="off">休み</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="view" id="view-gallery">
+          <div class="view-head">
+            <p>GALLERY</p>
+            <h1>ギャラリー編集</h1>
+          </div>
+          <div class="two-column">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>表示画像</h2>
+                <button class="small-action" id="add-material" type="button">＋</button>
+              </div>
+              <div class="list-stack" id="material-list"></div>
+            </div>
+            <form class="panel edit-form" id="material-form">
+              <div class="panel-head">
+                <h2>編集</h2>
+                <button class="danger-action" id="delete-material" type="button">削除</button>
+              </div>
+              <label>タイトル<input id="material-title" type="text" /></label>
+              <label>説明<textarea id="material-caption" rows="4"></textarea></label>
+              <label>画像パス<input id="material-image" type="text" /></label>
+              <label>表示タイプ
+                <select id="material-kind">
+                  <option value="photo">写真</option>
+                  <option value="lineup">集合</option>
+                </select>
+              </label>
+              <div class="material-preview" id="material-preview"></div>
+            </form>
+          </div>
+        </section>
+
+        <section class="view" id="view-shift">
+          <div class="view-head">
+            <p>2 WEEK SHIFT</p>
+            <h1>シフト管理</h1>
+          </div>
+          <div class="date-strip" id="date-strip"></div>
+          <div class="panel">
+            <div class="panel-head">
+              <h2 id="selected-date-title"></h2>
+              <button class="small-action" id="fill-off" type="button">休</button>
+            </div>
+            <div class="shift-editor" id="shift-editor"></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-menu">
+          <div class="view-head">
+            <p>PRODUCT MASTER</p>
+            <h1>メニュー管理</h1>
+          </div>
+          <div class="two-column">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>商品</h2>
+                <button class="small-action" id="add-product" type="button">＋</button>
+              </div>
+              <div class="list-stack" id="product-list"></div>
+            </div>
+            <form class="panel edit-form" id="product-form">
+              <div class="panel-head">
+                <h2>編集</h2>
+                <label class="switch">
+                  <input type="checkbox" id="product-active" />
+                  <span>販売中</span>
+                </label>
+              </div>
+              <label>商品名<input id="product-name" type="text" /></label>
+              <label>カテゴリ<input id="product-category" type="text" /></label>
+              <label>販売金額<input id="product-price" type="number" min="0" step="100" /></label>
+              <label>バック金額<input id="product-back" type="number" min="0" step="100" /></label>
+              <label class="switch wide">
+                <input type="checkbox" id="product-event-only" />
+                <span>イベントだけの歩合</span>
+              </label>
+            </form>
+          </div>
+        </section>
+
+        <section class="view" id="view-events">
+          <div class="view-head">
+            <p>EVENT MASTER</p>
+            <h1>イベント更新</h1>
+          </div>
+          <div class="two-column">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>イベント</h2>
+                <button class="small-action" id="add-event" type="button">＋</button>
+              </div>
+              <div class="list-stack" id="event-list"></div>
+            </div>
+            <form class="panel edit-form" id="event-form">
+              <div class="panel-head">
+                <h2>編集</h2>
+                <label class="switch">
+                  <input type="checkbox" id="event-visible" />
+                  <span>Web表示</span>
+                </label>
+              </div>
+              <label>日付<input id="event-date" type="date" /></label>
+              <label>タイトル<input id="event-title" type="text" /></label>
+              <label>内容<textarea id="event-summary" rows="4"></textarea></label>
+            </form>
+          </div>
+        </section>
+
+        <section class="view" id="view-sales">
+          <div class="view-head">
+            <p>SALES</p>
+            <h1>売上登録</h1>
+          </div>
+          <div class="two-column">
+            <form class="panel edit-form" id="sales-form">
+              <div class="panel-head">
+                <h2>登録</h2>
+                <button class="small-action" id="add-sale" type="button">＋</button>
+              </div>
+              <label>スタッフ<select id="sale-staff"></select></label>
+              <label>商品<select id="sale-product"></select></label>
+              <label>数量<input id="sale-qty" type="number" min="1" value="1" /></label>
+            </form>
+            <div class="panel">
+              <div class="panel-head">
+                <h2>CSV</h2>
+                <button class="small-action" id="download-sales" type="button">⇩</button>
+              </div>
+              <div class="sales-list" id="sales-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-payroll">
+          <div class="view-head">
+            <p>PAYROLL</p>
+            <h1>給与確認</h1>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h2>日給計算</h2>
+              <button class="danger-action" id="mark-paid" type="button">支払確定</button>
+            </div>
+            <div class="payroll-table" id="payroll-table"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="../03_system_seed/naughty_site_data.js?v=production-3"></script>
+  <script src="app.js?v=production-3"></script>
+</body>
+</html>

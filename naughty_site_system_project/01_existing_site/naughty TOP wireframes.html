@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>naughty · TOP page wireframes</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Caveat:wght@400;500;600&display=swap" />
+
+  <link rel="stylesheet" href="wireframes/wireframe.css" />
+
+  <style>
+    html, body { margin: 0; padding: 0; background: #f0eee9; font-family: "Inter Tight", system-ui, sans-serif; }
+    body { min-height: 100vh; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"
+          integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
+          integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
+          integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
+          crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="wireframes/variant-a.jsx"></script>
+  <script type="text/babel" src="wireframes/variant-b.jsx"></script>
+  <script type="text/babel" src="wireframes/variant-c.jsx"></script>
+  <script type="text/babel" src="wireframes/variant-d.jsx"></script>
+
+  <script type="text/babel">
+    const { useEffect } = React;
+
+    function App() {
+      return (
+        <DesignCanvas
+          title="naughty · TOP page wireframes"
+          subtitle="グレースケール / 構造のみ / B案ベース · 4方向の骨組み"
+        >
+          <DCSection
+            id="intro"
+            title="ヒアリング → 構成"
+            subtitle={
+              "クライアント:いたずらっ子コンセプトカフェ / 参考 vspo・aogiri・neoporte。" +
+              "B案(MONO EDITORIAL)を出発点に、TOPページの構造案を4方向で。"
+            }
+          >
+            <DCArtboard id="brief" label="HEARING · 設計メモ" width={680} height={1080}>
+              <div style={{
+                width: "100%", height: "100%", padding: 40, boxSizing: "border-box",
+                background: "#fafafa", fontFamily: "'Inter Tight', system-ui, sans-serif",
+                color: "#1a1a1a", lineHeight: 1.55, fontSize: 13, overflow: "hidden"
+              }}>
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+                  letterSpacing: ".18em", color: "#6b6b6b"
+                }}>— BRIEF / WIREFRAME PLAN</div>
+                <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-.01em", marginTop: 14, lineHeight: 1.15 }}>
+                  「魅せる」と「使える」を、<br/>同じ画面に。
+                </div>
+
+                <hr style={{ border: 0, borderTop: "1px solid #d8d8d8", margin: "22px 0" }} />
+
+                <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", rowGap: 10, columnGap: 16, fontSize: 12.5 }}>
+                  <div style={{ color: "#6b6b6b", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: ".14em" }}>CLIENT</div>
+                  <div><b>naughty</b> / いたずらっ子モチーフのコンセプトカフェ</div>
+
+                  <div style={{ color: "#6b6b6b", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: ".14em" }}>GOAL</div>
+                  <div>新規顧客獲得・「圧倒的な魅せ方」での世界観体験</div>
+
+                  <div style={{ color: "#6b6b6b", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: ".14em" }}>TARGET</div>
+                  <div>30代前後 / 男性 / 夜・スマホ・ながら閲覧</div>
+
+                  <div style={{ color: "#6b6b6b", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: ".14em" }}>TONE</div>
+                  <div>白黒ベース + 差し色ピンク / 活気・親しみ + 高級感</div>
+
+                  <div style={{ color: "#6b6b6b", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: ".14em" }}>FEATURE</div>
+                  <div>キャストリスト(紹介)・予定表 / 月1更新</div>
+
+                  <div style={{ color: "#6b6b6b", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: ".14em" }}>SEO</div>
+                  <div>コンカフェ / コンセプトカフェ / バー</div>
+                </div>
+
+                <hr style={{ border: 0, borderTop: "1px solid #d8d8d8", margin: "22px 0" }} />
+
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+                  letterSpacing: ".14em", color: "#6b6b6b", marginBottom: 10
+                }}>— TOP SECTIONS (共通)</div>
+                <ol style={{ paddingLeft: 18, margin: 0, fontSize: 12.5, lineHeight: 1.7 }}>
+                  <li><b>FV</b> / ファーストビュー — 動的演出ゾーン</li>
+                  <li><b>CONCEPT</b> / コンセプト紹介</li>
+                  <li><b>CAST</b> / キャストリスト(必須)</li>
+                  <li><b>SCHEDULE</b> / 予定表(必須)</li>
+                  <li><b>NEWS</b> / お知らせ</li>
+                  <li><b>ACCESS</b> / 店舗情報 + 予約導線</li>
+                </ol>
+
+                <hr style={{ border: 0, borderTop: "1px solid #d8d8d8", margin: "22px 0" }} />
+
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+                  letterSpacing: ".14em", color: "#6b6b6b", marginBottom: 10
+                }}>— 4 DIRECTIONS</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", rowGap: 8, fontSize: 12.5 }}>
+                  <div><b style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>A · CLASSIC</b> — 編集型 縦スクロール、安全運転の基準案</div>
+                  <div><b style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>B · ASYMMETRIC</b> — 雑誌的なオフセット配置・B案ど真ん中</div>
+                  <div><b style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>C · INDEX</b> — 固定サイドバー型(vspo/aogiri 系)</div>
+                  <div><b style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>D · POSTER</b> — ヘビーフレーム + 大ナンバリング</div>
+                </div>
+
+                <div style={{
+                  marginTop: 30, padding: "12px 14px",
+                  border: "1px dashed #9a9a9a", fontFamily: "Caveat, cursive",
+                  fontSize: 18, color: "#404040", lineHeight: 1.2
+                }}>
+                  ※ デザインはまだ。色 / 写真 / アニメは未確定。<br/>
+                  まずは「どの骨組みで戦うか」をここで決めましょう。
+                </div>
+              </div>
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="variants"
+            title="TOP ページ ワイヤーフレーム · 4方向"
+            subtitle="縦スクロールの desktop ビュー / 各案で 構成・密度・リズム が異なります"
+          >
+            <DCArtboard id="A" label="A · CLASSIC · 編集型 縦スクロール" width={1280} height={3500}>
+              <VariantA />
+            </DCArtboard>
+
+            <DCArtboard id="B" label="B · ASYMMETRIC · 雑誌的オフセット" width={1280} height={3800}>
+              <VariantB />
+            </DCArtboard>
+
+            <DCArtboard id="C" label="C · INDEX · 固定サイドバー型" width={1280} height={3700}>
+              <VariantC />
+            </DCArtboard>
+
+            <DCArtboard id="D" label="D · POSTER · フレーム + 大ナンバー" width={1280} height={4200}>
+              <VariantD />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="notes"
+            title="比較メモ"
+            subtitle="どの方向を深掘りするか、ここから 1〜2案を選んで詳細化します"
+          >
+            <DCArtboard id="compare" label="A / B / C / D 比較" width={1280} height={520}>
+              <div style={{
+                width: "100%", height: "100%", padding: 40, boxSizing: "border-box",
+                background: "#fafafa", fontFamily: "'Inter Tight', system-ui, sans-serif",
+                color: "#1a1a1a", overflow: "hidden"
+              }}>
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+                  letterSpacing: ".18em", color: "#6b6b6b"
+                }}>— DIRECTIONS COMPARED</div>
+
+                <div style={{
+                  marginTop: 20,
+                  display: "grid",
+                  gridTemplateColumns: "120px repeat(4, 1fr)",
+                  borderTop: "1.4px solid #1a1a1a"
+                }}>
+                  {[
+                    ["", "A · CLASSIC", "B · ASYMMETRIC", "C · INDEX", "D · POSTER"],
+                    ["構成密度", "標準", "余白多め", "章立て型", "最も濃い"],
+                    ["読みやすさ", "◎", "◯", "◎", "△"],
+                    ["世界観の演出", "◯", "◎", "◎", "◎+"],
+                    ["スマホ最適化", "◎", "△ (要調整)", "◯", "△ (要調整)"],
+                    ["運用しやすさ", "◎", "◯", "◎", "△"],
+                    ["B案との親和性", "◯", "◎", "◯", "◎"],
+                    ["参考3サイト感", "△", "◯", "◎", "◎"],
+                  ].map((row, ri) => (
+                    <React.Fragment key={ri}>
+                      {row.map((cell, ci) => (
+                        <div key={ci} style={{
+                          padding: "12px 10px",
+                          borderBottom: "1px solid #d8d8d8",
+                          fontFamily: ri === 0 || ci === 0 ? "'JetBrains Mono', monospace" : "inherit",
+                          fontSize: ri === 0 || ci === 0 ? 10 : 13,
+                          letterSpacing: ri === 0 || ci === 0 ? ".12em" : "0",
+                          textTransform: ri === 0 ? "uppercase" : "none",
+                          color: ri === 0 ? "#1a1a1a" : (ci === 0 ? "#6b6b6b" : "#1a1a1a"),
+                          fontWeight: ri === 0 ? 700 : 400,
+                          textAlign: ci === 0 ? "left" : "center"
+                        }}>
+                          {cell}
+                        </div>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </div>
+
+                <div style={{
+                  marginTop: 24, fontFamily: "Caveat, cursive", fontSize: 18,
+                  color: "#404040", lineHeight: 1.3, maxWidth: 720
+                }}>
+                  → 次のステップ:1〜2案を選び、配色・写真・タイポ・アニメーションを乗せた<br/>
+                  デザイン案(A/B/C)に進めます。
+                </div>
+              </div>
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>

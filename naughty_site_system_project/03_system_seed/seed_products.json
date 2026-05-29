@@ -1,0 +1,39 @@
+[
+  {
+    "id": "prod_001",
+    "name": "通常ドリンク",
+    "category": "drink",
+    "salePrice": 1000,
+    "backAmount": 200,
+    "eventOnly": false,
+    "active": true
+  },
+  {
+    "id": "prod_002",
+    "name": "キャストドリンク",
+    "category": "drink",
+    "salePrice": 1500,
+    "backAmount": 500,
+    "eventOnly": false,
+    "active": true
+  },
+  {
+    "id": "prod_003",
+    "name": "イベント限定ショット",
+    "category": "event",
+    "salePrice": 2000,
+    "backAmount": 700,
+    "eventOnly": true,
+    "active": true
+  },
+  {
+    "id": "prod_004",
+    "name": "チェキ",
+    "category": "photo",
+    "salePrice": 1200,
+    "backAmount": 400,
+    "eventOnly": false,
+    "active": true
+  }
+]
+

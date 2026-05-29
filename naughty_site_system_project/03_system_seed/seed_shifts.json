@@ -1,0 +1,35 @@
+[
+  {
+    "date": "2026-06-01",
+    "staffId": "staff_001",
+    "status": "scheduled",
+    "start": "19:00",
+    "end": "23:00",
+    "publicNote": "19時から"
+  },
+  {
+    "date": "2026-06-01",
+    "staffId": "staff_002",
+    "status": "off",
+    "start": "",
+    "end": "",
+    "publicNote": "お休み"
+  },
+  {
+    "date": "2026-06-01",
+    "staffId": "staff_003",
+    "status": "scheduled",
+    "start": "21:00",
+    "end": "05:00",
+    "publicNote": "21時から"
+  },
+  {
+    "date": "2026-06-01",
+    "staffId": "staff_004",
+    "status": "working",
+    "start": "19:00",
+    "end": "05:00",
+    "publicNote": "出勤中"
+  }
+]
+
