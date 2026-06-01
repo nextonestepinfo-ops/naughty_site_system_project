@@ -1,0 +1,14 @@
+timestamp,phase,action,status,notes
+2026-06-02T00:00:00+09:00,planning,Created project folder,done,New isolated folder under New project
+2026-06-02T00:00:00+09:00,planning,Created architecture documents,done,Architecture ER DB screens navigation API and directory plan
+2026-06-02T00:30:00+09:00,implementation,Installed Next.js dependencies,done,Next.js 15 TypeScript Tailwind React Query Zustand lucide
+2026-06-02T01:00:00+09:00,implementation,Created data and API layer,done,Mock repository route handlers priority scoring and Supabase schema
+2026-06-02T01:30:00+09:00,implementation,Created Phase1 screens,done,Dashboard projects tasks employees attendance notifications assistant customers settings
+2026-06-02T01:45:00+09:00,implementation,Added PWA assets,done,Manifest SVG icons service worker offline shell and push handler
+2026-06-02T02:15:00+09:00,implementation,Added employee-first daily cockpit,done,Focus task next tasks risk impact schedule revenue and calendar export
+2026-06-02T02:30:00+09:00,implementation,Added Urata account and permissions,done,Urata admin account role and employment status controls
+2026-06-02T02:45:00+09:00,implementation,Added Nos secretary assistant,done,Generated original assistant image and added chat plus voice entry points
+2026-06-02T03:00:00+09:00,design,Replaced secretary with non-human mascot,done,Generated floating AI bot mascot and updated app references
+2026-06-02T03:20:00+09:00,qa,Pre-git test operation,done,Checked login pages tasks employees attendance assistant notifications settings calendar and mobile overflow
+2026-06-02T03:30:00+09:00,security,Locked permission update route,done,Role updates now require admin actorRole in local demo API
+2026-06-02T03:40:00+09:00,integration,Added Claude API insertion point,done,Server adapter route env example and setup document with local fallback
