@@ -240,7 +240,7 @@ export type RevenueSummary = {
 
 export type SecretaryReply = {
   reply: string;
-  source: "local" | "claude";
+  source: "local" | "claude" | "openai";
   configured: boolean;
 };
 

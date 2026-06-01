@@ -1,48 +1,14 @@
 import type { SecretaryReply } from "@/lib/types";
+import { buildSecretaryInput, localSecretaryReply, secretaryInstructions } from "@/lib/integrations/secretary-local";
 
 const anthropicEndpoint = "https://api.anthropic.com/v1/messages";
-
-function localSecretaryReply(message: string): SecretaryReply {
-  if (message.includes("売上")) {
-    return {
-      reply: "売上はホームの売上メーターを見てください。提案中と顧客確認中の案件を午前に追うのが効果的です。",
-      source: "local",
-      configured: false,
-    };
-  }
-  if (message.includes("予定") || message.includes("カレンダー")) {
-    return {
-      reply: "ホームのカレンダー出力ボタンからicsを落とすと、iPhoneカレンダーやGoogleカレンダーに取り込めます。",
-      source: "local",
-      configured: false,
-    };
-  }
-  if (message.includes("次") || message.includes("終わ")) {
-    return {
-      reply: "次はAIスコアが高い順に、今日画面の「次にやること」を見てください。終わったタスクは状態を完了にすると並び替わります。",
-      source: "local",
-      configured: false,
-    };
-  }
-  return {
-    reply: `「${message}」ですね。今はローカル秘書モードなので、タスク化や並び替えの候補として受け取ります。`,
-    source: "local",
-    configured: false,
-  };
-}
 
 export async function askSecretaryWithClaude(input: {
   message: string;
   context?: string;
 }): Promise<SecretaryReply> {
   const message = input.message.trim();
-  if (!message) {
-    return {
-      reply: "聞きたいことを短く入れてください。例: 今日やること、次に何、売上は、予定を出して。",
-      source: "local",
-      configured: false,
-    };
-  }
+  if (!message) return localSecretaryReply(message);
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const model = process.env.ANTHROPIC_MODEL;
@@ -59,12 +25,11 @@ export async function askSecretaryWithClaude(input: {
       body: JSON.stringify({
         model,
         max_tokens: 420,
-        system:
-          "You are Nos OS secretary. Reply in concise Japanese. Focus on daily tasks, urgency, schedule, sales, and next actions. Never expose secrets.",
+        system: secretaryInstructions,
         messages: [
           {
             role: "user",
-            content: `${input.context ? `Context:\n${input.context}\n\n` : ""}User:\n${message}`,
+            content: buildSecretaryInput({ message, context: input.context }),
           },
         ],
       }),
@@ -82,4 +47,3 @@ export async function askSecretaryWithClaude(input: {
     return localSecretaryReply(message);
   }
 }
-

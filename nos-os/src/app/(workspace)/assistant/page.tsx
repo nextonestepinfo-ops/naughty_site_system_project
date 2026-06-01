@@ -63,7 +63,7 @@ export default function AssistantPage() {
 
   return (
     <>
-      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、次にやること、売上、予定を聞けます。Phase2でOpenAI APIとWhisperに接続します。" />
+      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、次にやること、売上、予定を聞けます。OpenAI APIを入れると実回答、未設定時はローカル回答で動きます。" />
 
       <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
         <Card>

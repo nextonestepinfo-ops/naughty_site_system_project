@@ -10,5 +10,6 @@ timestamp,phase,action,status,notes
 2026-06-02T02:45:00+09:00,implementation,Added Nos secretary assistant,done,Generated original assistant image and added chat plus voice entry points
 2026-06-02T03:00:00+09:00,design,Replaced secretary with non-human mascot,done,Generated floating AI bot mascot and updated app references
 2026-06-02T03:20:00+09:00,qa,Pre-git test operation,done,Checked login pages tasks employees attendance assistant notifications settings calendar and mobile overflow
+2026-06-02T03:55:00+09:00,implementation,Switched AI secretary to OpenAI-first provider,done,Added OpenAI Responses API adapter provider selector env docs and Supabase setup notes
 2026-06-02T03:30:00+09:00,security,Locked permission update route,done,Role updates now require admin actorRole in local demo API
 2026-06-02T03:40:00+09:00,integration,Added Claude API insertion point,done,Server adapter route env example and setup document with local fallback

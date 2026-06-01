@@ -38,6 +38,8 @@ Use this list tomorrow morning to decide what to adjust first.
 - Tap the secretary character.
 - Try: `今日やること`, `次に何？`, `売上は？`, `予定を出して`.
 - On mobile, test browser speech input and keyboard dictation.
+- Add `OPENAI_API_KEY` to `.env.local`, restart, and confirm replies are no
+  longer marked as local fallback.
 
 ## 6. Revenue View
 
@@ -47,10 +49,10 @@ Use this list tomorrow morning to decide what to adjust first.
 
 ## 7. API Connection Order
 
-1. Supabase Auth and PostgreSQL.
-2. Google OAuth.
-3. Google Calendar export/import hardening.
-4. Google Sheets attendance sync.
-5. OpenAI/Whisper task assistant.
-6. Gmail parsing and task candidates.
-
+1. OpenAI API key for the secretary.
+2. Supabase Auth and PostgreSQL.
+3. Google OAuth.
+4. Google Calendar export/import hardening.
+5. Google Sheets attendance sync.
+6. Whisper voice confirmation flow.
+7. Gmail parsing and task candidates.

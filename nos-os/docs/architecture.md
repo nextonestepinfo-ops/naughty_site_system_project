@@ -47,7 +47,7 @@ flowchart TD
 | Auth | local role-select login | Google OAuth and email login |
 | DB | SQL schema and seed-like TS data | Supabase PostgreSQL |
 | Notifications | in-app + PWA permission flow | Push subscriptions |
-| AI | deterministic local recommendations | OpenAI-powered analysis |
+| AI | OpenAI-ready secretary with local fallback | OpenAI-powered analysis and voice workflows |
 
 ## Role Model
 
@@ -61,8 +61,8 @@ flowchart TD
 - `src/lib/data/*`: typed domain data and repository functions.
 - `src/app/api/*`: future backend adapter boundary.
 - `src/lib/auth/*`: Supabase Auth can replace local session implementation.
-- `src/lib/integrations/*`: Google Sheets, Gmail, Calendar, and OpenAI adapters
-  should be added here in Phase2/3.
+- `src/lib/integrations/*`: OpenAI, Claude fallback, Google Sheets, Gmail, and
+  Calendar adapters live here.
 - `supabase/schema.sql`: canonical database definition for Phase1 tables.
 
 ## Non-Goals For Phase1
@@ -70,5 +70,4 @@ flowchart TD
 - Real Google OAuth callback handling without project credentials.
 - Real Supabase connection without URL/key.
 - Real push delivery without VAPID keys and push subscription storage.
-- Real Gmail/Calendar/OpenAI API calls.
-
+- Real Gmail/Calendar API calls.

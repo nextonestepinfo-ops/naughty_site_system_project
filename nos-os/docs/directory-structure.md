@@ -47,6 +47,10 @@ nos-os/
       data/
       hooks/
       integrations/
+        secretary.ts
+        openai.ts
+        claude.ts
+        secretary-local.ts
       pwa/
       types.ts
 ```

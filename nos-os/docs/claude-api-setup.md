@@ -1,7 +1,7 @@
 # Claude API Setup For Nos OS
 
-Nos OS is ready to use Claude for the AI secretary without exposing the API key
-to the browser.
+Nos OS is OpenAI-first now. Claude remains available as an optional fallback by
+setting `AI_PROVIDER=anthropic` or `AI_PROVIDER=auto`.
 
 ## Where To Put The Key
 
@@ -10,6 +10,7 @@ Create `.env.local` in `nos-os/`:
 ```bash
 ANTHROPIC_API_KEY=your_key_here
 ANTHROPIC_MODEL=your_selected_claude_model
+AI_PROVIDER=anthropic
 ```
 
 Use the model ID from the Anthropic console or official docs. Model names can
@@ -25,9 +26,9 @@ change, so Nos OS does not hardcode one.
 ## How It Works
 
 1. UI sends a message to `/api/ai/secretary`.
-2. The server route calls `askSecretaryWithClaude()`.
-3. If `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` are set, the server calls the
-   Anthropic Messages API.
+2. The server route calls the provider selector in `src/lib/integrations/secretary.ts`.
+3. If Claude is selected and `ANTHROPIC_API_KEY` plus `ANTHROPIC_MODEL` are set,
+   the server calls the Anthropic Messages API.
 4. If they are missing or the API fails, Nos OS falls back to local secretary
    replies so the app keeps working.
 
@@ -58,4 +59,3 @@ Try:
 - The admin permission route now requires `actorRole: "admin"` in the request
   body for the local demo. In Supabase Phase2, replace this with server-side
   session/RLS checks.
-

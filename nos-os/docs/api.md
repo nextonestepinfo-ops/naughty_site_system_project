@@ -1,7 +1,9 @@
 # Nos OS API List
 
 Phase1 route handlers return typed local data. They are intentionally shaped so
-Supabase, Google, and OpenAI integrations can replace the mock repository later.
+Supabase and Google integrations can replace the mock repository later. The AI
+secretary already supports OpenAI via the server route when `OPENAI_API_KEY` is
+set.
 
 | Method | Path | Purpose | Role |
 | --- | --- | --- | --- |
@@ -33,7 +35,7 @@ Supabase, Google, and OpenAI integrations can replace the mock repository later.
 | `PATCH` | `/api/notifications/:id/read` | Mark read | all |
 | `POST` | `/api/notifications/push-subscription` | Save PWA push subscription | all |
 | `GET` | `/api/ai/recommendations` | Priority-scored suggestions | all |
-| `POST` | `/api/ai/secretary` | Claude-ready AI secretary chat with local fallback | all |
+| `POST` | `/api/ai/secretary` | OpenAI-ready AI secretary chat with Claude/local fallback | all |
 | `POST` | `/api/integrations/google-sheets/sync` | Phase1 placeholder sync | admin |
 
 ## Priority Score Formula

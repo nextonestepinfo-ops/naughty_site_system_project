@@ -1,6 +1,6 @@
 "use client";
 
-import { Database, FileText, KeyRound, Moon, PlugZap, ShieldCheck, Smartphone } from "lucide-react";
+import { Bot, Database, FileText, KeyRound, Moon, PlugZap, ShieldCheck, Smartphone } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { PageHeader } from "@/components/domain/page-header";
@@ -58,6 +58,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
             <Integration icon={Database} label="Supabase" status="未接続" />
+            <Integration icon={Bot} label="OpenAI" status="env接続" />
             <Integration icon={ShieldCheck} label="Google OAuth" status="未接続" />
             <Integration icon={FileText} label="Google Sheets" status="準備済み" />
             <Integration icon={Smartphone} label="PWA Push" status="ローカル" />
@@ -76,6 +77,8 @@ export default function SettingsPage() {
               "screens.md",
               "navigation.md",
               "api.md",
+              "ai-provider-setup.md",
+              "supabase-setup.md",
               "directory-structure.md",
             ].map((file) => (
               <Link key={file} href="#" className="block rounded-panel bg-slate-50 px-3 py-2 text-accent dark:bg-white/5">
@@ -109,4 +112,3 @@ function Integration({ icon: Icon, label, status }: { icon: typeof Database; lab
     </div>
   );
 }
-
