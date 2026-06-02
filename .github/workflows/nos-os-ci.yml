@@ -1,0 +1,45 @@
+name: Nos OS CI
+
+on:
+  push:
+    branches:
+      - main
+      - codex/nos-os-daily-cockpit
+    paths:
+      - "nos-os/**"
+      - ".github/workflows/nos-os-ci.yml"
+  pull_request:
+    paths:
+      - "nos-os/**"
+      - ".github/workflows/nos-os-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nos-os
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: nos-os/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
