@@ -377,15 +377,15 @@ function buildRevenueSummary(role: Role, employeeId?: string): RevenueSummary {
       .reduce((sum, project) => sum + project.budget * statusWeight[project.status], 0),
   );
   return {
-    monthTarget: role === "sales" ? 1800000 : 3200000,
+    monthTarget: 500000,
     monthBooked,
     weightedForecast,
     personalContribution,
     activePipeline: scopedProjects.reduce((sum, project) => sum + project.budget, 0),
     closingHints: [
-      "提案中と顧客確認中の案件を午前に1件ずつ追う",
-      "返信待ちはタスク化して明日の朝に残さない",
-      "金額が大きい案件は次回判断日をカレンダーに置く",
+      "返信済み候補は午前中に次回確認日まで返す",
+      "6月は連絡60件、返信10件、商談4件を毎日見直す",
+      "高単価候補はPOCと本開発を分けて約束する",
     ],
   };
 }

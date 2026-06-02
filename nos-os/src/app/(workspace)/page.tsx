@@ -62,7 +62,7 @@ export default function DashboardPage() {
         description="スマホで開いた瞬間に、今やること、次にやること、遅れた時のまずさ、予定と売上が見えるようにしています。"
       />
 
-      <section className="mb-5 grid gap-3 md:grid-cols-3">
+      <section className="mb-5 grid gap-3 md:grid-cols-4">
         <QuickStep
           tone={plan.riskLevel === "danger" ? "red" : "blue"}
           label="1 今やる"
@@ -81,6 +81,7 @@ export default function DashboardPage() {
           title={plan.riskLevel === "danger" ? "遅れると危険" : plan.riskLevel === "watch" ? "今日中に調整" : "順調"}
           body={plan.ifNotDoneImpact}
         />
+        <QuickExportStep href={plan.calendarExportUrl} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
@@ -311,5 +312,24 @@ function QuickStep({
       <p className="mt-2 line-clamp-2 font-semibold leading-6">{title}</p>
       <p className="mt-1 line-clamp-2 text-xs leading-5 opacity-80">{body}</p>
     </div>
+  );
+}
+
+function QuickExportStep({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      className={cn(
+        "flex min-h-[120px] flex-col rounded-panel border border-slate-200 bg-white p-4 text-slate-900 transition hover:-translate-y-0.5 hover:shadow-soft",
+        "dark:border-white/10 dark:bg-white/5 dark:text-white",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase">4 予定出力</p>
+        <Download className="h-4 w-4 text-accent" />
+      </div>
+      <p className="mt-2 line-clamp-2 font-semibold leading-6">今日の予定をICSで出力</p>
+      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-300">iPhone / Google Calendarへ</p>
+    </a>
   );
 }

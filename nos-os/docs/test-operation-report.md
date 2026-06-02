@@ -23,6 +23,9 @@ Tested before Git push:
 | Settings still felt too dense for first-time setup. | Reworked it into status tiles, a "start here" API setup block, and secondary Supabase/account sections. |
 | Floating secretary answers were hard to read on mobile and in dark mode. | Added compact assistant message rendering, scrollable panel layout, stronger input contrast, and shorter AI reply guidance. |
 | Secretary answer logic existed separately in UI components. | Moved secretary reply path behind the server API with local fallback. |
+| Daily cockpit still used generic demo customers and projects. | Replaced them with June first-order sales sprint, Web demo sales, small business tool, POC, and outsourcing/SNS workflow data. |
+| Calendar export was available but not obvious in the first viewport. | Added a fourth quick card for today's ICS export beside now, next, and risk. |
+| Tasks page was still closer to a viewer than an operating surface. | Added a next-task focus panel, live counts, and quick start / review / done actions across list, kanban, and date views. |
 
 ## Verified
 
@@ -32,6 +35,9 @@ Tested before Git push:
 - Secretary answers render as short numbered action cards without raw Markdown.
 - Dark mode keeps settings labels, inputs, and assistant controls readable.
 - Daily cockpit shows colored "now / next / risk" guidance without horizontal overflow around 700px width.
+- Daily cockpit now shows "now / next / risk / calendar export" at 390px without horizontal overflow.
+- Tasks page shows the focus task, live counts, and status action buttons at 390px without horizontal overflow.
+- Task status PATCH was checked by moving `task-urata-reply` to review and back to in-progress.
 - Calendar endpoint returns `BEGIN:VEVENT` entries.
 - TypeScript, lint, and production build pass after cleanup.
 

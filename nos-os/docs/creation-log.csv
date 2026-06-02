@@ -13,5 +13,7 @@ timestamp,phase,action,status,notes
 2026-06-02T03:55:00+09:00,implementation,Switched AI secretary to OpenAI-first provider,done,Added OpenAI Responses API adapter provider selector env docs and Supabase setup notes
 2026-06-02T14:20:00+09:00,implementation,Added in-app admin API settings,done,Admins can save OpenAI model key and Supabase public settings from the Settings screen for local test operation
 2026-06-02T14:58:00+09:00,ux,Simplified settings and secretary UI,done,Made admin API setup easier to read improved dark contrast and rendered secretary answers as concise numbered action cards
+2026-06-02T17:48:00+09:00,ux,Aligned daily cockpit with June sales operations,done,Replaced generic demo customers/projects/tasks with NosTechnology first-order sales sprint data and added visible calendar export card
+2026-06-02T18:02:00+09:00,implementation,Upgraded task management OS execution flow,done,Added task focus summary live counts and quick start review done actions across list kanban and date views
 2026-06-02T03:30:00+09:00,security,Locked permission update route,done,Role updates now require admin actorRole in local demo API
 2026-06-02T03:40:00+09:00,integration,Added Claude API insertion point,done,Server adapter route env example and setup document with local fallback
