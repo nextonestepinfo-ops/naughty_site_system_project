@@ -21,9 +21,15 @@ export function MetricCard({
     green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
     red: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-200",
   }[tone];
+  const borderClass = {
+    slate: "border-l-slate-300 dark:border-l-slate-500",
+    blue: "border-l-blue-500",
+    green: "border-l-emerald-500",
+    red: "border-l-red-500",
+  }[tone];
 
   return (
-    <Card>
+    <Card className={cn("border-l-4", borderClass)}>
       <CardContent className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
@@ -37,4 +43,3 @@ export function MetricCard({
     </Card>
   );
 }
-

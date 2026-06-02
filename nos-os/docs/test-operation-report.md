@@ -20,6 +20,8 @@ Tested before Git push:
 | Claude API insertion point was not explicit. | Added `src/lib/integrations/claude.ts`, `/api/ai/secretary`, `.env.example`, and Claude setup docs. |
 | AI provider should now be OpenAI-first. | Added `src/lib/integrations/openai.ts`, `AI_PROVIDER=openai`, provider selector, and OpenAI setup docs. |
 | API key location was hard to find. | Added an admin-only Settings form that stores local OpenAI settings in the browser and passes them to the secretary API. |
+| Settings still felt too dense for first-time setup. | Reworked it into status tiles, a "start here" API setup block, and secondary Supabase/account sections. |
+| Floating secretary answers were hard to read on mobile and in dark mode. | Added compact assistant message rendering, scrollable panel layout, stronger input contrast, and shorter AI reply guidance. |
 | Secretary answer logic existed separately in UI components. | Moved secretary reply path behind the server API with local fallback. |
 
 ## Verified
@@ -27,6 +29,9 @@ Tested before Git push:
 - All primary pages rendered expected headings.
 - No horizontal overflow at 390px width.
 - Floating AI secretary opens and exposes text/voice entry points.
+- Secretary answers render as short numbered action cards without raw Markdown.
+- Dark mode keeps settings labels, inputs, and assistant controls readable.
+- Daily cockpit shows colored "now / next / risk" guidance without horizontal overflow around 700px width.
 - Calendar endpoint returns `BEGIN:VEVENT` entries.
 - TypeScript, lint, and production build pass after cleanup.
 

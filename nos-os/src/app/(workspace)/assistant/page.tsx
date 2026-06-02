@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { BrainCircuit, Mic, Send, Sparkles } from "lucide-react";
+import { BrainCircuit, Loader2, Mic, Send, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { AssistantMessage } from "@/components/domain/assistant-message";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -21,26 +22,41 @@ type SpeechRecognitionCtor = new () => {
   onend: (() => void) | null;
 };
 
+const samplePrompts = ["今日やること", "次に何？", "売上は？", "予定を出して"];
+
 export default function AssistantPage() {
   const recommendations = useScopedQuery<AiSummary[]>(["ai-recommendations"], "/api/ai/recommendations");
   const [question, setQuestion] = useState("");
   const [listening, setListening] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState("今日やるべきことは、期限・優先度・顧客返信待ち・遅延リスクのスコア順に並びます。");
+  const [source, setSource] = useState<SecretaryReply["source"]>("local");
 
   if (recommendations.isLoading || !recommendations.data) return <LoadingPanel label="AI提案を読み込み中" />;
 
   async function ask(text = question) {
-    if (!text.trim()) return;
-    const data = await apiFetch<SecretaryReply>("/api/ai/secretary", {
-      method: "POST",
-      body: JSON.stringify({
-        message: text,
-        context: recommendations.data?.map((item) => `${item.title}: ${item.summary}`).join("\n"),
-        integrationSettings: buildSecretaryIntegrationPayload(),
-      }),
-    });
-    setAnswer(data.reply);
-    setQuestion("");
+    const normalized = text.trim();
+    if (!normalized || loading) return;
+
+    setLoading(true);
+    try {
+      const data = await apiFetch<SecretaryReply>("/api/ai/secretary", {
+        method: "POST",
+        body: JSON.stringify({
+          message: normalized,
+          context: recommendations.data?.map((item) => `${item.title}: ${item.summary}`).join("\n"),
+          integrationSettings: buildSecretaryIntegrationPayload(),
+        }),
+      });
+      setAnswer(data.reply);
+      setSource(data.source);
+      setQuestion("");
+    } catch {
+      setAnswer("通信に失敗しました。少し時間を置いてもう一度試してください。");
+      setSource("local");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function startVoice() {
@@ -81,7 +97,7 @@ export default function AssistantPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{item.title}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">{item.summary}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{item.summary}</p>
                   </div>
                   <Badge tone={item.score > 85 ? "red" : "blue"}>{item.score}</Badge>
                 </div>
@@ -93,28 +109,40 @@ export default function AssistantPage() {
         <div className="space-y-5">
           <Card className="overflow-hidden">
             <CardContent className="p-0">
-              <div className="grid grid-cols-[120px_1fr] gap-3 p-4">
-                <div className="relative h-36 overflow-hidden rounded-panel bg-blue-50">
+              <div className="grid gap-3 p-4 sm:grid-cols-[120px_1fr]">
+                <div className="relative h-32 overflow-hidden rounded-panel bg-blue-50 sm:h-36">
                   <Image src="/assistant/nos-secretary-bot.png" alt="Nos OS AI secretary bot" fill className="object-cover object-center" sizes="120px" />
                 </div>
-                <div>
-                  <p className="font-bold">Nos秘書</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{answer}</p>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold">Nos秘書</p>
+                    <Badge tone={source === "openai" ? "blue" : "slate"}>{source === "openai" ? "OpenAI" : "Local"}</Badge>
+                  </div>
+                  <div className="mt-3 max-h-96 overflow-y-auto rounded-panel border border-border bg-slate-50 p-3 dark:bg-white/5">
+                    {loading ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-300">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        整理しています...
+                      </div>
+                    ) : (
+                      <AssistantMessage text={answer} />
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="border-t border-border p-4">
-                <div className="flex gap-2">
+                <div className="grid grid-cols-[1fr_44px_44px] gap-2">
                   <Input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="例: 次に何をやる？" onKeyDown={(event) => event.key === "Enter" && void ask()} />
-                  <Button aria-label="送信" title="送信" size="icon" onClick={() => void ask()}>
-                    <Send className="h-4 w-4" />
+                  <Button aria-label="送信" title="送信" size="icon" disabled={loading || !question.trim()} onClick={() => void ask()}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                   <Button aria-label="音声入力" title="音声入力" size="icon" variant={listening ? "danger" : "secondary"} onClick={startVoice}>
                     <Mic className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                  {["今日やること", "次に何？", "売上は？", "予定を出して"].map((sample) => (
-                    <button key={sample} className="rounded-full bg-slate-100 px-2 py-1 dark:bg-white/10" onClick={() => void ask(sample)}>
+                  {samplePrompts.map((sample) => (
+                    <button key={sample} className="rounded-full bg-slate-100 px-2 py-1 dark:bg-white/10 dark:text-slate-200" onClick={() => void ask(sample)}>
                       {sample}
                     </button>
                   ))}

@@ -28,7 +28,7 @@ import { attendanceStatusLabels } from "@/lib/data/labels";
 import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import type { DashboardSummary, Employee, Project, Task } from "@/lib/types";
-import { formatCurrency, formatDateTime, formatTime } from "@/lib/utils";
+import { cn, formatCurrency, formatDateTime, formatTime } from "@/lib/utils";
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -53,6 +53,7 @@ export default function DashboardPage() {
   const statusTotal = Object.values(dashboard.data.employeeStatus).reduce((sum, value) => sum + value, 0);
   const priorityTasks = Array.from(new Map([...(plan.focusTask ? [plan.focusTask] : []), ...plan.nextTasks].map((task) => [task.id, task])).values());
   const revenueRate = Math.min(100, Math.round((plan.revenue.weightedForecast / plan.revenue.monthTarget) * 100));
+  const nextTask = plan.nextTasks[0];
 
   return (
     <>
@@ -60,6 +61,27 @@ export default function DashboardPage() {
         title={session?.role === "admin" ? "今日の司令室" : "今日やること"}
         description="スマホで開いた瞬間に、今やること、次にやること、遅れた時のまずさ、予定と売上が見えるようにしています。"
       />
+
+      <section className="mb-5 grid gap-3 md:grid-cols-3">
+        <QuickStep
+          tone={plan.riskLevel === "danger" ? "red" : "blue"}
+          label="1 今やる"
+          title={plan.focusTask?.title ?? "未完了タスクなし"}
+          body={plan.riskLevel === "danger" ? "赤は先に処理" : "まず1つ完了"}
+        />
+        <QuickStep
+          tone="green"
+          label="2 終わったら"
+          title={nextTask?.title ?? "通知を確認"}
+          body="次の一手だけ見る"
+        />
+        <QuickStep
+          tone={plan.riskLevel === "safe" ? "green" : "amber"}
+          label="3 リスク"
+          title={plan.riskLevel === "danger" ? "遅れると危険" : plan.riskLevel === "watch" ? "今日中に調整" : "順調"}
+          body={plan.ifNotDoneImpact}
+        />
+      </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="overflow-hidden">
@@ -261,6 +283,33 @@ function SmallInfo({ label, value }: { label: string; value: string }) {
     <div className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-1 truncate font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function QuickStep({
+  label,
+  title,
+  body,
+  tone,
+}: {
+  label: string;
+  title: string;
+  body: string;
+  tone: "blue" | "green" | "red" | "amber";
+}) {
+  const toneClass = {
+    blue: "border-blue-200 bg-blue-50 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-100",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100",
+    red: "border-red-200 bg-red-50 text-red-900 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-100",
+    amber: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-100",
+  }[tone];
+
+  return (
+    <div className={cn("rounded-panel border p-4", toneClass)}>
+      <p className="text-xs font-bold uppercase">{label}</p>
+      <p className="mt-2 line-clamp-2 font-semibold leading-6">{title}</p>
+      <p className="mt-1 line-clamp-2 text-xs leading-5 opacity-80">{body}</p>
     </div>
   );
 }
