@@ -4,6 +4,8 @@
 
 - Local test app: `http://localhost:3100`
 - Local task screen: `http://localhost:3100/tasks`
+- Local preview status: `http://localhost:3100/test`
+- Local safe health check: `http://localhost:3100/api/health`
 - GitHub branch: `https://github.com/nextonestepinfo-ops/naughty_site_system_project/tree/codex/nos-os-daily-cockpit/nos-os`
 
 ## Current GitHub Status
@@ -68,3 +70,15 @@ multi-employee task data.
 change. A green CI run means the pushed branch can compile before it is connected
 to the employee preview host.
 
+## In-App Preview Status
+
+Open `/test` after deploying. It shows:
+
+- whether OpenAI is configured,
+- whether Supabase public and service keys are present,
+- whether the app is still using demo data,
+- the first workflows employees should try,
+- how testers should report feedback.
+
+The `/api/health` endpoint returns only safe booleans and labels. It does not
+return API keys or secret values.

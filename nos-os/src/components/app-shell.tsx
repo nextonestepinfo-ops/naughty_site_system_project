@@ -8,6 +8,7 @@ import {
   CalendarClock,
   ChevronRight,
   ClipboardList,
+  FlaskConical,
   Home,
   LogOut,
   Moon,
@@ -37,6 +38,7 @@ const navItems: Array<{ href: string; label: string; icon: LucideIcon; adminOnly
   { href: "/employees", label: "社員", icon: Users, adminOnly: true },
   { href: "/attendance", label: "勤怠", icon: CalendarClock },
   { href: "/assistant", label: "AI", icon: Bot },
+  { href: "/test", label: "テスト", icon: FlaskConical, adminOnly: true },
 ];
 
 const mobileItems = navItems.filter((item) => ["/", "/projects", "/tasks", "/attendance", "/assistant"].includes(item.href));

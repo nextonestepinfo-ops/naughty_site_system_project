@@ -271,15 +271,18 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PlugZap className="h-4 w-4" />
-                次にやる設定
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+            <CardTitle className="flex items-center gap-2">
+              <PlugZap className="h-4 w-4" />
+              次にやる設定
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
               <GuideStep done={openAiReady || localOnly} label="AI秘書を使える状態にする" />
               <GuideStep done={supabaseReady} label="Supabaseを接続する" />
               <GuideStep done={false} label="Google連携を本番用に入れる" />
+              <Link href="/test" className="block rounded-panel bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-200">
+                テスト版ステータスを見る
+              </Link>
             </CardContent>
           </Card>
 
@@ -365,7 +368,7 @@ export default function SettingsPage() {
             <CardTitle>設計ドキュメント</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-            {["api.md", "ai-provider-setup.md", "supabase-setup.md", "screens.md"].map((file) => (
+            {["api.md", "ai-provider-setup.md", "supabase-setup.md", "employee-test-deployment.md"].map((file) => (
               <Link key={file} href="#" className="rounded-panel bg-slate-50 px-3 py-2 text-accent dark:bg-white/5">
                 docs/{file}
               </Link>

@@ -26,6 +26,7 @@ Tested before Git push:
 | Daily cockpit still used generic demo customers and projects. | Replaced them with June first-order sales sprint, Web demo sales, small business tool, POC, and outsourcing/SNS workflow data. |
 | Calendar export was available but not obvious in the first viewport. | Added a fourth quick card for today's ICS export beside now, next, and risk. |
 | Tasks page was still closer to a viewer than an operating surface. | Added a next-task focus panel, live counts, and quick start / review / done actions across list, kanban, and date views. |
+| Employee preview state was not visible inside the app. | Added `/test` and `/api/health` to show deployment readiness, connection status, blockers, and feedback guidance. |
 
 ## Verified
 
@@ -38,6 +39,8 @@ Tested before Git push:
 - Daily cockpit now shows "now / next / risk / calendar export" at 390px without horizontal overflow.
 - Tasks page shows the focus task, live counts, and status action buttons at 390px without horizontal overflow.
 - Task status PATCH was checked by moving `task-urata-reply` to review and back to in-progress.
+- Test page shows preview status, blockers, and feedback guidance at 390px without horizontal overflow.
+- Health endpoint returns safe environment flags without exposing secret values.
 - Calendar endpoint returns `BEGIN:VEVENT` entries.
 - TypeScript, lint, and production build pass after cleanup.
 
