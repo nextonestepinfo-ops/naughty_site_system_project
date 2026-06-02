@@ -14,7 +14,7 @@ Use this list tomorrow morning to decide what to adjust first.
 
 ## 2. Task Reality Check
 
-- Replace demo tasks with actual NosTechnology tasks.
+- Replace demo tasks with actual 株式会社Nosテック tasks.
 - Confirm whether AI score ordering feels correct.
 - Adjust `deadline 40 / priority 30 / customer waiting 20 / delay risk 10` if the top task feels wrong.
 

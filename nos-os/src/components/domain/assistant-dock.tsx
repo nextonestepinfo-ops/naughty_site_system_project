@@ -5,6 +5,7 @@ import { Mic, Send, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/form";
+import { buildSecretaryIntegrationPayload } from "@/lib/integrations/client-settings";
 import { apiFetch } from "@/lib/hooks/use-api";
 import type { SecretaryReply } from "@/lib/types";
 
@@ -27,7 +28,11 @@ export function AssistantDock() {
     if (!normalized) return;
     const data = await apiFetch<SecretaryReply>("/api/ai/secretary", {
       method: "POST",
-      body: JSON.stringify({ message: normalized, context: document.body.innerText.slice(0, 900) }),
+      body: JSON.stringify({
+        message: normalized,
+        context: document.body.innerText.slice(0, 900),
+        integrationSettings: buildSecretaryIntegrationPayload(),
+      }),
     });
     setReply(data.reply);
     setMessage("");

@@ -2,7 +2,7 @@
 
 ## Product Goal
 
-Nos OS is an internal business OS for NosTechnology teams running web production,
+Nos OS is an internal business OS for 株式会社Nosテック / Nos Technology teams running web production,
 system development, and AI process improvement work. Phase1 focuses on a local,
 mobile-first operational prototype that can later be connected to Supabase,
 Google OAuth, Google Sheets, Gmail, Calendar, and OpenAI.

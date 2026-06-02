@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "@/app/providers";
 
 export const metadata: Metadata = {
-  title: "Nos OS",
-  description: "NosTechnology internal business OS",
+  title: "Nos OS | Nos Technology",
+  description: "株式会社Nosテック internal business OS",
   applicationName: "Nos OS",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -30,4 +30,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-

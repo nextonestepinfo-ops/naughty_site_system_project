@@ -4,6 +4,15 @@ import { buildSecretaryInput, localSecretaryReply, secretaryInstructions } from 
 const openaiEndpoint = "https://api.openai.com/v1/responses";
 const defaultModel = "gpt-5.4-mini";
 
+export type OpenAIRuntimeConfig = {
+  apiKey?: string;
+  model?: string;
+  maxOutputTokens?: number;
+  reasoningEffort?: string;
+  organizationId?: string;
+  projectId?: string;
+};
+
 type OpenAIContentItem = {
   type?: string;
   text?: string;
@@ -43,20 +52,22 @@ function numericEnv(name: string, fallback: number) {
 export async function askSecretaryWithOpenAI(input: {
   message: string;
   context?: string;
+  config?: OpenAIRuntimeConfig;
 }): Promise<SecretaryReply> {
   const message = input.message.trim();
   if (!message) return localSecretaryReply(message);
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL || defaultModel;
+  const apiKey = input.config?.apiKey || process.env.OPENAI_API_KEY;
+  const model = input.config?.model || process.env.OPENAI_MODEL || defaultModel;
   if (!apiKey) return localSecretaryReply(message);
 
-  const reasoningEffort = process.env.OPENAI_REASONING_EFFORT?.trim();
+  const maxOutputTokens = input.config?.maxOutputTokens || numericEnv("OPENAI_MAX_OUTPUT_TOKENS", 520);
+  const reasoningEffort = input.config?.reasoningEffort?.trim() || process.env.OPENAI_REASONING_EFFORT?.trim();
   const body: Record<string, unknown> = {
     model,
     instructions: secretaryInstructions,
     input: buildSecretaryInput({ message, context: input.context }),
-    max_output_tokens: numericEnv("OPENAI_MAX_OUTPUT_TOKENS", 520),
+    max_output_tokens: maxOutputTokens,
   };
 
   if (reasoningEffort) {
@@ -68,12 +79,15 @@ export async function askSecretaryWithOpenAI(input: {
     Authorization: `Bearer ${apiKey}`,
   };
 
-  if (process.env.OPENAI_ORGANIZATION_ID) {
-    headers["OpenAI-Organization"] = process.env.OPENAI_ORGANIZATION_ID;
+  const organizationId = input.config?.organizationId || process.env.OPENAI_ORGANIZATION_ID;
+  const projectId = input.config?.projectId || process.env.OPENAI_PROJECT_ID;
+
+  if (organizationId) {
+    headers["OpenAI-Organization"] = organizationId;
   }
 
-  if (process.env.OPENAI_PROJECT_ID) {
-    headers["OpenAI-Project"] = process.env.OPENAI_PROJECT_ID;
+  if (projectId) {
+    headers["OpenAI-Project"] = projectId;
   }
 
   try {

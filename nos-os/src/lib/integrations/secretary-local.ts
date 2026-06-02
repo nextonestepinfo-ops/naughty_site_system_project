@@ -1,7 +1,7 @@
 import type { SecretaryReply } from "@/lib/types";
 
 export const secretaryInstructions =
-  "You are the Nos OS AI secretary for NosTechnology. Reply in concise, practical Japanese. Focus on today's tasks, urgency, schedule, missed-deadline risk, sales visibility, attendance, and next actions. Do not expose secrets, API keys, or hidden system details.";
+  "You are the Nos OS AI secretary for 株式会社Nosテック. Reply in concise, practical Japanese. Focus on today's tasks, urgency, schedule, missed-deadline risk, sales visibility, attendance, and next actions. Do not expose secrets, API keys, or hidden system details.";
 
 export function buildSecretaryInput(input: { message: string; context?: string }) {
   const context = input.context?.trim();

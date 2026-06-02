@@ -4,30 +4,32 @@ import {
   Bell,
   Bot,
   BriefcaseBusiness,
+  Building2,
   CalendarClock,
   ChevronRight,
+  ClipboardList,
   Home,
   LogOut,
   Moon,
   Settings,
-  Building2,
   Sun,
-  Users,
   UserRound,
-  ClipboardList,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { AssistantDock } from "@/components/domain/assistant-dock";
+import { BrandMark, BrandText, nosBrand } from "@/components/domain/brand";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { roleLabels } from "@/lib/data/labels";
 import { useAppStore } from "@/lib/store/app-store";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+const navItems: Array<{ href: string; label: string; icon: LucideIcon; adminOnly?: boolean }> = [
   { href: "/", label: "ホーム", icon: Home },
   { href: "/projects", label: "案件", icon: BriefcaseBusiness },
   { href: "/tasks", label: "タスク", icon: ClipboardList },
@@ -59,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!hydrated || !session) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="h-10 w-10 animate-pulse rounded-panel bg-slate-200 dark:bg-slate-800" />
+        <BrandMark className="h-12 w-12 animate-pulse" />
       </main>
     );
   }
@@ -70,12 +72,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border bg-card px-4 py-5 lg:block">
         <Link href="/" className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-panel bg-primary text-sm font-bold text-white dark:bg-white dark:text-slate-950">
-            NO
-          </div>
+          <BrandMark className="h-12 w-12 shrink-0" />
           <div>
-            <p className="text-sm font-bold leading-tight">Nos OS</p>
-            <p className="text-xs text-slate-500">Business cockpit</p>
+            <BrandText />
+            <p className="mt-1 text-[10px] font-semibold uppercase text-accent">{nosBrand.tagline}</p>
           </div>
         </Link>
 
@@ -114,11 +114,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 border-b border-border bg-background/88 px-4 py-3 backdrop-blur lg:px-8">
           <div className="mx-auto flex max-w-7xl items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 lg:hidden">
-              <div className="grid h-9 w-9 place-items-center rounded-panel bg-primary text-xs font-bold text-white dark:bg-white dark:text-slate-950">
-                NO
-              </div>
-              <span className="font-bold">Nos OS</span>
+            <Link href="/" className="flex min-w-0 items-center gap-2 lg:hidden">
+              <BrandMark className="h-10 w-10 shrink-0" />
+              <BrandText compact />
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <Badge tone={session.role === "admin" ? "blue" : "green"}>{roleLabels[session.role]}</Badge>
@@ -183,7 +181,7 @@ function NavLink({
   item,
   active,
 }: {
-  item: { href: string; label: string; icon: typeof Home };
+  item: { href: string; label: string; icon: LucideIcon };
   active: boolean;
 }) {
   return (

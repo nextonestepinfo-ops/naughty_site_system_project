@@ -19,6 +19,7 @@ Tested before Git push:
 | Permission update API accepted requests without an admin assertion. | Added `actorRole: "admin"` requirement to `/api/users/:id/role`. |
 | Claude API insertion point was not explicit. | Added `src/lib/integrations/claude.ts`, `/api/ai/secretary`, `.env.example`, and Claude setup docs. |
 | AI provider should now be OpenAI-first. | Added `src/lib/integrations/openai.ts`, `AI_PROVIDER=openai`, provider selector, and OpenAI setup docs. |
+| API key location was hard to find. | Added an admin-only Settings form that stores local OpenAI settings in the browser and passes them to the secretary API. |
 | Secretary answer logic existed separately in UI components. | Moved secretary reply path behind the server API with local fallback. |
 
 ## Verified

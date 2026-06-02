@@ -15,11 +15,12 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { BrandMark, nosBrand } from "@/components/domain/brand";
+import { LoadingPanel } from "@/components/domain/loading";
 import { MetricCard } from "@/components/domain/metric-card";
 import { PageHeader } from "@/components/domain/page-header";
 import { ProjectCard } from "@/components/domain/project-card";
 import { TaskCard } from "@/components/domain/task-card";
-import { LoadingPanel } from "@/components/domain/loading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,15 +64,19 @@ export default function DashboardPage() {
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="overflow-hidden">
           <CardContent className="grid gap-4 p-4 sm:grid-cols-[120px_1fr]">
-            <div className="relative mx-auto h-36 w-28 overflow-hidden rounded-panel bg-blue-50 sm:mx-0">
-              <Image src="/assistant/nos-secretary-bot.png" alt="Nos OS AI secretary bot" fill className="object-cover object-center" sizes="112px" priority />
+            <div className="space-y-3">
+              <BrandMark className="h-14 w-14" />
+              <div className="relative mx-auto h-32 w-28 overflow-hidden rounded-panel bg-blue-50 sm:mx-0">
+                <Image src="/assistant/nos-secretary-bot.png" alt="Nos OS AI secretary bot" fill className="object-cover object-center" sizes="112px" priority />
+              </div>
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={plan.riskLevel === "danger" ? "red" : plan.riskLevel === "watch" ? "amber" : "green"}>
-                  {plan.riskLevel === "danger" ? "今すぐ" : plan.riskLevel === "watch" ? "注意" : "安定"}
+                  {plan.riskLevel === "danger" ? "今すぐ" : plan.riskLevel === "watch" ? "注意" : "安全"}
                 </Badge>
                 <span className="text-sm text-slate-500">{formatDateTime(plan.generatedAt)} 更新</span>
+                <span className="text-sm font-medium text-accent">{nosBrand.companyName}</span>
               </div>
               <h2 className="mt-3 text-2xl font-bold leading-tight">{plan.focusTask?.title ?? "今日は大きな未完了タスクがありません"}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">{plan.riskMessage}</p>
@@ -160,7 +165,9 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>次にやること</CardTitle>
-              <Link href="/tasks" className="text-sm font-medium text-accent">すべて見る</Link>
+              <Link href="/tasks" className="text-sm font-medium text-accent">
+                すべて見る
+              </Link>
             </CardHeader>
             <CardContent className="space-y-3">
               {priorityTasks.slice(0, 5).map((task) => (
@@ -195,7 +202,9 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>現在担当案件</CardTitle>
-              <Link href="/projects" className="text-sm font-medium text-accent">案件一覧</Link>
+              <Link href="/projects" className="text-sm font-medium text-accent">
+                案件一覧
+              </Link>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
               {dashboard.data.activeProjects.slice(0, 4).map((project) => (

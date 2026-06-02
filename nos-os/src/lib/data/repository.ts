@@ -542,7 +542,7 @@ export function getCalendarIcs(role: Role, employeeId?: string) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//NosTechnology//Nos OS//JA",
+    "PRODID:-//Nos Technology//Nos OS//JA",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     ...plan.schedule.flatMap((block) => [

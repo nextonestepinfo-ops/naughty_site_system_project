@@ -3,7 +3,19 @@
 Nos OS now uses OpenAI by default for the AI secretary. Claude remains available
 as an optional fallback for comparison or future high-quality mode.
 
-## Recommended Local `.env.local`
+## Recommended App Setup
+
+For local test operation, log in as the admin user and open:
+
+```text
+http://localhost:3100/settings
+```
+
+Use `管理者 API接続設定` to paste the OpenAI API key, model, and max output
+tokens. The value is stored only in the current browser local storage and is
+sent to the local `/api/ai/secretary` route when the secretary is used.
+
+## Optional `.env.local`
 
 Create `nos-os/.env.local`:
 
@@ -51,7 +63,9 @@ the top priority and the task is mostly classification, ranking, or extraction.
 - Optional OpenAI project ID if the account has multiple projects.
 - Optional organization ID if the account uses legacy organization routing.
 
-Do not paste API keys into chat. Put them in `.env.local` only.
+Do not paste API keys into chat. For prototype use, paste them into the admin
+settings screen. For production or shared deployments, put them in server
+environment variables instead.
 
 ## Local Test
 

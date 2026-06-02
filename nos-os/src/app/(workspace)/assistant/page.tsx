@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/form";
+import { buildSecretaryIntegrationPayload } from "@/lib/integrations/client-settings";
 import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
 import type { AiSummary, SecretaryReply } from "@/lib/types";
 
@@ -35,6 +36,7 @@ export default function AssistantPage() {
       body: JSON.stringify({
         message: text,
         context: recommendations.data?.map((item) => `${item.title}: ${item.summary}`).join("\n"),
+        integrationSettings: buildSecretaryIntegrationPayload(),
       }),
     });
     setAnswer(data.reply);
@@ -63,7 +65,7 @@ export default function AssistantPage() {
 
   return (
     <>
-      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、次にやること、売上、予定を聞けます。OpenAI APIを入れると実回答、未設定時はローカル回答で動きます。" />
+      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、次にやること、売上、予定を聞けます。設定画面でOpenAI APIキーを入れると実回答、未設定時はローカル回答で動きます。" />
 
       <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
         <Card>

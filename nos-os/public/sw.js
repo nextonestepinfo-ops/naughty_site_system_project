@@ -1,5 +1,13 @@
-const CACHE_NAME = "nos-os-phase1-v1";
-const APP_SHELL = ["/", "/login", "/manifest.webmanifest", "/icons/icon-192.svg", "/icons/icon-512.svg"];
+const CACHE_NAME = "nos-os-phase1-v2";
+const APP_SHELL = [
+  "/",
+  "/login",
+  "/manifest.webmanifest",
+  "/icons/nos-icon-192.png",
+  "/icons/nos-icon-512.png",
+  "/brand/nos-technology-mark.png",
+  "/brand/nos-technology-lockup.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,9 +46,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/icons/icon-192.svg",
-      badge: "/icons/icon-192.svg",
+      icon: "/icons/nos-icon-192.png",
+      badge: "/icons/nos-icon-192.png",
     }),
   );
 });
-
