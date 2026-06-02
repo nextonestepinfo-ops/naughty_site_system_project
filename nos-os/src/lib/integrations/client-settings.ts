@@ -11,13 +11,16 @@ export type ClientIntegrationSettings = {
   supabaseAnonKey: string;
 };
 
+const publicSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const publicSupabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
 export const clientIntegrationDefaults: ClientIntegrationSettings = {
   aiProvider: "openai",
   openaiApiKey: "",
   openaiModel: "gpt-5.4-mini",
   openaiMaxOutputTokens: 520,
-  supabaseUrl: "",
-  supabaseAnonKey: "",
+  supabaseUrl: publicSupabaseUrl,
+  supabaseAnonKey: publicSupabaseAnonKey,
 };
 
 const storageKey = "nos-os-integration-settings";
@@ -34,6 +37,8 @@ export function getClientIntegrationSettings(): ClientIntegrationSettings {
       ...parsed,
       openaiMaxOutputTokens: Number(parsed.openaiMaxOutputTokens) || clientIntegrationDefaults.openaiMaxOutputTokens,
       aiProvider: parsed.aiProvider === "local" ? "local" : "openai",
+      supabaseUrl: parsed.supabaseUrl?.trim() ? parsed.supabaseUrl : clientIntegrationDefaults.supabaseUrl,
+      supabaseAnonKey: parsed.supabaseAnonKey?.trim() ? parsed.supabaseAnonKey : clientIntegrationDefaults.supabaseAnonKey,
     };
   } catch {
     return clientIntegrationDefaults;

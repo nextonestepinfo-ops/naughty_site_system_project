@@ -48,6 +48,7 @@ export default function SettingsPage() {
   const [showOpenAiKey, setShowOpenAiKey] = useState(false);
   const [settingsStatus, setSettingsStatus] = useState("未保存");
   const [testStatus, setTestStatus] = useState("");
+  const [supabaseTestStatus, setSupabaseTestStatus] = useState("");
 
   const openAiReady = Boolean(integrationSettings.openaiApiKey.trim());
   const supabaseReady = Boolean(integrationSettings.supabaseUrl.trim() && integrationSettings.supabaseAnonKey.trim());
@@ -67,6 +68,7 @@ export default function SettingsPage() {
     saveClientIntegrationSettings(integrationSettings);
     setSettingsStatus(integrationSettings.openaiApiKey ? `保存済み: ${maskSecret(integrationSettings.openaiApiKey)}` : "保存済み: APIキー未設定");
     setTestStatus("");
+    setSupabaseTestStatus("");
   }
 
   function clearSettings() {
@@ -74,6 +76,7 @@ export default function SettingsPage() {
     setIntegrationSettings(clientIntegrationDefaults);
     setSettingsStatus("削除済み");
     setTestStatus("");
+    setSupabaseTestStatus("");
   }
 
   async function testOpenAI() {
@@ -89,6 +92,37 @@ export default function SettingsPage() {
       }),
     });
     setTestStatus(data.configured ? `接続OK: ${data.source}` : "ローカル回答です。APIキー未設定、または接続に失敗しています。");
+  }
+
+  async function testSupabase() {
+    const supabaseUrl = integrationSettings.supabaseUrl.trim().replace(/\/$/, "");
+    const supabaseAnonKey = integrationSettings.supabaseAnonKey.trim();
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      setSupabaseTestStatus("Supabase URL と public key を入れてください。");
+      return;
+    }
+
+    saveClientIntegrationSettings(integrationSettings);
+    setSupabaseTestStatus("Supabase接続テスト中...");
+
+    try {
+      const response = await fetch(`${supabaseUrl}/rest/v1/users?select=id&limit=1`, {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+      });
+
+      if (response.ok) {
+        setSupabaseTestStatus("接続OK: usersテーブルまで確認できました。");
+        return;
+      }
+
+      setSupabaseTestStatus(`接続NG: ${response.status} ${response.statusText || ""}`.trim());
+    } catch {
+      setSupabaseTestStatus("接続NG: URLまたはキーを確認してください。");
+    }
   }
 
   return (
@@ -107,7 +141,7 @@ export default function SettingsPage() {
           icon={Database}
           title="データ連携"
           status={supabaseReady ? "Supabase準備OK" : "未接続"}
-          body={supabaseReady ? "公開URLとanon keyが入っています。" : "今はローカルデモデータで動いています。"}
+          body={supabaseReady ? "公開URLとpublic keyが入っています。" : "今はローカルデモデータで動いています。"}
           tone={supabaseReady ? "green" : "slate"}
         />
         <StatusTile
@@ -276,7 +310,20 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Input value={integrationSettings.supabaseUrl} onChange={(event) => updateIntegrationSettings({ supabaseUrl: event.target.value })} placeholder="https://xxxxx.supabase.co" />
-            <Input value={integrationSettings.supabaseAnonKey} onChange={(event) => updateIntegrationSettings({ supabaseAnonKey: event.target.value })} placeholder="anon public key" type="password" autoComplete="off" />
+            <Input value={integrationSettings.supabaseAnonKey} onChange={(event) => updateIntegrationSettings({ supabaseAnonKey: event.target.value })} placeholder="anon / publishable public key" type="password" autoComplete="off" />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={saveSettings}>
+                保存
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => void testSupabase()}>
+                Supabase接続テスト
+              </Button>
+            </div>
+            {supabaseTestStatus ? (
+              <div className={cn("rounded-panel px-3 py-2 text-sm", supabaseTestStatus.startsWith("接続OK") ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200" : "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200")}>
+                {supabaseTestStatus}
+              </div>
+            ) : null}
             <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">service role keyは強い秘密鍵なので、この画面には保存しません。</p>
           </CardContent>
         </Card>
