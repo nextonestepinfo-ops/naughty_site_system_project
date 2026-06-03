@@ -4,35 +4,34 @@ const ASSET_ROOT = "../01_existing_site/";
 
 const statusLabel = {
   working: "出勤中",
-  scheduled: "出勤予定",
+  soon: "まもなく",
+  scheduled: "本日出勤",
   off: "休み",
   hidden: "非表示"
 };
 
-const heroFallbackPhotos = [
-  "uploads/girl1_black_hair.png",
-  "uploads/girl2_silver_hair.png",
-  "uploads/girl3_dark_center.png",
-  "uploads/girl4_blonde.png",
-  "uploads/girl5_pink_hair.png"
-];
+const statusRank = {
+  working: 0,
+  soon: 1,
+  scheduled: 2,
+  off: 3
+};
 
 let siteData = null;
-let heroOrder = [0, 1, 2, 3, 4];
+let activeScheduleDate = "";
+let activeTalentIndex = 0;
+let talentTimer = 0;
+let revealObserver = null;
 
-const heroLayout = [
-  { slot: 0, scale: 1.03, mobileScale: 1, z: 2, depth: "-36px", x: "-12px", y: "8px" },
-  { slot: 1, scale: 1, mobileScale: 1, z: 3, depth: "-18px", x: "-5px", y: "4px" },
-  { slot: 2, scale: .8, mobileScale: .82, z: 5, depth: "28px", x: "0px", y: "0px" },
-  { slot: 3, scale: 1.04, mobileScale: 1.06, z: 4, depth: "10px", x: "7px", y: "6px" },
-  { slot: 4, scale: .88, mobileScale: .88, z: 3, depth: "-24px", x: "12px", y: "10px" }
-];
+const $ = (selector) => document.querySelector(selector);
 
 async function loadData() {
   const fallback = await loadSeedData();
   const saved = localStorage.getItem(STORAGE_KEY);
   siteData = mergeSavedData(fallback, saved);
+  activeScheduleDate = getTodayDate();
   render();
+  startTalentAuto();
 }
 
 async function loadSeedData() {
@@ -50,26 +49,13 @@ async function loadSeedData() {
 
 function mergeSavedData(fallback, savedText) {
   if (!savedText) return fallback;
-  const saved = JSON.parse(savedText);
-  const merged = { ...fallback, ...saved };
-  if (saved.assetVersion !== fallback.assetVersion) {
-    const savedStaff = new Map((saved.staff || []).map((staff) => [staff.id, staff]));
-    merged.shop = {
-      ...fallback.shop,
-      ...(saved.shop || {}),
-      displayName: fallback.shop.displayName,
-      concept: fallback.shop.concept
-    };
-    merged.staff = fallback.staff.map((seedStaff) => ({
-      ...seedStaff,
-      ...(savedStaff.get(seedStaff.id) || {}),
-      photo: seedStaff.photo,
-      heroPhoto: seedStaff.heroPhoto
-    }));
-    merged.materials = fallback.materials;
-    merged.assetVersion = fallback.assetVersion;
+  try {
+    const saved = JSON.parse(savedText);
+    if (saved.assetVersion !== fallback.assetVersion) return fallback;
+    return { ...fallback, ...saved };
+  } catch {
+    return fallback;
   }
-  return merged;
 }
 
 function asset(path, fallback = "") {
@@ -78,17 +64,14 @@ function asset(path, fallback = "") {
   return `${ASSET_ROOT}${path}`;
 }
 
-function yen(value) {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 0
-  }).format(Number(value || 0));
+function siteAsset(path, fallback = "") {
+  if (!path) return fallback;
+  if (/^https?:\/\//.test(path)) return path;
+  return `assets/${path}`;
 }
 
-function dateLabel(dateText) {
-  const date = new Date(`${dateText}T00:00:00`);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+function staffChibiIcon(staff) {
+  return siteAsset(`chibi/${staff.id}-chibi.png`, asset(staff.photo));
 }
 
 function dateKey(date) {
@@ -98,168 +81,243 @@ function dateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
-function getShift(date, staffId) {
-  return siteData.shifts.find((shift) => shift.date === date && shift.staffId === staffId);
+function dateLabel(dateText) {
+  const date = new Date(`${dateText}T00:00:00`);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-function getShiftDates() {
-  const sorted = [...new Set(siteData.shifts.map((shift) => shift.date))].sort();
-  const start = sorted[0] || dateKey(new Date());
-  const startDate = new Date(`${start}T00:00:00`);
-  return Array.from({ length: 14 }, (_, index) => {
-    const next = new Date(startDate);
-    next.setDate(startDate.getDate() + index);
-    return dateKey(next);
-  });
+function dayName(dateText) {
+  const date = new Date(`${dateText}T00:00:00`);
+  return ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][date.getDay()];
 }
 
 function visibleStaff() {
-  return siteData.staff.filter((staff) => staff.publicVisible);
+  return (siteData.staff || []).filter((staff) => staff.publicVisible);
+}
+
+function getScheduleDates() {
+  return [...new Set((siteData.shifts || []).map((shift) => shift.date))].sort();
+}
+
+function getTodayDate() {
+  const dates = getScheduleDates();
+  const today = dateKey(new Date());
+  return dates.includes(today) ? today : dates.find((date) => date >= today) || dates[0] || today;
+}
+
+function staffById(id) {
+  return siteData.staff.find((staff) => staff.id === id);
+}
+
+function shiftsForDate(date) {
+  return (siteData.shifts || [])
+    .filter((shift) => shift.date === date)
+    .map((shift) => ({ ...shift, staff: staffById(shift.staffId) }))
+    .filter((shift) => shift.staff && shift.staff.publicVisible)
+    .sort((a, b) => {
+      const rank = (statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9);
+      if (rank !== 0) return rank;
+      return String(a.start || "99:99").localeCompare(String(b.start || "99:99"));
+    });
+}
+
+function todayShifts() {
+  return shiftsForDate(getTodayDate()).filter((shift) => shift.status !== "off");
+}
+
+function shiftForStaffToday(staffId) {
+  return shiftsForDate(getTodayDate()).find((shift) => shift.staffId === staffId);
+}
+
+function upcomingShiftsForStaff(staffId, limit = 3) {
+  const today = getTodayDate();
+  return (siteData.shifts || [])
+    .filter((shift) => shift.staffId === staffId && shift.date >= today && shift.status !== "off")
+    .sort((a, b) => {
+      const dateOrder = String(a.date).localeCompare(String(b.date));
+      if (dateOrder !== 0) return dateOrder;
+      return String(a.start || "99:99").localeCompare(String(b.start || "99:99"));
+    })
+    .slice(0, limit);
+}
+
+function shiftTimeText(shift) {
+  if (!shift || shift.status === "off") return "NEXT SCHEDULE SOON";
+  return `${dateLabel(shift.date)} ${dayName(shift.date)} ${shift.start || ""}-${shift.end || ""}`;
 }
 
 function renderHero() {
-  document.getElementById("shop-name").textContent = siteData.shop.displayName;
-  document.getElementById("shop-hours").textContent = `OPEN ${siteData.shop.hours}`;
-  document.getElementById("shop-concept").textContent = siteData.shop.concept;
+  const hours = siteData.shop.hours || "19:00-05:00";
+  $("#hero-hours").textContent = hours;
+  $("#nav-hours").textContent = `OPEN ${hours}`;
 
-  const heroCast = document.getElementById("hero-cast");
-  const people = visibleStaff().slice(0, 5);
-  while (people.length < 5) {
-    people.push({
-      id: `fallback_${people.length}`,
-      displayName: "",
-      heroPhoto: heroFallbackPhotos[people.length] || heroFallbackPhotos[0],
-      photo: heroFallbackPhotos[people.length] || heroFallbackPhotos[0]
-    });
-  }
+  const counts = todayShifts().reduce((acc, shift) => {
+    acc[shift.status] = (acc[shift.status] || 0) + 1;
+    return acc;
+  }, {});
+  $("#hero-status-summary").textContent =
+    `出勤中 ${counts.working || 0} / まもなく ${counts.soon || 0} / 本日 ${todayShifts().length}`;
 
-  heroCast.innerHTML = people.map((person, index) => {
-    const layout = heroLayout[index] || heroLayout[0];
-    return `
-    <img
-      class="hero-person"
-      src="${asset(person.heroPhoto || person.photo)}"
-      alt=""
-      loading="eager"
-      decoding="async"
-      fetchpriority="${index === 2 ? "high" : "auto"}"
-      style="--slot:${layout.slot}; --cast-scale:${layout.scale}; --cast-mobile-scale:${layout.mobileScale}; --cast-z:${layout.z}; --cast-depth:${layout.depth}; --cast-shift-x:${layout.x}; --cast-y:${layout.y};"
-    />
-  `;
-  }).join("");
+  $("#hero-cast").innerHTML = visibleStaff().slice(0, 5).map((person, index) => `
+      <span class="fv-cast-girl fv-cast-girl-${index + 1}" style="--slot:${index}">
+        <img
+          class="fv-cast-img fv-cast-art"
+          src="${asset(person.heroPhoto || person.photo)}"
+          alt=""
+          loading="eager"
+          decoding="async"
+          fetchpriority="${index === 1 ? "high" : "auto"}"
+        />
+        <img
+          class="fv-cast-img fv-cast-real"
+          src="${asset(person.heroRealPhoto || person.photo || person.heroPhoto)}"
+          alt=""
+          loading="eager"
+          decoding="async"
+        />
+      </span>
+    `).join("");
 }
 
-function renderToday() {
-  const todayList = document.getElementById("today-list");
-  const date = getShiftDates()[0];
-  const today = siteData.shifts
-    .filter((shift) => shift.date === date && shift.status !== "off")
-    .map((shift) => ({ ...shift, staff: siteData.staff.find((staff) => staff.id === shift.staffId) }))
-    .filter((shift) => shift.staff && shift.staff.publicVisible);
+function statusBadge(status) {
+  return `<span class="status-badge ${status}">${statusLabel[status] || status}</span>`;
+}
 
-  if (!today.length) {
-    todayList.innerHTML = `<p>本日の公開出勤は未登録です。</p>`;
+function renderNow() {
+  const shifts = todayShifts();
+  $("#now-count").textContent = `${shifts.length} CAST`;
+
+  if (!shifts.length) {
+    $("#now-grid").innerHTML = `
+      <article class="now-card reveal">
+        <div class="now-photo"></div>
+        <div class="now-meta">
+          ${statusBadge("off")}
+          <h3>本日の出勤情報は準備中です</h3>
+          <p>公開まで少しお待ちください。</p>
+        </div>
+      </article>
+    `;
     return;
   }
 
-  todayList.innerHTML = today.map((shift) => `
-    <article class="today-pill">
-      <img src="${asset(shift.staff.photo)}" alt="${shift.staff.displayName}" loading="lazy" decoding="async" />
+  $("#now-grid").innerHTML = shifts.map((shift) => `
+    <article class="now-card now-icon-card reveal">
+      <div class="now-chibi">
+        <img src="${staffChibiIcon(shift.staff)}" alt="${shift.staff.displayName}" loading="lazy" decoding="async" />
+      </div>
+      <div class="now-meta">
+        ${statusBadge(shift.status)}
+        <h3>${shift.staff.displayName}<small> / ${shift.staff.romanName || ""}</small></h3>
+        <p>${shift.start || ""}-${shift.end || ""} ${shift.publicNote || ""}</p>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderScheduleTabs() {
+  const dates = getScheduleDates().slice(0, 7);
+  $("#day-tabs").innerHTML = dates.map((date, index) => `
+    <button class="${date === activeScheduleDate ? "active" : ""}" type="button" data-date="${date}" role="tab" aria-selected="${date === activeScheduleDate}">
+      ${index === 0 ? "TODAY" : dateLabel(date)} ${dayName(date)}
+    </button>
+  `).join("");
+}
+
+function renderScheduleList() {
+  const shifts = shiftsForDate(activeScheduleDate);
+  $("#schedule-list").innerHTML = shifts.map((shift) => `
+    <article class="schedule-item reveal">
       <div>
-        <strong>${shift.staff.displayName}</strong>
-        <span>${dateLabel(shift.date)} ${shift.start || ""}-${shift.end || ""} / ${statusLabel[shift.status]}</span>
+        ${statusBadge(shift.status)}
+        <h3>${shift.staff.displayName}<small> / ${shift.staff.romanName || ""}</small></h3>
       </div>
+      <span class="time">${shift.status === "off" ? "OFF" : `${shift.start}-${shift.end}`}</span>
+      <p class="note">${shift.publicNote || shift.staff.shortComment || ""}</p>
     </article>
   `).join("");
 }
 
-function renderCast() {
-  const grid = document.getElementById("cast-grid");
-  grid.innerHTML = visibleStaff().map((staff) => `
-    <article class="cast-card">
-      <div class="cast-photo">
-        <img src="${asset(staff.photo)}" alt="${staff.displayName}" loading="lazy" decoding="async" />
+function renderTalentShowcase() {
+  const staff = visibleStaff();
+  const section = $(".talent-section");
+  const icons = $("#talent-icons");
+  const visual = $("#talent-visual");
+  const panel = $("#talent-panel");
+  if (!section || !icons || !visual || !panel) return;
+
+  if (!staff.length) {
+    icons.innerHTML = "";
+    visual.innerHTML = "";
+    panel.innerHTML = `
+      <div class="talent-panel-inner">
+        ${statusBadge("off")}
+        <h3>CAST DATA COMING SOON</h3>
+        <p>Master data is not ready yet.</p>
       </div>
-      <div class="cast-meta">
-        <span class="status-badge ${staff.workStatus}">${statusLabel[staff.workStatus] || staff.workStatus}</span>
-        <h3>${staff.displayName}<small> / ${staff.romanName || ""}</small></h3>
-        <p>${staff.profileText}</p>
-        <div class="cast-tags">
-          ${(staff.tags || []).map((tag) => `<span>${tag}</span>`).join("")}
-        </div>
-      </div>
-    </article>
+    `;
+    return;
+  }
+
+  if (activeTalentIndex >= staff.length) activeTalentIndex = 0;
+  const person = staff[activeTalentIndex];
+  const todayShift = shiftForStaffToday(person.id);
+  const status = todayShift?.status || person.workStatus || "off";
+  const upcoming = upcomingShiftsForStaff(person.id, 3);
+  const accentColors = ["#54d9e8", "#ff7aa8", "#f4d36a", "#8de8d4", "#7664dc"];
+  section.style.setProperty("--talent-bg-image", `url("${asset(person.photo || person.heroPhoto)}")`);
+  section.style.setProperty("--talent-accent", accentColors[activeTalentIndex % accentColors.length]);
+
+  icons.innerHTML = staff.map((candidate, index) => `
+    <button
+      class="talent-icon ${index === activeTalentIndex ? "active" : ""}"
+      type="button"
+      data-talent-index="${index}"
+      aria-label="${candidate.displayName || candidate.romanName || "cast"}"
+      aria-selected="${index === activeTalentIndex}"
+    >
+      <img src="${staffChibiIcon(candidate)}" alt="" loading="lazy" decoding="async" />
+      <span>${candidate.romanName || candidate.displayName || ""}</span>
+    </button>
   `).join("");
-}
 
-function renderMaterials() {
-  const grid = document.getElementById("material-grid");
-  if (!grid) return;
-  const materials = siteData.materials || [];
-  grid.innerHTML = materials.map((item, index) => `
-    <article class="material-card ${item.kind === "lineup" ? "wide" : ""}">
-      <div class="material-photo ${item.kind}">
-        <img src="${asset(item.image)}" alt="${item.title}" loading="lazy" decoding="async" />
+  visual.innerHTML = `
+    <div class="talent-roman-bg" aria-hidden="true">${person.romanName || person.displayName || "NAUGHTY"}</div>
+    <div class="talent-portrait">
+      <img class="talent-real-img" src="${asset(person.heroRealPhoto || person.photo || person.heroPhoto)}" alt="${person.displayName}" loading="lazy" decoding="async" />
+    </div>
+  `;
+
+  panel.innerHTML = `
+    <div class="talent-panel-inner">
+      <div class="talent-status-line">
+        ${statusBadge(status)}
+        <span>${shiftTimeText(todayShift)}</span>
       </div>
-      <div class="material-meta">
-        <span>${String(index + 1).padStart(2, "0")}</span>
-        <h3>${item.title}</h3>
-        <p>${item.caption}</p>
+      <p class="talent-kana">${person.romanName || "CAST"}</p>
+      <h3>${person.displayName || ""}</h3>
+      <p class="talent-comment">${person.shortComment || ""}</p>
+      <p class="talent-profile">${person.profileText || ""}</p>
+      <div class="talent-tags">
+        ${(person.tags || []).map((tag) => `<span>${tag}</span>`).join("")}
       </div>
-    </article>
-  `).join("");
-}
-
-function renderShift() {
-  const table = document.getElementById("shift-table");
-  const dates = getShiftDates();
-  table.style.gridTemplateColumns = `160px repeat(${dates.length}, minmax(92px, 1fr))`;
-
-  const header = [
-    `<div class="shift-cell head">CAST</div>`,
-    ...dates.map((date) => `<div class="shift-cell head"><b>${dateLabel(date)}</b><span>${date.slice(0, 4)}</span></div>`)
-  ].join("");
-
-  const rows = visibleStaff().map((staff) => {
-    const cells = dates.map((date) => {
-      const shift = getShift(date, staff.id);
-      if (!shift || shift.status === "off") {
-        return `<div class="shift-cell off">休み</div>`;
-      }
-      return `
-        <div class="shift-cell on">
-          <b>${statusLabel[shift.status]}</b>
-          <span>${shift.start}-${shift.end}</span>
-          <small>${shift.publicNote || ""}</small>
-        </div>
-      `;
-    }).join("");
-    return `<div class="shift-cell cast-head"><b>${staff.displayName}</b><span>${staff.romanName || ""}</span></div>${cells}`;
-  }).join("");
-
-  table.innerHTML = header + rows;
-}
-
-function renderMenu() {
-  const menu = document.getElementById("menu-grid");
-  menu.innerHTML = siteData.products.filter((product) => product.active).map((product) => `
-    <article class="menu-item">
-      <h3>${product.name}</h3>
-      <p>${product.category}</p>
-      <strong>${yen(product.salePrice)}</strong>
-      <div class="menu-tags">
-        ${product.eventOnly ? "<span>EVENT ONLY</span>" : "<span>REGULAR</span>"}
+      <div class="talent-shifts">
+        <strong>UPCOMING SHIFT</strong>
+        ${
+          upcoming.length
+            ? upcoming.map((shift) => `<span>${shiftTimeText(shift)} ${statusLabel[shift.status] || shift.status}</span>`).join("")
+            : "<span>NEXT SCHEDULE SOON</span>"
+        }
       </div>
-    </article>
-  `).join("");
+    </div>
+  `;
 }
 
 function renderEvents() {
-  const events = document.getElementById("event-list");
-  const visible = siteData.events.filter((event) => event.publicVisible);
-  events.innerHTML = visible.map((event) => `
-    <article class="event-item">
-      <p class="section-kicker">${event.date}</p>
+  const events = (siteData.events || []).filter((event) => event.publicVisible).slice(0, 3);
+  $("#event-list").innerHTML = events.map((event) => `
+    <article class="event-card reveal">
+      <time>${event.date}</time>
       <h3>${event.title}</h3>
       <p>${event.summary}</p>
     </article>
@@ -267,52 +325,148 @@ function renderEvents() {
 }
 
 function renderAccess() {
-  document.getElementById("access-hours").textContent = siteData.shop.hours;
-  document.getElementById("access-address").textContent = siteData.shop.address;
-  document.getElementById("access-instagram").textContent = `@${siteData.shop.instagram}`;
+  $("#access-hours").textContent = siteData.shop.hours || "";
+  $("#access-address").textContent = siteData.shop.address || "";
+  $("#access-instagram").textContent = siteData.shop.instagram ? `@${siteData.shop.instagram}` : "";
+  $("#access-payment").textContent = siteData.shop.payment || "";
 }
 
 function render() {
   renderHero();
-  renderToday();
-  renderCast();
-  renderMaterials();
-  renderShift();
-  renderMenu();
+  renderNow();
+  renderScheduleTabs();
+  renderScheduleList();
+  renderTalentShowcase();
   renderEvents();
   renderAccess();
   observeRevealTargets();
 }
 
-function shuffleHero() {
-  heroOrder = heroOrder
-    .map((slot) => ({ slot, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map((item) => item.slot);
+function bindTabs() {
+  document.addEventListener("click", (event) => {
+    const dayButton = event.target.closest("[data-date]");
+    if (dayButton) {
+      activeScheduleDate = dayButton.dataset.date;
+      renderScheduleTabs();
+      renderScheduleList();
+      observeRevealTargets();
+      return;
+    }
 
-  const heroCast = document.getElementById("hero-cast");
-  heroCast.classList.add("is-glitching");
-  setTimeout(() => {
-    renderHero();
-  }, 360);
-  setTimeout(() => {
-    heroCast.classList.remove("is-glitching");
-  }, 760);
+    const talentButton = event.target.closest("[data-talent-index]");
+    if (talentButton) {
+      setActiveTalent(Number(talentButton.dataset.talentIndex || 0), true);
+      return;
+    }
+
+    const talentPrev = event.target.closest("[data-talent-prev]");
+    const talentNext = event.target.closest("[data-talent-next]");
+    if (talentPrev || talentNext) {
+      setActiveTalent(activeTalentIndex + (talentNext ? 1 : -1), true);
+      observeRevealTargets();
+    }
+  });
 }
 
-function bindHeroParallax() {
-  const stage = document.getElementById("hero-stage");
+function bindSectionTransitions() {
+  const transition = $("#section-transition");
+  const label = $("#section-transition-label");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  if (!transition || !label || reduceMotion.matches) return;
+
+  const labels = {
+    top: "TOP",
+    now: "TODAY",
+    schedule: "SCHEDULE",
+    cast: "CAST",
+    inside: "INSIDE",
+    events: "EVENT",
+    access: "ACCESS",
+  };
+  let transitionTimer = 0;
+
+  function targetFromLink(link) {
+    const href = link.getAttribute("href") || "";
+    if (!href.startsWith("#") || href === "#") return null;
+    try {
+      return document.querySelector(href);
+    } catch {
+      return null;
+    }
+  }
+
+  function transitionLabel(target) {
+    const idLabel = target.id ? labels[target.id] : "";
+    const sectionLabel = target.dataset.screenLabel || target.querySelector(".section-kicker")?.textContent;
+    return (idLabel || sectionLabel || "NAUGHTY").trim().toUpperCase();
+  }
+
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest('a[href^="#"]');
+    if (!link || event.defaultPrevented) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target) return;
+
+    const target = targetFromLink(link);
+    if (!target) return;
+
+    event.preventDefault();
+    window.clearTimeout(transitionTimer);
+    label.textContent = transitionLabel(target);
+    transition.classList.remove("is-active");
+    transition.getBoundingClientRect();
+    document.documentElement.classList.add("is-section-transitioning");
+    transition.classList.add("is-active");
+
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (target.id) history.pushState(null, "", `#${target.id}`);
+    }, 310);
+
+    transitionTimer = window.setTimeout(() => {
+      transition.classList.remove("is-active");
+      document.documentElement.classList.remove("is-section-transitioning");
+    }, 1120);
+  });
+}
+
+function setActiveTalent(index, resetTimer = false) {
+  const staff = visibleStaff();
+  if (!staff.length) return;
+  activeTalentIndex = (index + staff.length) % staff.length;
+  renderTalentShowcase();
+  if (resetTimer) startTalentAuto();
+}
+
+function startTalentAuto() {
+  window.clearInterval(talentTimer);
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (visibleStaff().length < 2) return;
+  talentTimer = window.setInterval(() => {
+    setActiveTalent(activeTalentIndex + 1);
+  }, 5600);
+}
+
+function bindHeroMotion() {
+  const stage = $("#hero-stage");
   if (!stage) return;
-  if (window.matchMedia("(pointer: coarse)").matches) return;
+  if (!window.matchMedia("(pointer: fine)").matches) return;
+
   let targetX = 0;
   let targetY = 0;
   let currentX = 0;
   let currentY = 0;
   let frameId = 0;
 
+  function updateFromPoint(x, y) {
+    const rect = stage.getBoundingClientRect();
+    targetX = (((x - rect.left) / rect.width - .5) * 2) * .55;
+    targetY = (((y - rect.top) / rect.height - .5) * 2) * .45;
+    startTick();
+  }
+
   function tick() {
-    currentX += (targetX - currentX) * .08;
-    currentY += (targetY - currentY) * .08;
+    currentX += (targetX - currentX) * .09;
+    currentY += (targetY - currentY) * .09;
     stage.style.setProperty("--mx", currentX.toFixed(3));
     stage.style.setProperty("--my", currentY.toFixed(3));
     if (Math.abs(targetX - currentX) > .002 || Math.abs(targetY - currentY) > .002) {
@@ -326,96 +480,37 @@ function bindHeroParallax() {
     if (!frameId) frameId = requestAnimationFrame(tick);
   }
 
-  window.addEventListener("pointermove", (event) => {
-    const rect = stage.getBoundingClientRect();
-    targetX = (((event.clientX - rect.left) / rect.width - .5) * 2) * .55;
-    targetY = (((event.clientY - rect.top) / rect.height - .5) * 2) * .42;
-    startTick();
-  });
-  window.addEventListener("pointerleave", () => {
-    targetX = 0;
-    targetY = 0;
-    startTick();
-  });
+  window.addEventListener("pointermove", (event) => updateFromPoint(event.clientX, event.clientY), { passive: true });
 }
 
-function startMotionCanvas() {
-  const canvas = document.getElementById("motion-canvas");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const dots = Array.from({ length: 34 }, (_, index) => ({
-    x: Math.random(),
-    y: Math.random(),
-    r: index % 5 === 0 ? 1.7 : .9,
-    vx: (Math.random() - .5) * .00022,
-    vy: (Math.random() - .5) * .00018,
-    phase: Math.random() * Math.PI * 2
-  }));
+function bindHeroNoise() {
+  const stage = $("#hero-stage");
+  const cast = $("#hero-cast");
+  if (!stage || !cast) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let showReal = false;
 
-  let width = 0;
-  let height = 0;
-  function resize() {
-    const scale = window.devicePixelRatio || 1;
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = Math.floor(width * scale);
-    canvas.height = Math.floor(height * scale);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  function fireNoise() {
+    stage.classList.add("is-glitching");
+    cast.classList.add("is-glitching");
+    window.setTimeout(() => {
+      showReal = !showReal;
+      cast.classList.toggle("is-real", showReal);
+    }, 240);
+    window.setTimeout(() => {
+      stage.classList.remove("is-glitching");
+      cast.classList.remove("is-glitching");
+    }, 760);
   }
 
-  function frame(time) {
-    const pink = "rgba(255, 62, 126, .2)";
-    const alt = "rgba(255, 255, 255, .08)";
-    const pale = "rgba(146, 230, 209, .1)";
-    ctx.clearRect(0, 0, width, height);
-    ctx.lineWidth = 1;
-    dots.forEach((dot, index) => {
-      dot.x += dot.vx;
-      dot.y += dot.vy;
-      if (dot.x < -.05) dot.x = 1.05;
-      if (dot.x > 1.05) dot.x = -.05;
-      if (dot.y < -.05) dot.y = 1.05;
-      if (dot.y > 1.05) dot.y = -.05;
-      const x = dot.x * width;
-      const y = dot.y * height + Math.sin(time * .00045 + dot.phase) * 7;
-      ctx.fillStyle = index % 3 === 0 ? pink : pale;
-      ctx.beginPath();
-      ctx.arc(x, y, dot.r, 0, Math.PI * 2);
-      ctx.fill();
-      if (index % 4 === 0) {
-        const next = dots[(index + 7) % dots.length];
-        ctx.strokeStyle = alt;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(next.x * width, next.y * height);
-        ctx.stroke();
-      }
-    });
-    ctx.strokeStyle = "rgba(255, 62, 126, .14)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < 3; i++) {
-      const y = height * (.2 + i * .22) + Math.sin(time * .00035 + i) * 8;
-      ctx.moveTo(-40, y);
-      ctx.bezierCurveTo(width * .24, y - 46, width * .58, y + 42, width + 40, y - 12);
-    }
-    ctx.stroke();
-    requestAnimationFrame(frame);
-  }
-
-  resize();
-  window.addEventListener("resize", resize);
-  requestAnimationFrame(frame);
+  window.setTimeout(() => {
+    fireNoise();
+    window.setInterval(fireNoise, 6800);
+  }, 1800);
 }
-
-let revealObserver = null;
 
 function observeRevealTargets() {
-  const targets = document.querySelectorAll(
-    ".section-head, .today-pill, .concept-points span, .material-card, .cast-card, .shift-wrap, .menu-item, .event-item, .flow-list article, .map-panel, .shop-info"
-  );
+  const targets = document.querySelectorAll(".reveal, .section-head");
   if (!("IntersectionObserver" in window)) {
     targets.forEach((target) => target.classList.add("is-visible"));
     return;
@@ -428,20 +523,20 @@ function observeRevealTargets() {
           revealObserver.unobserve(entry.target);
         }
       });
-    }, { rootMargin: "0px 0px -12% 0px", threshold: .16 });
+    }, { rootMargin: "0px 0px -10% 0px", threshold: .14 });
   }
   targets.forEach((target) => {
+    target.classList.add("reveal");
     if (!target.classList.contains("is-visible")) revealObserver.observe(target);
   });
 }
 
 window.addEventListener("storage", (event) => {
-  if (event.key === STORAGE_KEY) {
-    loadData();
-  }
+  if (event.key === STORAGE_KEY) loadData();
 });
 
-bindHeroParallax();
-document.body.dataset.design = "vspark";
-startMotionCanvas();
+bindSectionTransitions();
+bindTabs();
+bindHeroMotion();
+bindHeroNoise();
 loadData();

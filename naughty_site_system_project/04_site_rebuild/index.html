@@ -1,196 +1,223 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>naughty | ノーティ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>NAUGHTY | Concept Cafe</title>
+  <meta name="description" content="NAUGHTY is a little-devil concept cafe in Hiroshima. Check today's cast, schedule, interior, and access." />
   <link rel="icon" href="assets/logo-naughty-white-circle.png" type="image/png" />
   <link rel="stylesheet" href="../auth-gate.css" />
   <script>document.documentElement.classList.add("auth-pending");</script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&family=Shippori+Mincho+B1:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=production-9" />
+  <link rel="stylesheet" href="styles.css?v=hybrid-16" />
 </head>
 <body>
-  <div class="site-shell">
-    <canvas class="motion-canvas" id="motion-canvas" aria-hidden="true"></canvas>
-    <header class="site-header">
-      <a class="brand" href="#top" aria-label="naughty top">
-        <img src="assets/logo-naughty-white-circle.png" alt="naughty" />
+  <div class="section-transition" id="section-transition" aria-hidden="true">
+    <div class="section-transition-stripes">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <div class="section-transition-lines">
+      <i></i>
+      <i></i>
+      <i></i>
+    </div>
+    <div class="section-transition-copy">
+      <small>SECTION JUMP</small>
+      <strong id="section-transition-label">NAUGHTY</strong>
+    </div>
+  </div>
+  <div class="site-shell nty">
+    <header class="nav">
+      <div class="left">
+        <span class="dot"></span>
+        <span id="nav-hours">OPEN 19:00-05:00</span>
+        <span>/ HIROSHIMA</span>
+      </div>
+      <a class="logo" href="#top" aria-label="NAUGHTY top">
+        <img src="../01_existing_site/assets/logo-naughty.png" alt="NAUGHTY" />
       </a>
-      <nav class="main-nav" aria-label="メイン">
-        <a href="#concept">CONCEPT</a>
-        <a href="#cast">CAST</a>
-        <a href="#shift">SHIFT</a>
-        <a href="#menu">MENU</a>
-        <a href="#recruit">RECRUIT</a>
-        <a href="#access">ACCESS</a>
-      </nav>
-      <a class="admin-link" href="#access">ACCESS</a>
+      <div class="right">
+        <a class="cta pink reserve" href="#now">TODAY <span>→</span></a>
+        <a class="menu-btn" href="#cast">
+          <img src="../01_existing_site/assets/icon-menu-devil.png" alt="" />
+          <span>CAST</span>
+        </a>
+      </div>
     </header>
 
-    <nav class="mobile-dock" aria-label="スマホメニュー">
-      <a href="#top">TOP</a>
-      <a href="#cast">CAST</a>
-      <a href="#shift">SHIFT</a>
-      <a href="#menu">MENU</a>
-    </nav>
-
     <main>
-      <section class="hero" id="top">
-        <div class="hero-wisps" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-        <div class="hero-grid" aria-hidden="true"></div>
-        <div class="hero-scanlines" aria-hidden="true"></div>
-        <div class="hero-orbit orbit-one" aria-hidden="true"></div>
-        <div class="hero-orbit orbit-two" aria-hidden="true"></div>
-        <div class="cam-panel cam-left">
-          <div class="cam-top"><span>CAM 01</span><b>REC</b></div>
-          <div class="cam-frame"><img src="../01_existing_site/assets/icon-cat.png" alt="" /></div>
-          <div class="cam-bottom"><span>NAKAREKAWA</span><span>19:00</span></div>
-        </div>
-        <div class="hero-copy">
-          <p class="eyebrow" id="shop-hours">OPEN</p>
-          <h1 id="shop-name">ノーティ</h1>
-          <p class="hero-line">夜、こっそりはじまる。<br />ちょっとした、<em>いたずら。</em></p>
-          <div class="hero-actions">
-            <a class="hero-button primary" href="#shift">本日の出勤</a>
-            <a class="hero-button" href="#menu">メニューを見る</a>
+      <section class="fv" data-screen-label="01 First View" id="top">
+        <div class="fv-decor" aria-hidden="true">
+          <div class="dec-marquee dec-marquee-top">
+            <div class="dec-track">
+              <span>EST. 2026 <b>・</b> NIGHT <b>・</b> NAUGHTY <b>・</b></span>
+              <span>EST. 2026 <b>・</b> NIGHT <b>・</b> NAUGHTY <b>・</b></span>
+              <span>EST. 2026 <b>・</b> NIGHT <b>・</b> NAUGHTY <b>・</b></span>
+              <span>EST. 2026 <b>・</b> NIGHT <b>・</b> NAUGHTY <b>・</b></span>
+            </div>
+          </div>
+          <img class="dec-ico dec-cat" src="../01_existing_site/assets/icon-cat.png" alt="" />
+          <span class="dec-star dec-star-2"></span>
+          <span class="dec-star dec-star-3"></span>
+          <span class="dec-star dec-star-4"></span>
+          <div class="fv-neon-lines" aria-hidden="true">
+            <span class="nl nl-1"></span>
+            <span class="nl nl-2"></span>
+            <span class="nl nl-3"></span>
+            <span class="nl nl-4"></span>
+            <span class="nl nl-5"></span>
+            <span class="nl-dot nl-dot-1"></span>
+            <span class="nl-dot nl-dot-2"></span>
+            <span class="nl-dot nl-dot-3"></span>
           </div>
         </div>
-        <div class="hero-stage" id="hero-stage">
-          <div class="logo-plane">
-            <img src="assets/logo-naughty-white-transparent.png" alt="" />
+
+        <div class="fv-inner">
+          <div class="fv-meta">
+            <span>HIROSHIMA / NAGAREKAWA</span>
+            <div class="right">
+              <span>CONCEPT CAFE</span>
+              <span>NAUGHTY</span>
+            </div>
           </div>
-          <div class="cast-lineup" id="hero-cast" aria-hidden="true"></div>
-        </div>
-        <div class="cam-panel cam-right">
-          <div class="cam-top"><span>CAM 02</span><b>REC</b></div>
-          <div class="cam-frame alt"><img src="../01_existing_site/assets/icon-bubble.png" alt="" /></div>
-          <div class="cam-bottom"><span>BAR</span><span>05:00</span></div>
+
+          <div class="fv-headline">
+            <div class="fv-tagline">
+              <span class="fv-tagline-line">夜、こっそりはじまる。</span>
+              <span class="fv-tagline-line">ちょっとした、<em>いたずら。</em></span>
+            </div>
+            <div class="fv-impact-word" aria-hidden="true">NAUGHTY</div>
+
+            <div class="fv-wordmark fv-wordmark-img" id="hero-stage">
+              <div class="fv-logo-band" aria-hidden="true">
+                <div class="fv-logo-band-track">
+                  <img src="../01_existing_site/assets/logo-naughty.png" alt="" />
+                </div>
+              </div>
+              <img class="fv-logo-img" src="../01_existing_site/assets/logo-naughty.png" alt="NAUGHTY" />
+              <div class="fv-cast-row" id="hero-cast" aria-hidden="true"></div>
+            </div>
+          </div>
+
+          <aside class="fv-status" aria-label="shop status">
+            <span>OPEN</span>
+            <strong id="hero-hours">19:00-05:00</strong>
+            <small id="hero-status-summary">checking today's cast</small>
+          </aside>
+          <a class="recruit-bubble" href="recruit.html" aria-label="スタッフ募集ページへ">
+            <span>STAFF</span>
+            <strong>募集</strong>
+            <small>JOIN US</small>
+          </a>
         </div>
       </section>
 
-      <section class="quick-status" aria-label="本日の出勤">
-        <div>
+      <nav class="jump-nav" aria-label="pickup navigation">
+        <a class="jump-pill" href="#cast">
+          <span class="jp-text">CAST</span>
+          <span class="jp-arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="jump-pill" href="#schedule">
+          <span class="jp-text">SCHEDULE</span>
+          <span class="jp-arrow" aria-hidden="true">→</span>
+        </a>
+      </nav>
+
+      <section class="now-section" id="now">
+        <div class="section-head compact">
           <p class="section-kicker">TODAY</p>
           <h2>本日の出勤</h2>
+          <span id="now-count">TODAY</span>
         </div>
-        <div class="today-list" id="today-list"></div>
+        <div class="now-grid" id="now-grid"></div>
       </section>
 
-      <section class="section concept-section" id="concept">
-        <div class="section-head">
-          <span>01</span>
-          <div>
-            <p class="section-kicker">CONCEPT</p>
-            <h2>かわいい夜を、少しだけいたずらに。</h2>
+      <section class="section schedule-section compact-schedule" id="schedule">
+        <details class="schedule-accordion">
+          <summary>
+            <span>
+              <small>SCHEDULE</small>
+              出勤スケジュールを見る
+            </span>
+            <b aria-hidden="true">+</b>
+          </summary>
+          <div class="schedule-panel">
+            <div class="day-tabs" id="day-tabs" role="tablist" aria-label="schedule days"></div>
+            <div class="schedule-list" id="schedule-list"></div>
           </div>
-        </div>
-        <div class="concept-layout">
-          <p id="shop-concept">黒とピンクに、少し小悪魔な甘さを混ぜたコンカフェ。</p>
-          <div class="concept-points">
-            <span>BLACK</span>
-            <span>PINK</span>
-            <span>CUTE</span>
-            <span>NIGHT</span>
-          </div>
-        </div>
+        </details>
       </section>
 
-      <section class="section material-section" id="gallery">
-        <div class="section-head">
-          <span>02</span>
-          <div>
-            <p class="section-kicker">GALLERY</p>
-            <h2>店内の雰囲気</h2>
+      <section class="talent-section" id="cast">
+        <div class="talent-bg" aria-hidden="true"></div>
+        <div class="talent-wrap">
+          <div class="talent-head section-head">
+            <p class="section-kicker">CHARACTER</p>
+            <h2>CAST SELECT</h2>
+            <p>本日の出勤とキャストプロフィールをピックアップでチェック。</p>
           </div>
-        </div>
-        <div class="material-grid" id="material-grid"></div>
-      </section>
-
-      <section class="section" id="cast">
-        <div class="section-head">
-          <span>03</span>
-          <div>
-            <p class="section-kicker">CAST</p>
-            <h2>キャスト紹介</h2>
+          <div class="talent-icons" id="talent-icons" role="tablist" aria-label="cast select"></div>
+          <div class="talent-stage">
+            <button class="talent-nav talent-prev" type="button" data-talent-prev aria-label="previous cast">PREV</button>
+            <div class="talent-visual" id="talent-visual" aria-live="polite"></div>
+            <div class="talent-panel" id="talent-panel"></div>
+            <button class="talent-nav talent-next" type="button" data-talent-next aria-label="next cast">NEXT</button>
           </div>
-        </div>
-        <div class="cast-grid" id="cast-grid"></div>
-      </section>
-
-      <section class="section shift-section" id="shift">
-        <div class="section-head">
-          <span>04</span>
-          <div>
-            <p class="section-kicker">SCHEDULE</p>
-            <h2>2週間シフト</h2>
-          </div>
-        </div>
-        <div class="shift-wrap">
-          <div class="shift-table" id="shift-table"></div>
         </div>
       </section>
 
-      <section class="section menu-section" id="menu">
-        <div class="section-head">
-          <span>05</span>
-          <div>
-            <p class="section-kicker">MENU</p>
-            <h2>メニュー</h2>
+      <section class="inside-section" id="inside" aria-label="店内の雰囲気">
+        <article class="inside-scene inside-scene-counter reveal">
+          <img src="assets/interior/sample-interior-counter.webp" alt="黒とピンクのバーカウンター" loading="lazy" decoding="async" />
+          <div class="inside-scene-copy">
+            <span>INSIDE 01 / COUNTER</span>
+            <h2>話せるカウンター席</h2>
+            <p>黒にピンクの光が浮かぶカウンターで、キャストとゆっくりお話ししながら夜を過ごせます。</p>
           </div>
-        </div>
-        <div class="menu-grid" id="menu-grid"></div>
+          <div class="inside-scene-words" aria-hidden="true">
+            <b>TALK</b>
+            <b>COUNTER</b>
+            <b>NIGHT</b>
+          </div>
+        </article>
+        <article class="inside-scene inside-scene-play reveal">
+          <img src="assets/interior/sample-interior-darts.webp" alt="ダーツとフォトスポット" loading="lazy" decoding="async" />
+          <div class="inside-scene-copy">
+            <span>INSIDE 02 / PLAY</span>
+            <h2>歌って、遊んで、写真を残す</h2>
+            <p>カラオケで盛り上がったり、ダーツで遊んだり、一緒に撮った写真をその日の記憶にできます。</p>
+          </div>
+          <div class="inside-scene-words" aria-hidden="true">
+            <b>KARAOKE</b>
+            <b>DARTS</b>
+            <b>PHOTO</b>
+          </div>
+        </article>
       </section>
 
-      <section class="section event-section">
+      <section class="section event-section" id="events">
         <div class="section-head">
-          <span>06</span>
-          <div>
-            <p class="section-kicker">EVENT</p>
-            <h2>イベント</h2>
-          </div>
+          <p class="section-kicker">EVENT</p>
+          <h2>イベント</h2>
+          <p>近日開催のイベント情報。</p>
         </div>
         <div class="event-list" id="event-list"></div>
       </section>
 
-      <section class="section recruit-section" id="recruit">
-        <div class="section-head">
-          <span>07</span>
-          <div>
-            <p class="section-kicker">RECRUIT</p>
-            <h2>キャスト募集</h2>
-          </div>
-        </div>
-        <div class="recruit-layout">
-          <div class="recruit-visual">
-            <img src="../01_existing_site/uploads/girls5_anime_transparent.png" alt="" />
-          </div>
-          <div class="flow-list">
-            <article><b>01</b><strong>未経験でも歓迎</strong><span>接客がはじめてでも、雰囲気に合わせて少しずつ慣れていけます。</span></article>
-            <article><b>02</b><strong>かわいい衣装と世界観</strong><span>黒とピンクを基調にした、写真映えするコンセプトです。</span></article>
-            <article><b>03</b><strong>シフト相談OK</strong><span>学業や本業に合わせて、無理なく働けるペースを相談できます。</span></article>
-          </div>
-        </div>
-      </section>
-
       <section class="section access-section" id="access">
         <div class="section-head">
-          <span>08</span>
-          <div>
-            <p class="section-kicker">ACCESS</p>
-            <h2>店舗情報</h2>
-          </div>
+          <p class="section-kicker">ACCESS</p>
+          <h2>アクセス</h2>
+          <p>営業時間、住所、SNSはこちら。</p>
         </div>
         <div class="access-layout">
           <div class="map-panel">
-            <div class="map-grid"></div>
-            <strong>naughty</strong>
+            <strong>NAUGHTY</strong>
+            <span>Hiroshima / Nagarekawa</span>
           </div>
           <dl class="shop-info">
             <dt>営業時間</dt>
@@ -199,18 +226,21 @@
             <dd id="access-address"></dd>
             <dt>Instagram</dt>
             <dd id="access-instagram"></dd>
+            <dt>支払い</dt>
+            <dd id="access-payment"></dd>
           </dl>
         </div>
       </section>
     </main>
 
     <footer class="footer">
-      <img src="assets/logo-naughty-white-circle.png" alt="naughty" />
-      <p>© 2026 naughty</p>
+      <img src="assets/logo-naughty-white-circle.png" alt="NAUGHTY" />
+      <p>2026 NAUGHTY</p>
     </footer>
   </div>
-  <script src="../03_system_seed/naughty_site_data.js?v=production-9"></script>
+
+  <script src="../03_system_seed/naughty_site_data.js?v=hybrid-16"></script>
   <script src="../auth-gate.js"></script>
-  <script src="app.js?v=production-9"></script>
+  <script src="app.js?v=hybrid-16"></script>
 </body>
 </html>
