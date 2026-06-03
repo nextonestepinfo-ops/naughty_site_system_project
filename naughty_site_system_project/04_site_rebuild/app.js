@@ -22,8 +22,30 @@ let activeScheduleDate = "";
 let activeTalentIndex = 0;
 let talentTimer = 0;
 let revealObserver = null;
+let activeScrollMood = "";
+let scrollMoodTimer = 0;
 
 const $ = (selector) => document.querySelector(selector);
+
+const sectionLabels = {
+  top: "TOP",
+  now: "TODAY",
+  schedule: "SCHEDULE",
+  cast: "CAST",
+  inside: "INSIDE",
+  events: "EVENT",
+  access: "ACCESS",
+};
+
+const sectionMoods = {
+  top: ["rgba(255, 62, 126, .28)", "rgba(84, 217, 232, .12)", "rgba(255, 248, 251, .06)", "-8deg"],
+  now: ["rgba(255, 62, 126, .22)", "rgba(244, 211, 106, .14)", "rgba(84, 217, 232, .1)", "4deg"],
+  schedule: ["rgba(84, 217, 232, .18)", "rgba(255, 122, 168, .16)", "rgba(255, 248, 251, .06)", "10deg"],
+  cast: ["rgba(255, 62, 126, .32)", "rgba(84, 217, 232, .2)", "rgba(141, 232, 212, .12)", "-14deg"],
+  inside: ["rgba(255, 122, 168, .18)", "rgba(244, 211, 106, .14)", "rgba(84, 217, 232, .12)", "8deg"],
+  events: ["rgba(118, 100, 220, .2)", "rgba(255, 62, 126, .2)", "rgba(244, 211, 106, .12)", "-4deg"],
+  access: ["rgba(84, 217, 232, .18)", "rgba(141, 232, 212, .16)", "rgba(255, 62, 126, .1)", "12deg"],
+};
 
 async function loadData() {
   const fallback = await loadSeedData();
@@ -146,6 +168,12 @@ function shiftTimeText(shift) {
   return `${dateLabel(shift.date)} ${dayName(shift.date)} ${shift.start || ""}-${shift.end || ""}`;
 }
 
+function compactText(text, maxLength = 58) {
+  if (!text) return "";
+  const normalized = String(text).replace(/\s+/g, " ").trim();
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+}
+
 function renderHero() {
   const hours = siteData.shop.hours || "19:00-05:00";
   $("#hero-hours").textContent = hours;
@@ -263,8 +291,8 @@ function renderTalentShowcase() {
   const person = staff[activeTalentIndex];
   const todayShift = shiftForStaffToday(person.id);
   const status = todayShift?.status || person.workStatus || "off";
-  const upcoming = upcomingShiftsForStaff(person.id, 3);
-  const accentColors = ["#54d9e8", "#ff7aa8", "#f4d36a", "#8de8d4", "#7664dc"];
+  const upcoming = upcomingShiftsForStaff(person.id, 1);
+  const accentColors = ["#54d9e8", "#ff5f9c", "#f4d36a", "#8de8d4", "#b09cff"];
   section.style.setProperty("--talent-bg-image", `url("${asset(person.photo || person.heroPhoto)}")`);
   section.style.setProperty("--talent-accent", accentColors[activeTalentIndex % accentColors.length]);
 
@@ -296,13 +324,13 @@ function renderTalentShowcase() {
       </div>
       <p class="talent-kana">${person.romanName || "CAST"}</p>
       <h3>${person.displayName || ""}</h3>
-      <p class="talent-comment">${person.shortComment || ""}</p>
-      <p class="talent-profile">${person.profileText || ""}</p>
+      <p class="talent-comment">${compactText(person.shortComment || "", 34)}</p>
+      <p class="talent-profile">${compactText(person.profileText || "", 62)}</p>
       <div class="talent-tags">
-        ${(person.tags || []).map((tag) => `<span>${tag}</span>`).join("")}
+        ${(person.tags || []).slice(0, 2).map((tag) => `<span>${tag}</span>`).join("")}
       </div>
       <div class="talent-shifts">
-        <strong>UPCOMING SHIFT</strong>
+        <strong>NEXT</strong>
         ${
           upcoming.length
             ? upcoming.map((shift) => `<span>${shiftTimeText(shift)} ${statusLabel[shift.status] || shift.status}</span>`).join("")
@@ -374,15 +402,6 @@ function bindSectionTransitions() {
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   if (!transition || !label || reduceMotion.matches) return;
 
-  const labels = {
-    top: "TOP",
-    now: "TODAY",
-    schedule: "SCHEDULE",
-    cast: "CAST",
-    inside: "INSIDE",
-    events: "EVENT",
-    access: "ACCESS",
-  };
   let transitionTimer = 0;
 
   function targetFromLink(link) {
@@ -396,7 +415,7 @@ function bindSectionTransitions() {
   }
 
   function transitionLabel(target) {
-    const idLabel = target.id ? labels[target.id] : "";
+    const idLabel = target.id ? sectionLabels[target.id] : "";
     const sectionLabel = target.dataset.screenLabel || target.querySelector(".section-kicker")?.textContent;
     return (idLabel || sectionLabel || "NAUGHTY").trim().toUpperCase();
   }
@@ -427,6 +446,74 @@ function bindSectionTransitions() {
       document.documentElement.classList.remove("is-section-transitioning");
     }, 1120);
   });
+}
+
+function applyScrollMood(sectionId, shouldFlash = true) {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const mood = sectionMoods[sectionId] || sectionMoods.top;
+  const flash = $("#scroll-mood-flash");
+  document.body.dataset.mood = sectionId;
+  document.body.style.setProperty("--mood-a", mood[0]);
+  document.body.style.setProperty("--mood-b", mood[1]);
+  document.body.style.setProperty("--mood-c", mood[2]);
+  document.body.style.setProperty("--mood-rotate", mood[3]);
+
+  if (!shouldFlash || reduceMotion || !flash) return;
+  window.clearTimeout(scrollMoodTimer);
+  flash.dataset.label = sectionLabels[sectionId] || "NAUGHTY";
+  flash.classList.remove("is-active");
+  flash.getBoundingClientRect();
+  flash.classList.add("is-active");
+  scrollMoodTimer = window.setTimeout(() => flash.classList.remove("is-active"), 760);
+}
+
+function bindScrollMood() {
+  const sections = [...document.querySelectorAll(".fv, .now-section, .schedule-section, .talent-section, .inside-section, .event-section, .access-section")]
+    .filter((section) => section.id);
+  if (!sections.length) return;
+
+  applyScrollMood("top", false);
+
+  if (!("IntersectionObserver" in window)) return;
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      const nextMood = entry.target.id || "top";
+      if (nextMood === activeScrollMood) return;
+      const shouldFlash = !!activeScrollMood;
+      activeScrollMood = nextMood;
+      applyScrollMood(nextMood, shouldFlash);
+    });
+  }, { rootMargin: "-44% 0px -44% 0px", threshold: 0 });
+
+  sections.forEach((section) => observer.observe(section));
+}
+
+function bindTalentSwipe() {
+  const stage = $("#talent-stage");
+  if (!stage) return;
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  stage.addEventListener("touchstart", (event) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    startX = touch.clientX;
+    startY = touch.clientY;
+    tracking = true;
+  }, { passive: true });
+
+  stage.addEventListener("touchend", (event) => {
+    if (!tracking) return;
+    tracking = false;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    if (Math.abs(dx) < 42 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+    setActiveTalent(activeTalentIndex + (dx < 0 ? 1 : -1), true);
+  }, { passive: true });
 }
 
 function setActiveTalent(index, resetTimer = false) {
@@ -537,6 +624,8 @@ window.addEventListener("storage", (event) => {
 
 bindSectionTransitions();
 bindTabs();
+bindScrollMood();
+bindTalentSwipe();
 bindHeroMotion();
 bindHeroNoise();
 loadData();

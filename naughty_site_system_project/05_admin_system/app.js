@@ -594,7 +594,7 @@ function bindActions() {
   });
 
   $("#copy-public-url").addEventListener("click", async () => {
-    const url = new URL("../04_site_rebuild/index.html?v=hybrid-16", location.href).href;
+    const url = new URL("../04_site_rebuild/index.html?v=hybrid-20", location.href).href;
     try {
       await navigator.clipboard.writeText(url);
       toast("公開URLをコピーしました");

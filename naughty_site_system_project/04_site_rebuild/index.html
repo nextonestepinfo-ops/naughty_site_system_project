@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&family=Shippori+Mincho+B1:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=hybrid-16" />
+  <link rel="stylesheet" href="styles.css?v=hybrid-20" />
 </head>
 <body>
   <div class="section-transition" id="section-transition" aria-hidden="true">
@@ -30,6 +30,7 @@
       <strong id="section-transition-label">NAUGHTY</strong>
     </div>
   </div>
+  <div class="scroll-mood-flash" id="scroll-mood-flash" aria-hidden="true"></div>
   <div class="site-shell nty">
     <header class="nav">
       <div class="left">
@@ -161,7 +162,7 @@
             <p>本日の出勤とキャストプロフィールをピックアップでチェック。</p>
           </div>
           <div class="talent-icons" id="talent-icons" role="tablist" aria-label="cast select"></div>
-          <div class="talent-stage">
+          <div class="talent-stage" id="talent-stage">
             <button class="talent-nav talent-prev" type="button" data-talent-prev aria-label="previous cast">PREV</button>
             <div class="talent-visual" id="talent-visual" aria-live="polite"></div>
             <div class="talent-panel" id="talent-panel"></div>
@@ -239,8 +240,8 @@
     </footer>
   </div>
 
-  <script src="../03_system_seed/naughty_site_data.js?v=hybrid-16"></script>
+  <script src="../03_system_seed/naughty_site_data.js?v=hybrid-20"></script>
   <script src="../auth-gate.js"></script>
-  <script src="app.js?v=hybrid-16"></script>
+  <script src="app.js?v=hybrid-20"></script>
 </body>
 </html>
