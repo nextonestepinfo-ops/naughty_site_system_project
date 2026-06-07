@@ -8,6 +8,7 @@ import {
   employeeSkills,
   employees,
   goals,
+  goalTrees,
   leaveRequests,
   notifications,
   projectMembers,
@@ -28,6 +29,11 @@ import type {
   DailyPlan,
   DashboardSummary,
   EmployeeProfile,
+  GoalTree,
+  GoalTreeBranch,
+  GoalTreeMetric,
+  GoalTreeScope,
+  GoalTreeTask,
   Project,
   ProjectDetail,
   ProjectStatus,
@@ -48,6 +54,7 @@ const mutableNotifications = notifications;
 const mutableActivity = activityLogs;
 const mutableComments = taskComments;
 const mutableUsers = users;
+const mutableGoalTrees = goalTrees;
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -76,8 +83,17 @@ function taskVisibleToEmployee(task: Task, employeeId?: string) {
   return task.primaryAssigneeId === employeeId || task.assigneeIds.includes(employeeId);
 }
 
+function goalTreeVisibleToEmployee(tree: GoalTree, employeeId?: string) {
+  return tree.scope === "company" || tree.ownerEmployeeId === employeeId;
+}
+
 function isAdmin(role: Role) {
   return role === "admin";
+}
+
+function canMutateGoalTree(tree: GoalTree, role: Role, employeeId?: string) {
+  if (isAdmin(role)) return true;
+  return tree.scope !== "company" && tree.ownerEmployeeId === employeeId;
 }
 
 export function calculatePriorityScore(task: Pick<Task, "dueDate" | "priority" | "customerWaiting" | "delayRisk">) {
@@ -184,6 +200,117 @@ export function getProjectDetail(role: Role, id: string, employeeId?: string): P
       { id: `${id}-file-2`, name: "proposal.pdf", type: "pdf", updatedAt: dateOffset(-1) },
     ],
   };
+}
+
+function normalizeGoalMetric(input: Partial<GoalTreeMetric>): GoalTreeMetric {
+  return {
+    id: input.id || uid("metric"),
+    label: input.label || "数値",
+    current: Number(input.current ?? 0),
+    target: Number(input.target ?? 100),
+    unit: input.unit ?? "",
+  };
+}
+
+function normalizeGoalTreeTask(input: Partial<GoalTreeTask>, fallbackDueDate: string, fallbackAssigneeId: string | null): GoalTreeTask {
+  return {
+    id: input.id || uid("tree-task"),
+    title: input.title || "小タスク",
+    dueDate: input.dueDate || fallbackDueDate,
+    assigneeId: input.assigneeId ?? fallbackAssigneeId,
+    taskId: input.taskId ?? null,
+  };
+}
+
+function normalizeGoalBranch(input: Partial<GoalTreeBranch>, fallbackDueDate: string, fallbackAssigneeId: string | null): GoalTreeBranch {
+  const dueDate = input.dueDate || fallbackDueDate;
+  const assigneeId = input.assigneeId ?? fallbackAssigneeId;
+  return {
+    id: input.id || uid("branch"),
+    title: input.title || "枝",
+    dueDate,
+    assigneeId,
+    projectId: input.projectId ?? mutableProjects[0]?.id ?? null,
+    tasks: input.tasks?.length
+      ? input.tasks.map((task) => normalizeGoalTreeTask(task, dueDate, assigneeId))
+      : [normalizeGoalTreeTask({}, dueDate, assigneeId)],
+  };
+}
+
+function defaultGoalTitle(scope: GoalTreeScope) {
+  return scope === "company" ? "会社" : scope === "daily" ? "今日" : "個人";
+}
+
+function defaultGoalDueDate(scope: GoalTreeScope) {
+  return scope === "company" ? dateOffset(206) : scope === "daily" ? dateOffset(0) : dateOffset(7);
+}
+
+function normalizeGoalTreeInput(input: Partial<GoalTree>, fallback: GoalTree): GoalTree {
+  const dueDate = input.dueDate || fallback.dueDate;
+  const ownerEmployeeId = input.scope === "company" ? null : (input.ownerEmployeeId ?? fallback.ownerEmployeeId);
+  return {
+    ...fallback,
+    title: input.title ?? fallback.title,
+    goal: input.goal ?? fallback.goal,
+    dueDate,
+    ownerEmployeeId,
+    metrics: input.metrics ? input.metrics.map(normalizeGoalMetric) : fallback.metrics,
+    branches: input.branches
+      ? input.branches.map((branch) => normalizeGoalBranch(branch, dueDate, ownerEmployeeId))
+      : fallback.branches,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function getGoalTrees(role: Role, employeeId?: string) {
+  return (isAdmin(role) ? mutableGoalTrees : mutableGoalTrees.filter((tree) => goalTreeVisibleToEmployee(tree, employeeId))).map((tree) => ({
+    ...tree,
+    metrics: tree.metrics.map((metric) => ({ ...metric })),
+    branches: tree.branches.map((branch) => ({
+      ...branch,
+      tasks: branch.tasks.map((task) => ({ ...task })),
+    })),
+  }));
+}
+
+export function createGoalTree(input: Partial<GoalTree>, role: Role, employeeId?: string) {
+  const requestedScope = (input.scope as GoalTreeScope) || "daily";
+  const scope: GoalTreeScope = isAdmin(role) ? requestedScope : requestedScope === "daily" ? "daily" : "personal";
+  const ownerEmployeeId = scope === "company" ? null : isAdmin(role) ? (input.ownerEmployeeId ?? employeeId ?? employees[0].id) : (employeeId ?? employees[0].id);
+  const dueDate = input.dueDate || defaultGoalDueDate(scope);
+  const tree: GoalTree = {
+    id: uid("goal-tree"),
+    scope,
+    title: input.title || defaultGoalTitle(scope),
+    goal: input.goal || "新しい目標",
+    ownerEmployeeId,
+    dueDate,
+    metrics: input.metrics?.map(normalizeGoalMetric) ?? [],
+    branches: input.branches?.length
+      ? input.branches.map((branch) => normalizeGoalBranch(branch, dueDate, ownerEmployeeId))
+      : [normalizeGoalBranch({}, dueDate, ownerEmployeeId)],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  mutableGoalTrees.unshift(tree);
+  return tree;
+}
+
+export function updateGoalTree(id: string, input: Partial<GoalTree>, role: Role, employeeId?: string) {
+  const index = mutableGoalTrees.findIndex((tree) => tree.id === id);
+  if (index < 0 || !canMutateGoalTree(mutableGoalTrees[index], role, employeeId)) return null;
+  const current = mutableGoalTrees[index];
+  const scope = isAdmin(role) ? ((input.scope as GoalTreeScope | undefined) ?? current.scope) : current.scope;
+  const ownerEmployeeId = scope === "company" ? null : isAdmin(role) ? (input.ownerEmployeeId ?? current.ownerEmployeeId) : current.ownerEmployeeId;
+  mutableGoalTrees[index] = normalizeGoalTreeInput({ ...input, id: current.id, scope, ownerEmployeeId }, { ...current, scope, ownerEmployeeId });
+  return mutableGoalTrees[index];
+}
+
+export function deleteGoalTree(id: string, role: Role, employeeId?: string) {
+  const index = mutableGoalTrees.findIndex((tree) => tree.id === id);
+  if (index < 0 || !canMutateGoalTree(mutableGoalTrees[index], role, employeeId)) return false;
+  mutableGoalTrees.splice(index, 1);
+  return true;
 }
 
 export function createProject(input: Partial<Project>) {

@@ -44,6 +44,18 @@ Tested before Git push:
 - Calendar endpoint returns `BEGIN:VEVENT` entries.
 - TypeScript, lint, and production build pass after cleanup.
 
+## 2026-06-08 Goal Tree Operation Check
+
+- Added `/api/goal-trees` and `/api/goal-trees/:id` for company, daily, and personal trees.
+- Admin sees company, daily, and employee personal trees.
+- Employee sees the company tree plus their own tree; company fields are read-only.
+- Sales without a personal tree sees only the company tree, but can add their own daily/personal tree.
+- Company goal defaults to `2026年12月に1000万円達成` with revenue and contract gauges.
+- Branches and small tasks now carry due dates, assignees, and projects.
+- A tree small task can be materialized into `/api/tasks`; the button changes from `タスク化` to `済`.
+- Employee attempts to PATCH the company tree are rejected.
+- Mobile checks confirmed no horizontal overflow for admin and employee views.
+
 ## Remaining UX Review
 
 Use `docs/review-priority-list.md` tomorrow to tune actual task data, scoring,

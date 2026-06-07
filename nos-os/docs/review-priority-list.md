@@ -47,7 +47,14 @@ Use this list tomorrow morning to decide what to adjust first.
 - Replace demo project budgets and statuses with real values.
 - Confirm whether target, forecast, and pipeline are enough for daily use.
 
-## 7. API Connection Order
+## 7. Goal Tree Operation
+
+- Confirm the three layers: company tree, today's tree, personal tree.
+- Decide whether employees can edit only personal/daily trees or also suggest company branches.
+- Confirm which tree tasks should immediately become task records.
+- Replace in-memory goal tree data with Supabase persistence before relying on it across restarts.
+
+## 8. API Connection Order
 
 1. OpenAI API key for the secretary.
 2. Supabase Auth and PostgreSQL.

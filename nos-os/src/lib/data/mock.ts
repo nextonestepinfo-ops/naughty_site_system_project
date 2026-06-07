@@ -7,6 +7,7 @@ import type {
   Employee,
   EmployeeSkill,
   Goal,
+  GoalTree,
   LeaveRequest,
   Notification,
   Project,
@@ -551,6 +552,96 @@ export const goals: Goal[] = [
   { id: "goal-m-akari", employeeId: "emp-akari", period: "month", title: "店舗向けWeb制作の受注導線を整える", progress: 42, status: "on_track" },
   { id: "goal-q-ren", employeeId: "emp-ren", period: "quarter", title: "小規模業務ツールの再利用雛形を作る", progress: 34, status: "on_track" },
   { id: "goal-y-mio", employeeId: "emp-mio", period: "year", title: "AI改善PoCから高単価案件の種を作る", progress: 30, status: "on_track" },
+];
+
+export const goalTrees: GoalTree[] = [
+  {
+    id: "goal-tree-company-2026",
+    scope: "company",
+    title: "会社",
+    goal: "2026年12月に1000万円達成",
+    ownerEmployeeId: null,
+    dueDate: dateOffset(206),
+    metrics: [
+      { id: "metric-company-revenue", label: "売上", current: 0, target: 10000000, unit: "円" },
+      { id: "metric-company-contracts", label: "契約", current: 0, target: 3, unit: "件" },
+    ],
+    branches: [
+      {
+        id: "branch-company-web",
+        title: "Web制作で初受注を作る",
+        dueDate: dateOffset(22),
+        assigneeId: "emp-urata",
+        projectId: "proj-sales-sprint",
+        tasks: [
+          { id: "tree-task-company-list", title: "広島市内の営業リストを作る", dueDate: dateOffset(1), assigneeId: "emp-urata", taskId: "task-sales-list" },
+          { id: "tree-task-company-mail", title: "ココナラとメール営業を開始", dueDate: dateOffset(2), assigneeId: "emp-mio", taskId: null },
+          { id: "tree-task-company-reply", title: "返信候補を商談にする", dueDate: dateOffset(3), assigneeId: "emp-urata", taskId: "task-urata-reply" },
+        ],
+      },
+      {
+        id: "branch-company-proof",
+        title: "営業で見せる実績を作る",
+        dueDate: dateOffset(7),
+        assigneeId: "emp-akari",
+        projectId: "proj-web-demo",
+        tasks: [
+          { id: "tree-task-company-restaurant", title: "飲食店サンプル5種類を磨く", dueDate: dateOffset(1), assigneeId: "emp-akari", taskId: null },
+          { id: "tree-task-company-menu", title: "料金なしの制作メニュー表を整える", dueDate: dateOffset(2), assigneeId: "emp-mio", taskId: null },
+        ],
+      },
+    ],
+    createdAt: dateOffset(-1),
+    updatedAt: dateOffset(0),
+  },
+  {
+    id: "goal-tree-daily-urata",
+    scope: "daily",
+    title: "今日",
+    goal: "返信・営業・サンプル確認を今日進める",
+    ownerEmployeeId: "emp-urata",
+    dueDate: dateOffset(0),
+    metrics: [{ id: "metric-daily-contact", label: "連絡", current: 0, target: 10, unit: "件" }],
+    branches: [
+      {
+        id: "branch-daily-sales",
+        title: "午前中に営業を動かす",
+        dueDate: dateOffset(0, 12),
+        assigneeId: "emp-urata",
+        projectId: "proj-sales-sprint",
+        tasks: [
+          { id: "tree-task-daily-reply", title: "返信3件に次回確認日を返す", dueDate: dateOffset(0, 10), assigneeId: "emp-urata", taskId: "task-urata-reply" },
+          { id: "tree-task-daily-ten", title: "今日連絡する10件を決める", dueDate: dateOffset(0, 11), assigneeId: "emp-urata", taskId: "task-sales-list" },
+        ],
+      },
+    ],
+    createdAt: dateOffset(-1),
+    updatedAt: dateOffset(0),
+  },
+  {
+    id: "goal-tree-personal-akari",
+    scope: "personal",
+    title: "あかり個人",
+    goal: "店舗向けWeb制作を説明できる形にする",
+    ownerEmployeeId: "emp-akari",
+    dueDate: dateOffset(7),
+    metrics: [{ id: "metric-akari-samples", label: "サンプル", current: 5, target: 10, unit: "個" }],
+    branches: [
+      {
+        id: "branch-akari-design",
+        title: "デザインサンプル整備",
+        dueDate: dateOffset(3),
+        assigneeId: "emp-akari",
+        projectId: "proj-web-demo",
+        tasks: [
+          { id: "tree-task-akari-restaurant", title: "飲食店サンプルを営業向けに見直す", dueDate: dateOffset(1), assigneeId: "emp-akari", taskId: null },
+          { id: "tree-task-akari-before-after", title: "平成風サイトのBefore Afterを作る", dueDate: dateOffset(2), assigneeId: "emp-akari", taskId: null },
+        ],
+      },
+    ],
+    createdAt: dateOffset(-1),
+    updatedAt: dateOffset(0),
+  },
 ];
 
 export const attendanceLogs: AttendanceLog[] = [

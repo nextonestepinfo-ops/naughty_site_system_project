@@ -77,7 +77,7 @@ export function AssistantDock() {
   return (
     <>
       <button
-        className="fixed bottom-20 right-4 z-40 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-soft transition hover:scale-105 dark:bg-slate-950 lg:bottom-6"
+        className="fixed bottom-24 right-3 z-40 flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-soft transition hover:scale-105 dark:bg-slate-950 sm:h-16 sm:w-16 lg:bottom-6 lg:right-4"
         onClick={() => setOpen(true)}
         aria-label="AI秘書を開く"
         title="AI秘書を開く"
@@ -86,7 +86,7 @@ export function AssistantDock() {
       </button>
 
       {open ? (
-        <div className="fixed inset-x-3 bottom-24 z-50 flex max-h-[76vh] flex-col overflow-hidden rounded-panel border border-border bg-white shadow-soft dark:bg-slate-950 sm:left-auto sm:right-4 sm:w-[420px] lg:bottom-24">
+        <div className="fixed inset-x-3 bottom-28 z-50 flex max-h-[76vh] flex-col overflow-hidden rounded-panel border border-border bg-white shadow-soft dark:bg-slate-950 sm:left-auto sm:right-4 sm:w-[420px] lg:bottom-24">
           <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-panel bg-blue-50">
               <Image src="/assistant/nos-secretary-bot.png" alt="Nos OS AI secretary bot" fill className="object-cover object-center" sizes="48px" />

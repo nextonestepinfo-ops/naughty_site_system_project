@@ -36,6 +36,7 @@ export type AttendanceStatus =
   | "absent";
 
 export type GoalPeriod = "week" | "month" | "quarter" | "year";
+export type GoalTreeScope = "company" | "daily" | "personal";
 export type Severity = "info" | "success" | "warning" | "danger";
 
 export type User = {
@@ -88,6 +89,44 @@ export type Goal = {
   title: string;
   progress: number;
   status: "on_track" | "at_risk" | "done";
+};
+
+export type GoalTreeMetric = {
+  id: string;
+  label: string;
+  current: number;
+  target: number;
+  unit: string;
+};
+
+export type GoalTreeTask = {
+  id: string;
+  title: string;
+  dueDate: string;
+  assigneeId: string | null;
+  taskId: string | null;
+};
+
+export type GoalTreeBranch = {
+  id: string;
+  title: string;
+  dueDate: string;
+  assigneeId: string | null;
+  projectId: string | null;
+  tasks: GoalTreeTask[];
+};
+
+export type GoalTree = {
+  id: string;
+  scope: GoalTreeScope;
+  title: string;
+  goal: string;
+  ownerEmployeeId: string | null;
+  dueDate: string;
+  metrics: GoalTreeMetric[];
+  branches: GoalTreeBranch[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Customer = {

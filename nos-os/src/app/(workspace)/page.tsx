@@ -1,9 +1,9 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Building2, CalendarCheck, CalendarDays, Check, CheckCircle2, Clock3, Download, GitBranch, Mic, Plus, Sparkles, Target, Trash2, UserRound, Users, X } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CalendarDays, Check, CheckCircle2, Clock3, Download, Mic, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { GoalTreeBoard } from "@/components/domain/goal-tree-board";
 import { LoadingPanel } from "@/components/domain/loading";
 import { MetricCard } from "@/components/domain/metric-card";
 import { PageHeader } from "@/components/domain/page-header";
@@ -12,66 +12,11 @@ import { TaskCard } from "@/components/domain/task-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/form";
 import { attendanceStatusLabels } from "@/lib/data/labels";
 import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import type { DashboardSummary, Employee, Project, Task } from "@/lib/types";
 import { cn, formatDateTime, formatTime } from "@/lib/utils";
-
-type GoalIcon = "company" | "personal";
-
-type GoalMetric = {
-  id: string;
-  label: string;
-  current: number;
-  target: number;
-  unit: string;
-};
-
-type GoalBranch = {
-  id: string;
-  title: string;
-  tasks: string[];
-};
-
-type GoalMap = {
-  id: string;
-  title: string;
-  icon: GoalIcon;
-  goal: string;
-  branches: GoalBranch[];
-  metrics: GoalMetric[];
-};
-
-const goalStorageKey = "nos-os-goal-tree-v1";
-const primaryGoalText = "2026年12月に1000万円達成";
-const primaryRevenueTarget = 10000000;
-
-const defaultGoalMaps: GoalMap[] = [
-  {
-    id: "company",
-    title: "会社",
-    icon: "company",
-    goal: primaryGoalText,
-    metrics: [{ id: "company-revenue", label: "売上", current: 0, target: primaryRevenueTarget, unit: "円" }],
-    branches: [
-      { id: "company-web", title: "Web制作を売る", tasks: ["営業リスト", "メール", "反応記録"] },
-      { id: "company-proof", title: "実績を作る", tasks: ["飲食店", "サンプル改善", "事例化"] },
-    ],
-  },
-  {
-    id: "personal",
-    title: "個人",
-    icon: "personal",
-    goal: "月900万へ",
-    metrics: [{ id: "personal-month", label: "月商", current: 0, target: 9000000, unit: "円" }],
-    branches: [
-      { id: "personal-volume", title: "数を打つ", tasks: ["候補出し", "話を聞く", "当たりを見る"] },
-      { id: "personal-time", title: "時間を作る", tasks: ["優先順位", "任せる", "仕組み化"] },
-    ],
-  },
-];
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
@@ -163,7 +108,7 @@ export default function DashboardPage() {
 
       <CalendarBoard baseDate={plan.generatedAt} tasks={dashboard.data.weekTasks} schedule={plan.schedule} />
 
-      <GoalTree />
+      <GoalTreeBoard revenue={plan.revenue} />
 
       <section className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-5">
@@ -294,264 +239,6 @@ function CalendarBoard({
   );
 }
 
-function GoalTree() {
-  const [goals, setGoals] = useState<GoalMap[]>(defaultGoalMaps);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    const raw = window.localStorage.getItem(goalStorageKey);
-    if (raw) {
-      try {
-        setGoals(migrateGoalMaps(JSON.parse(raw) as GoalMap[]));
-      } catch {
-        setGoals(defaultGoalMaps);
-      }
-    }
-    setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (loaded) window.localStorage.setItem(goalStorageKey, JSON.stringify(goals));
-  }, [goals, loaded]);
-
-  function updateGoal(goalId: string, patch: Partial<GoalMap>) {
-    setGoals((current) => current.map((goal) => (goal.id === goalId ? { ...goal, ...patch } : goal)));
-  }
-
-  function addGoal() {
-    setGoals((current) => [
-      ...current,
-      {
-        id: uid("goal"),
-        title: "新しい目標",
-        icon: "company",
-        goal: "目標名",
-        metrics: [],
-        branches: [{ id: uid("branch"), title: "枝", tasks: ["小タスク"] }],
-      },
-    ]);
-  }
-
-  function deleteGoal(goalId: string) {
-    setGoals((current) => current.filter((goal) => goal.id !== goalId));
-  }
-
-  function addMetric(goalId: string) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId
-          ? { ...goal, metrics: [...goal.metrics, { id: uid("metric"), label: "数値", current: 0, target: 100, unit: "" }] }
-          : goal,
-      ),
-    );
-  }
-
-  function updateMetric(goalId: string, metricId: string, patch: Partial<GoalMetric>) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId
-          ? { ...goal, metrics: goal.metrics.map((metric) => (metric.id === metricId ? { ...metric, ...patch } : metric)) }
-          : goal,
-      ),
-    );
-  }
-
-  function deleteMetric(goalId: string, metricId: string) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId ? { ...goal, metrics: goal.metrics.filter((metric) => metric.id !== metricId) } : goal,
-      ),
-    );
-  }
-
-  function addBranch(goalId: string) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId ? { ...goal, branches: [...goal.branches, { id: uid("branch"), title: "枝", tasks: ["小タスク"] }] } : goal,
-      ),
-    );
-  }
-
-  function updateBranch(goalId: string, branchId: string, patch: Partial<GoalBranch>) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId
-          ? { ...goal, branches: goal.branches.map((branch) => (branch.id === branchId ? { ...branch, ...patch } : branch)) }
-          : goal,
-      ),
-    );
-  }
-
-  function deleteBranch(goalId: string, branchId: string) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId ? { ...goal, branches: goal.branches.filter((branch) => branch.id !== branchId) } : goal,
-      ),
-    );
-  }
-
-  function addTask(goalId: string, branchId: string) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId
-          ? {
-              ...goal,
-              branches: goal.branches.map((branch) => (branch.id === branchId ? { ...branch, tasks: [...branch.tasks, "小タスク"] } : branch)),
-            }
-          : goal,
-      ),
-    );
-  }
-
-  function updateTask(goalId: string, branchId: string, taskIndex: number, value: string) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId
-          ? {
-              ...goal,
-              branches: goal.branches.map((branch) =>
-                branch.id === branchId
-                  ? { ...branch, tasks: branch.tasks.map((task, index) => (index === taskIndex ? value : task)) }
-                  : branch,
-              ),
-            }
-          : goal,
-      ),
-    );
-  }
-
-  function deleteTask(goalId: string, branchId: string, taskIndex: number) {
-    setGoals((current) =>
-      current.map((goal) =>
-        goal.id === goalId
-          ? {
-              ...goal,
-              branches: goal.branches.map((branch) =>
-                branch.id === branchId ? { ...branch, tasks: branch.tasks.filter((_, index) => index !== taskIndex) } : branch,
-              ),
-            }
-          : goal,
-      ),
-    );
-  }
-
-  return (
-    <Card className="mt-5" data-testid="goal-tree">
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-accent" />
-          目標ツリー
-        </CardTitle>
-        <Button data-testid="goal-add" size="sm" variant="secondary" onClick={addGoal}>
-          <Plus className="h-4 w-4" />
-          追加
-        </Button>
-      </CardHeader>
-      <CardContent className="grid gap-4 lg:grid-cols-2">
-        {goals.map((goal) => {
-          const Icon = goal.icon === "personal" ? UserRound : Building2;
-
-          return (
-          <div key={goal.id} className="rounded-panel border border-border p-4" data-goal-id={goal.id} data-testid="goal-card">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-panel bg-slate-50 dark:bg-white/10">
-                <Icon className="h-5 w-5 text-accent" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <Input className="h-9 font-semibold" value={goal.title} onChange={(event) => updateGoal(goal.id, { title: event.target.value })} />
-                <Input className="mt-2 h-9 text-lg font-bold" value={goal.goal} onChange={(event) => updateGoal(goal.id, { goal: event.target.value })} />
-              </div>
-              <Button aria-label="目標を削除" title="目標を削除" size="icon" variant="ghost" onClick={() => deleteGoal(goal.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {goal.metrics.map((metric) => {
-                const rate = metric.target > 0 ? Math.min(100, Math.max(0, Math.round((metric.current / metric.target) * 100))) : 0;
-
-                return (
-                  <div key={metric.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
-                    <div className="grid gap-2 sm:grid-cols-[1fr_90px_90px_70px_auto]">
-                      <Input className="h-9" value={metric.label} onChange={(event) => updateMetric(goal.id, metric.id, { label: event.target.value })} />
-                      <Input
-                        className="h-9"
-                        inputMode="numeric"
-                        type="number"
-                        value={metric.current}
-                        onChange={(event) => updateMetric(goal.id, metric.id, { current: Number(event.target.value) })}
-                      />
-                      <Input
-                        className="h-9"
-                        inputMode="numeric"
-                        type="number"
-                        value={metric.target}
-                        onChange={(event) => updateMetric(goal.id, metric.id, { target: Number(event.target.value) })}
-                      />
-                      <Input className="h-9" value={metric.unit} onChange={(event) => updateMetric(goal.id, metric.id, { unit: event.target.value })} />
-                      <Button data-testid="metric-delete" aria-label="数値を削除" title="数値を削除" size="icon" variant="ghost" onClick={() => deleteMetric(goal.id, metric.id)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="h-2 flex-1 rounded-full bg-white dark:bg-slate-950">
-                        <div className="h-2 rounded-full bg-success" style={{ width: `${rate}%` }} />
-                      </div>
-                      <span className="w-12 text-right text-xs font-semibold">{rate}%</span>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {metric.current.toLocaleString()} / {metric.target.toLocaleString()}
-                      {metric.unit}
-                    </p>
-                  </div>
-                );
-              })}
-              <Button data-testid="metric-add" size="sm" variant="ghost" onClick={() => addMetric(goal.id)}>
-                <Plus className="h-4 w-4" />
-                数値
-              </Button>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {goal.branches.map((branch) => (
-                <div key={branch.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="h-4 w-4 text-slate-400" />
-                    <Input className="h-9 font-semibold" value={branch.title} onChange={(event) => updateBranch(goal.id, branch.id, { title: event.target.value })} />
-                    <Button data-testid="branch-delete" aria-label="枝を削除" title="枝を削除" size="icon" variant="ghost" onClick={() => deleteBranch(goal.id, branch.id)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="mt-3 grid gap-2">
-                    {branch.tasks.map((task, taskIndex) => (
-                      <div key={`${branch.id}-${taskIndex}`} className="flex items-center gap-2">
-                        <Input className="h-9" value={task} onChange={(event) => updateTask(goal.id, branch.id, taskIndex, event.target.value)} />
-                        <Button data-testid="task-delete" aria-label="小タスクを削除" title="小タスクを削除" size="icon" variant="ghost" onClick={() => deleteTask(goal.id, branch.id, taskIndex)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  <Button data-testid="task-add" className="mt-3" size="sm" variant="ghost" onClick={() => addTask(goal.id, branch.id)}>
-                    <Plus className="h-4 w-4" />
-                    小タスク
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <Button data-testid="branch-add" className="mt-3" size="sm" variant="ghost" onClick={() => addBranch(goal.id)}>
-              <Plus className="h-4 w-4" />
-              枝
-            </Button>
-          </div>
-          );
-        })}
-        {goals.length === 0 ? <p className="rounded-panel bg-slate-50 p-4 text-sm text-slate-500 dark:bg-white/5">目標はまだありません。</p> : null}
-      </CardContent>
-    </Card>
-  );
-}
-
 function buildCalendarDays(baseDate: string, tasks: Task[], schedule: DashboardSummary["dailyPlan"]["schedule"]) {
   const base = startOfDay(new Date(baseDate));
   const todayKey = dateKey(base);
@@ -600,26 +287,6 @@ function startOfDay(date: Date) {
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-}
-
-function uid(prefix: string) {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return `${prefix}-${crypto.randomUUID()}`;
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function migrateGoalMaps(savedGoals: GoalMap[]) {
-  return savedGoals.map((goal) => {
-    const isLegacyDefaultCompany = goal.id === "company" && goal.goal === "8年で10億";
-    if (!isLegacyDefaultCompany) return goal;
-
-    return {
-      ...goal,
-      goal: primaryGoalText,
-      metrics: goal.metrics.map((metric) =>
-        metric.id === "company-revenue" && metric.target === 1000000000 ? { ...metric, target: primaryRevenueTarget } : metric,
-      ),
-    };
-  });
 }
 
 function FocusSideItem({ label, title, tone }: { label: string; title: string; tone: "green" | "red" | "amber" }) {
