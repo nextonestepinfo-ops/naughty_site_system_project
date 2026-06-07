@@ -18,7 +18,6 @@ const demoAccounts: Array<{ role: Role; label: string; email: string; note: stri
   { role: "admin", label: "うらた", email: "urata@nostechnology.jp", note: "管理者 / 代表" },
   { role: "employee", label: "社員", email: "akari@nostechnology.jp", note: "担当タスク中心" },
   { role: "sales", label: "営業", email: "mio@nostechnology.jp", note: "売上と顧客を確認" },
-  { role: "part_time", label: "バイト", email: "ren@nostechnology.jp", note: "必要タスクだけ表示" },
 ];
 
 export default function LoginPage() {
@@ -26,17 +25,23 @@ export default function LoginPage() {
   const setSession = useAppStore((state) => state.setSession);
   const [role, setRole] = useState<Role>("admin");
   const [email, setEmail] = useState("urata@nostechnology.jp");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const requiresPassword = email === "urata@nostechnology.jp";
 
   async function login(provider: "google" | "email") {
     setLoading(true);
+    setError("");
     try {
       const user = await apiFetch<User>("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, role, provider }),
+        body: JSON.stringify({ email, password, role, provider }),
       });
       setSession(user);
       router.replace("/");
+    } catch {
+      setError(requiresPassword ? "パスワードを確認してください。" : "ログインできませんでした。");
     } finally {
       setLoading(false);
     }
@@ -87,7 +92,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="mb-4 grid grid-cols-2 gap-2 rounded-panel bg-slate-100 p-1 dark:bg-white/10">
+            <div className="mb-4 grid grid-cols-3 gap-2 rounded-panel bg-slate-100 p-1 dark:bg-white/10">
               {demoAccounts.map((account) => (
                 <button
                   key={account.email}
@@ -98,6 +103,8 @@ export default function LoginPage() {
                   onClick={() => {
                     setRole(account.role);
                     setEmail(account.email);
+                    setPassword("");
+                    setError("");
                   }}
                   type="button"
                 >
@@ -109,6 +116,13 @@ export default function LoginPage() {
 
             <form onSubmit={submit} className="space-y-3">
               <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@nostechnology.jp" type="email" />
+              <Input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder={requiresPassword ? "パスワード" : "パスワード不要"}
+                type="password"
+              />
+              {error ? <p className="rounded-panel bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:bg-red-500/15 dark:text-red-100">{error}</p> : null}
               <Button className="w-full" disabled={loading} type="submit">
                 <Mail className="h-4 w-4" />
                 メールログイン
@@ -125,7 +139,7 @@ export default function LoginPage() {
                 <ShieldCheck className="h-4 w-4" />
                 権限デモ: {roleLabels[role]}
               </div>
-              <p className="mt-1 leading-6">管理者は全体、社員・営業・バイトは担当範囲を中心に表示します。</p>
+              <p className="mt-1 leading-6">管理者は全体、社員・営業は担当範囲を中心に表示します。</p>
             </div>
           </CardContent>
         </Card>

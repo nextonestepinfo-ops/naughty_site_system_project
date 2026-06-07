@@ -5,6 +5,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const user = loginUser({
     email: body.email,
+    password: body.password,
     role: body.role,
     provider: body.provider,
   });
@@ -13,4 +14,3 @@ export async function POST(request: Request) {
   }
   return NextResponse.json({ data: user });
 }
-

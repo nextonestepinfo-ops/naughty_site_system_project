@@ -1,4 +1,4 @@
-export type Role = "admin" | "employee" | "sales" | "part_time";
+export type Role = "admin" | "employee" | "sales";
 export type AuthProvider = "google" | "email";
 export type EmploymentType = "full_time" | "part_time" | "contractor";
 

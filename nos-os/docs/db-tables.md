@@ -25,7 +25,7 @@ human-readable table map for Phase1.
 
 ## Enums
 
-- User role: `admin`, `employee`, `sales`, `part_time`
+- User role: `admin`, `employee`, `sales`
 - Employment type: `full_time`, `part_time`, `contractor`
 - Project status: `pre_order`, `hearing`, `proposal`, `production`,
   `customer_review`, `revision`, `final_review`, `delivered`, `maintenance`,

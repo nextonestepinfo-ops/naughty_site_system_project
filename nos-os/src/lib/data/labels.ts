@@ -11,7 +11,6 @@ export const roleLabels: Record<Role, string> = {
   admin: "管理者",
   employee: "一般社員",
   sales: "営業",
-  part_time: "バイト",
 };
 
 export const projectStatusLabels: Record<ProjectStatus, string> = {

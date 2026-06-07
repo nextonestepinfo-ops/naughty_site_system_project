@@ -55,6 +55,9 @@ const mutableActivity = activityLogs;
 const mutableComments = taskComments;
 const mutableUsers = users;
 const mutableGoalTrees = goalTrees;
+const demoPasswordByEmail: Record<string, string | undefined> = {
+  "urata@nostechnology.jp": process.env.URATA_LOGIN_PASSWORD,
+};
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -138,10 +141,14 @@ function countByStatus<T extends string>(values: T[], allStatuses: T[]) {
   );
 }
 
-export function loginUser(input: { email?: string; role?: Role; provider?: "google" | "email" }) {
+export function loginUser(input: { email?: string; password?: string; role?: Role; provider?: "google" | "email" }) {
   const requestedRole = input.role ?? "employee";
   const found = mutableUsers.find((user) => user.email === input.email) ?? mutableUsers.find((user) => user.role === requestedRole);
   if (!found) return null;
+  if (found.email in demoPasswordByEmail) {
+    const requiredPassword = demoPasswordByEmail[found.email];
+    if (!requiredPassword || input.password !== requiredPassword) return null;
+  }
   return { ...found, authProvider: input.provider ?? found.authProvider };
 }
 

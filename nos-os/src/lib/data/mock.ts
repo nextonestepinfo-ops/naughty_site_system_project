@@ -62,7 +62,7 @@ export const users: User[] = [
     id: "user-ren",
     email: "ren@nostechnology.jp",
     name: "高橋 蓮",
-    role: "part_time",
+    role: "employee",
     employmentType: "part_time",
     employeeId: "emp-ren",
     authProvider: "google",

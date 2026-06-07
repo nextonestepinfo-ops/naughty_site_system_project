@@ -20,7 +20,7 @@ Use this list tomorrow morning to decide what to adjust first.
 
 ## 3. Permission Model
 
-- In Employees, switch a user between `管理者`, `一般社員`, `営業`, and `バイト`.
+- In Employees, switch a user between `管理者`, `一般社員`, and `営業`.
 - Confirm who should see:
   - all projects,
   - only assigned projects,

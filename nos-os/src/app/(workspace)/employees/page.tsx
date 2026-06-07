@@ -17,7 +17,7 @@ import type { Employee, EmploymentType, Role, User } from "@/lib/types";
 
 const employmentLabels: Record<EmploymentType, string> = {
   full_time: "正社員",
-  part_time: "バイト",
+  part_time: "短時間",
   contractor: "業務委託",
 };
 
@@ -48,7 +48,7 @@ export default function EmployeesPage() {
 
   return (
     <>
-      <PageHeader title="社員管理" description="社員、営業、バイト、管理者などの権限を管理できます。管理者にすると全案件と全タスクが見えます。" />
+      <PageHeader title="社員管理" description="社員、営業、管理者の権限を管理できます。管理者にすると全案件と全タスクが見えます。" />
 
       <section className="mb-5 grid gap-3 sm:grid-cols-4">
         <MetricCard label="社員数" value={employees.data.length} icon={Activity} helper="登録プロフィール" tone="blue" />
