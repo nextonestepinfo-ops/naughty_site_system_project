@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Brain, CalendarClock, CheckCircle2, Target } from "lucide-react";
+import { Brain, CalendarClock, CheckCircle2, Target, TrendingUp } from "lucide-react";
 import { useParams } from "next/navigation";
 import { Avatar } from "@/components/domain/avatar";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -11,18 +11,22 @@ import { TaskCard } from "@/components/domain/task-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { attendanceEventLabels, attendanceStatusLabels } from "@/lib/data/labels";
-import { apiFetch, useScopedPath } from "@/lib/hooks/use-api";
-import type { EmployeeProfile } from "@/lib/types";
-import { formatDateTime } from "@/lib/utils";
+import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
+import { useAppStore } from "@/lib/store/app-store";
+import type { DashboardSummary, EmployeeProfile, RevenueSummary } from "@/lib/types";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 export default function EmployeeProfilePage() {
   const params = useParams<{ id: string }>();
+  const session = useAppStore((state) => state.session);
   const path = useScopedPath(`/api/employees/${params.id}`);
   const profile = useQuery({ queryKey: ["employee", path], queryFn: () => apiFetch<EmployeeProfile>(path) });
+  const dashboard = useScopedQuery<DashboardSummary>(["dashboard"], "/api/dashboard");
 
   if (profile.isLoading || !profile.data) return <LoadingPanel label="社員プロフィールを読み込み中" />;
 
   const employee = profile.data;
+  const revenue = session?.employeeId === employee.id ? dashboard.data?.dailyPlan.revenue : null;
 
   return (
     <>
@@ -51,6 +55,8 @@ export default function EmployeeProfilePage() {
               </div>
             </CardContent>
           </Card>
+
+          {revenue ? <RevenueMeter revenue={revenue} /> : null}
 
           <Card>
             <CardHeader>
@@ -172,3 +178,33 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
+function RevenueMeter({ revenue }: { revenue: RevenueSummary }) {
+  const rate = Math.min(100, Math.round((revenue.weightedForecast / revenue.monthTarget) * 100));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-success" />
+          売上
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-sm text-slate-500">見込み</p>
+            <p className="mt-1 text-2xl font-bold">{formatCurrency(revenue.weightedForecast)}</p>
+          </div>
+          <Badge tone={rate >= 80 ? "green" : rate >= 55 ? "amber" : "red"}>{rate}%</Badge>
+        </div>
+        <div className="mt-4 h-3 rounded-full bg-slate-100 dark:bg-white/10">
+          <div className="h-3 rounded-full bg-success" style={{ width: `${rate}%` }} />
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+          <Info label="自分" value={formatCurrency(revenue.personalContribution)} />
+          <Info label="候補" value={formatCurrency(revenue.activePipeline)} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

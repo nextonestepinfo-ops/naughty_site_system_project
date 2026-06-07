@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Home,
   LogOut,
+  Megaphone,
   Moon,
   Settings,
   Sun,
@@ -33,6 +34,7 @@ import { cn } from "@/lib/utils";
 const navItems: Array<{ href: string; label: string; icon: LucideIcon; adminOnly?: boolean }> = [
   { href: "/", label: "ホーム", icon: Home },
   { href: "/projects", label: "案件", icon: BriefcaseBusiness },
+  { href: "/sales", label: "営業素材", icon: Megaphone },
   { href: "/tasks", label: "タスク", icon: ClipboardList },
   { href: "/customers", label: "顧客", icon: Building2, adminOnly: true },
   { href: "/employees", label: "社員", icon: Users, adminOnly: true },
@@ -41,7 +43,7 @@ const navItems: Array<{ href: string; label: string; icon: LucideIcon; adminOnly
   { href: "/test", label: "テスト", icon: FlaskConical, adminOnly: true },
 ];
 
-const mobileItems = navItems.filter((item) => ["/", "/projects", "/tasks", "/attendance", "/assistant"].includes(item.href));
+const mobileItems = navItems.filter((item) => ["/", "/projects", "/tasks", "/sales", "/attendance", "/assistant"].includes(item.href));
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -134,7 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link href="/notifications" className="grid h-10 w-10 place-items-center rounded-panel hover:bg-slate-100 dark:hover:bg-white/10" title="通知">
                 <Bell className="h-4 w-4" />
               </Link>
-              <Link href="/settings" className="hidden h-10 items-center gap-2 rounded-panel px-2 text-sm hover:bg-slate-100 dark:hover:bg-white/10 sm:flex">
+              <Link href={`/employees/${session.employeeId}`} className="hidden h-10 items-center gap-2 rounded-panel px-2 text-sm hover:bg-slate-100 dark:hover:bg-white/10 sm:flex">
                 <UserRound className="h-4 w-4" />
                 <span className="max-w-28 truncate">{session.name}</span>
               </Link>
@@ -158,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-2 py-2 backdrop-blur lg:hidden">
-        <div className="grid grid-cols-5 gap-1">
+        <div className="grid grid-cols-6 gap-1">
           {mobileItems.map((item) => (
             <Link
               key={item.href}

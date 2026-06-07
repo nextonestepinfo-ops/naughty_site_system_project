@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, ClipboardCheck, Database, ExternalLink, KeyRound, Rocket, ServerCog } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Database, ExternalLink, KeyRound, Megaphone, Rocket, ServerCog } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/domain/page-header";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -28,6 +28,12 @@ export default function TestReadinessPage() {
               <Button variant="secondary">
                 <ClipboardCheck className="h-4 w-4" />
                 タスクを試す
+              </Button>
+            </Link>
+            <Link href="/sales">
+              <Button variant="ghost">
+                <Megaphone className="h-4 w-4" />
+                営業素材
               </Button>
             </Link>
             <a href={data.githubBranchUrl} target="_blank" rel="noreferrer">
@@ -59,6 +65,7 @@ export default function TestReadinessPage() {
             <ChecklistItem done label="ログインして、自分の権限で見える画面を確認する" />
             <ChecklistItem done label="タスク画面で、開始、確認へ、完了を押して流れを試す" />
             <ChecklistItem done label="ホームで、今やること、次にやること、遅れた時の影響を見る" />
+            <ChecklistItem done label="営業素材で、Before/After、飲食店サンプル、スプレッドシート導線を試す" />
             <ChecklistItem done label="カレンダー出力で今日の予定をダウンロードする" />
             <ChecklistItem done={data.openaiConfigured} label="AI秘書に 今日やること / 次に何？ / 売上は？ と聞く" />
             <ChecklistItem done={data.dataMode === "supabase"} label="複数人で同じタスクデータが残るか確認する" />
@@ -159,4 +166,3 @@ function FeedbackStep({ title, body }: { title: string; body: string }) {
     </div>
   );
 }
-
