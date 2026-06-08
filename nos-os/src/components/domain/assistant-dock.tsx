@@ -7,7 +7,6 @@ import { useState } from "react";
 import { AssistantMessage } from "@/components/domain/assistant-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/form";
-import { buildSecretaryIntegrationPayload } from "@/lib/integrations/client-settings";
 import { apiFetch } from "@/lib/hooks/use-api";
 import type { SecretaryReply } from "@/lib/types";
 
@@ -40,14 +39,13 @@ export function AssistantDock() {
         body: JSON.stringify({
           message: normalized,
           context: document.body.innerText.slice(0, 900),
-          integrationSettings: buildSecretaryIntegrationPayload(),
         }),
       });
       setReply(data.reply);
       setSource(data.source);
       setMessage("");
     } catch {
-      setReply("通信に失敗しました。少し時間を置いてもう一度試してください。");
+      setReply("通信に失敗しました。少し時間を置いて、もう一度試してください。");
       setSource("local");
     } finally {
       setLoading(false);
@@ -58,7 +56,7 @@ export function AssistantDock() {
     const SpeechRecognition = (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor; SpeechRecognition?: SpeechRecognitionCtor })
       .SpeechRecognition ?? (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setReply("このブラウザでは音声認識が使えません。スマホのキーボード音声入力か、Chromeで試してください。");
+      setReply("このブラウザでは音声入力が使えません。スマホのキーボード音声入力か、Chromeで試してください。");
       return;
     }
     const recognition = new SpeechRecognition();
@@ -93,9 +91,9 @@ export function AssistantDock() {
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-foreground">Nos秘書</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{source === "openai" ? "OpenAI接続" : "ローカル回答"}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{source === "openai" ? "OpenAI接続" : "ローカル返答"}</p>
             </div>
-            <Link href="/settings" className="ml-auto grid h-9 w-9 place-items-center rounded-panel text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" title="API設定">
+            <Link href="/settings" className="ml-auto grid h-9 w-9 place-items-center rounded-panel text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" title="設定">
               <Settings className="h-4 w-4" />
             </Link>
             <button className="grid h-9 w-9 place-items-center rounded-panel text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" onClick={() => setOpen(false)} aria-label="閉じる">

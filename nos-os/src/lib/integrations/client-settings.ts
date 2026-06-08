@@ -1,12 +1,6 @@
 "use client";
 
-export type ClientAiProvider = "openai" | "local";
-
 export type ClientIntegrationSettings = {
-  aiProvider: ClientAiProvider;
-  openaiApiKey: string;
-  openaiModel: string;
-  openaiMaxOutputTokens: number;
   supabaseUrl: string;
   supabaseAnonKey: string;
 };
@@ -15,10 +9,6 @@ const publicSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const publicSupabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 export const clientIntegrationDefaults: ClientIntegrationSettings = {
-  aiProvider: "openai",
-  openaiApiKey: "",
-  openaiModel: "gpt-5.4-mini",
-  openaiMaxOutputTokens: 520,
   supabaseUrl: publicSupabaseUrl,
   supabaseAnonKey: publicSupabaseAnonKey,
 };
@@ -34,9 +24,6 @@ export function getClientIntegrationSettings(): ClientIntegrationSettings {
     const parsed = JSON.parse(raw) as Partial<ClientIntegrationSettings>;
     return {
       ...clientIntegrationDefaults,
-      ...parsed,
-      openaiMaxOutputTokens: Number(parsed.openaiMaxOutputTokens) || clientIntegrationDefaults.openaiMaxOutputTokens,
-      aiProvider: parsed.aiProvider === "local" ? "local" : "openai",
       supabaseUrl: parsed.supabaseUrl?.trim() ? parsed.supabaseUrl : clientIntegrationDefaults.supabaseUrl,
       supabaseAnonKey: parsed.supabaseAnonKey?.trim() ? parsed.supabaseAnonKey : clientIntegrationDefaults.supabaseAnonKey,
     };
@@ -53,17 +40,6 @@ export function saveClientIntegrationSettings(settings: ClientIntegrationSetting
 export function clearClientIntegrationSettings() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(storageKey);
-}
-
-export function buildSecretaryIntegrationPayload(settings = getClientIntegrationSettings()) {
-  return {
-    aiProvider: settings.aiProvider,
-    openai: {
-      apiKey: settings.openaiApiKey.trim(),
-      model: settings.openaiModel.trim(),
-      maxOutputTokens: settings.openaiMaxOutputTokens,
-    },
-  };
 }
 
 export function maskSecret(value: string) {

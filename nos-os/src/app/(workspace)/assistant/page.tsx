@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/form";
-import { buildSecretaryIntegrationPayload } from "@/lib/integrations/client-settings";
 import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
 import type { AiSummary, SecretaryReply } from "@/lib/types";
 
@@ -29,7 +28,7 @@ export default function AssistantPage() {
   const [question, setQuestion] = useState("");
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState("今日やるべきことは、期限・優先度・顧客返信待ち・遅延リスクのスコア順に並びます。");
+  const [answer, setAnswer] = useState("今日やるべきことを、期限、優先度、顧客返信待ち、遅延リスクから整理します。");
   const [source, setSource] = useState<SecretaryReply["source"]>("local");
 
   if (recommendations.isLoading || !recommendations.data) return <LoadingPanel label="AI提案を読み込み中" />;
@@ -45,14 +44,13 @@ export default function AssistantPage() {
         body: JSON.stringify({
           message: normalized,
           context: recommendations.data?.map((item) => `${item.title}: ${item.summary}`).join("\n"),
-          integrationSettings: buildSecretaryIntegrationPayload(),
         }),
       });
       setAnswer(data.reply);
       setSource(data.source);
       setQuestion("");
     } catch {
-      setAnswer("通信に失敗しました。少し時間を置いてもう一度試してください。");
+      setAnswer("通信に失敗しました。少し時間を置いて、もう一度試してください。");
       setSource("local");
     } finally {
       setLoading(false);
@@ -63,7 +61,7 @@ export default function AssistantPage() {
     const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
       .SpeechRecognition ?? (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setAnswer("このブラウザでは音声認識が使えません。Chromeかスマホのキーボード音声入力で試してください。");
+      setAnswer("このブラウザでは音声入力が使えません。Chromeかスマホのキーボード音声入力で試してください。");
       return;
     }
     const recognition = new SpeechRecognition();
@@ -81,7 +79,7 @@ export default function AssistantPage() {
 
   return (
     <>
-      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、次にやること、売上、予定を聞けます。設定画面でOpenAI APIキーを入れると実回答、未設定時はローカル回答で動きます。" />
+      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、次にやること、売上、予定を聞けます。APIキーはサーバー側で管理します。" />
 
       <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
         <Card>

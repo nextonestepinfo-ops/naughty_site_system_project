@@ -22,7 +22,7 @@ export function localSecretaryReply(message: string): SecretaryReply {
 
   if (trimmed.includes("売上")) {
     return {
-      reply: "売上はホームの売上メーターを見てください。\n1. 提案中の案件を先に確認\n2. 顧客確認中の案件へ返信催促\n3. 金額が大きい案件の次回アクションを決める",
+      reply: "売上はホームと営業画面の数字を見てください。\n1. 提案中の案件を先に確認\n2. 顧客確認中の案件へ返信催促\n3. 金額が大きい案件の次回アクションを決める",
       source: "local",
       configured: false,
     };
@@ -38,7 +38,7 @@ export function localSecretaryReply(message: string): SecretaryReply {
 
   if (trimmed.includes("予定") || trimmed.includes("カレンダー")) {
     return {
-      reply: "今日の予定はホームからカレンダー出力できます。\n1. ホームのカレンダー出力を押す\n2. icsファイルをiPhoneまたはGoogleカレンダーに取り込む\n3. 午前の集中時間と午後の確認時間を分ける",
+      reply: "今日の予定はホーム下のカレンダーで確認できます。\n1. ホームのカレンダー欄を見る\n2. 午前の集中時間と午後の確認時間を分ける\n3. 期限が近いタスクを先に入れる",
       source: "local",
       configured: false,
     };
@@ -54,14 +54,14 @@ export function localSecretaryReply(message: string): SecretaryReply {
 
   if (trimmed.includes("次") || trimmed.includes("終わ")) {
     return {
-      reply: "次はAIスコアが高い順で進めるのが安全です。\n1. ホームの次にやることを見る\n2. 完了したタスクを完了へ変更\n3. 期限が近いものを先に処理\n4. 迷ったら秘書に再確認",
+      reply: "次はAIスコアが高い順で進めるのが安全です。\n1. ホームの次にやることを見る\n2. 完了したタスクを完了へ変更\n3. 期限が近いものを先に処理\n4. 迷ったらAI秘書に再確認",
       source: "local",
       configured: false,
     };
   }
 
   return {
-    reply: `「${trimmed}」ですね。今はローカル秘書モードです。\n1. 内容をタスク候補として受け取ります\n2. 必要ならホームの優先順に並べます\n3. OpenAIキーを設定すると、文脈込みで具体的に返せます`,
+    reply: `「${trimmed}」ですね。今はローカル秘書モードです。\n1. 内容をタスク候補として受け取ります\n2. 必要ならホームの優先順に並べます\n3. OpenAIキーをホスト側に設定すると、文脈込みで具体的に返せます`,
     source: "local",
     configured: false,
   };

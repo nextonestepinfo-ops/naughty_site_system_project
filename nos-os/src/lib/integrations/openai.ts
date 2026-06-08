@@ -2,16 +2,7 @@ import type { SecretaryReply } from "@/lib/types";
 import { buildSecretaryInput, localSecretaryReply, secretaryInstructions } from "@/lib/integrations/secretary-local";
 
 const openaiEndpoint = "https://api.openai.com/v1/responses";
-const defaultModel = "gpt-5.4-mini";
-
-export type OpenAIRuntimeConfig = {
-  apiKey?: string;
-  model?: string;
-  maxOutputTokens?: number;
-  reasoningEffort?: string;
-  organizationId?: string;
-  projectId?: string;
-};
+const defaultModel = "gpt-5.5";
 
 type OpenAIContentItem = {
   type?: string;
@@ -52,17 +43,17 @@ function numericEnv(name: string, fallback: number) {
 export async function askSecretaryWithOpenAI(input: {
   message: string;
   context?: string;
-  config?: OpenAIRuntimeConfig;
 }): Promise<SecretaryReply> {
   const message = input.message.trim();
   if (!message) return localSecretaryReply(message);
 
-  const apiKey = input.config?.apiKey || process.env.OPENAI_API_KEY;
-  const model = input.config?.model || process.env.OPENAI_MODEL || defaultModel;
+  const apiKey = process.env.OPENAI_API_KEY;
+  const model = process.env.OPENAI_MODEL || defaultModel;
   if (!apiKey) return localSecretaryReply(message);
 
-  const maxOutputTokens = input.config?.maxOutputTokens || numericEnv("OPENAI_MAX_OUTPUT_TOKENS", 520);
-  const reasoningEffort = input.config?.reasoningEffort?.trim() || process.env.OPENAI_REASONING_EFFORT?.trim();
+  const maxOutputTokens = numericEnv("OPENAI_MAX_OUTPUT_TOKENS", 520);
+  const reasoningEffort = process.env.OPENAI_REASONING_EFFORT?.trim();
+  const textVerbosity = process.env.OPENAI_TEXT_VERBOSITY?.trim();
   const body: Record<string, unknown> = {
     model,
     instructions: secretaryInstructions,
@@ -74,13 +65,17 @@ export async function askSecretaryWithOpenAI(input: {
     body.reasoning = { effort: reasoningEffort };
   }
 
+  if (textVerbosity) {
+    body.text = { verbosity: textVerbosity };
+  }
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
   };
 
-  const organizationId = input.config?.organizationId || process.env.OPENAI_ORGANIZATION_ID;
-  const projectId = input.config?.projectId || process.env.OPENAI_PROJECT_ID;
+  const organizationId = process.env.OPENAI_ORGANIZATION_ID;
+  const projectId = process.env.OPENAI_PROJECT_ID;
 
   if (organizationId) {
     headers["OpenAI-Organization"] = organizationId;

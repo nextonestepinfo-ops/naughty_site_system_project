@@ -124,13 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <Badge tone={session.role === "admin" ? "blue" : "green"}>{roleLabels[session.role]}</Badge>
-              <Button
-                aria-label="テーマ切替"
-                title="テーマ切替"
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-              >
+              <Button aria-label="テーマ切替" title="テーマ切替" variant="ghost" size="icon" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
                 {resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
               <Link href="/notifications" className="grid h-10 w-10 place-items-center rounded-panel hover:bg-slate-100 dark:hover:bg-white/10" title="通知">
