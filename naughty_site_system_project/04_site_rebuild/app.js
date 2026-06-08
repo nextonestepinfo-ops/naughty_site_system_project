@@ -110,9 +110,8 @@ function siteAsset(path, fallback = "") {
 }
 
 function staffChibiIcon(staff) {
-  // staff with a dedicated chibi (staff_001..005) use it; others fall back to their portrait
-  const known = ["staff_001","staff_002","staff_003","staff_004","staff_005"];
-  if (known.includes(staff.id)) return siteAsset(`chibi/${staff.id}-chibi.webp`, heroPhoto(staff));
+  const known = ["staff_001","staff_002","staff_003","staff_004","staff_005","staff_006","staff_007"];
+  if (known.includes(staff.id)) return siteAsset(`chibi/${staff.id}-chibi.webp?v=chibi-20260609`, heroPhoto(staff));
   return heroPhoto(staff);
 }
 
