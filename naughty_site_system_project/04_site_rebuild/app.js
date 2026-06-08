@@ -26,6 +26,7 @@ let activeScrollMood = "";
 let scrollMoodTimer = 0;
 
 const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 const sectionLabels = {
   top: "TOP",
@@ -86,13 +87,20 @@ function asset(path, fallback = "") {
   return `${ASSET_ROOT}${path}`;
 }
 
-// Prefer optimized .webp for the transparent hero portraits.
-// Source data points at .png (e.g. "assets/transparent/real_01.png?v=...");
-// the build pipeline produces a matching .webp next to it.
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+// Resolve a cast portrait. New data uses site-relative "assets/cast/..."
+// (served from this folder). Older data may use "assets/transparent/*.png".
 function heroPhoto(person) {
   const raw = person.heroRealPhoto || person.photo || person.heroPhoto || "";
+  if (!raw) return "";
+  if (/^https?:\/\//.test(raw)) return raw;
+  if (raw.startsWith("assets/cast/")) return raw;            // site-relative, already correct
   const webp = raw.replace(/\.png(\?|$)/i, ".webp$1");
-  return asset(webp);
+  if (webp.startsWith("assets/")) return webp;               // other site-relative assets
+  return asset(webp);                                        // legacy ../01_existing_site/ assets
 }
 
 function siteAsset(path, fallback = "") {
@@ -102,7 +110,20 @@ function siteAsset(path, fallback = "") {
 }
 
 function staffChibiIcon(staff) {
-  return siteAsset(`chibi/${staff.id}-chibi.webp`, asset(staff.photo));
+  // staff with a dedicated chibi (staff_001..005) use it; others fall back to their portrait
+  const known = ["staff_001","staff_002","staff_003","staff_004","staff_005"];
+  if (known.includes(staff.id)) return siteAsset(`chibi/${staff.id}-chibi.webp`, heroPhoto(staff));
+  return heroPhoto(staff);
+}
+
+// vspo-style hero portraits: new full-body cast art in assets/cast/cast-0N.webp
+const CAST_PORTRAITS = [
+  "assets/cast/cast-01.webp","assets/cast/cast-02.webp","assets/cast/cast-03.webp",
+  "assets/cast/cast-04.webp","assets/cast/cast-05.webp","assets/cast/cast-06.webp",
+  "assets/cast/cast-07.webp"
+];
+function castPortrait(index) {
+  return CAST_PORTRAITS[index % CAST_PORTRAITS.length];
 }
 
 function dateKey(date) {
@@ -195,18 +216,92 @@ function renderHero() {
   $("#hero-status-summary").textContent =
     `出勤中 ${counts.working || 0} / まもなく ${counts.soon || 0} / 本日 ${todayShifts().length}`;
 
-  $("#hero-cast").innerHTML = visibleStaff().slice(0, 5).map((person, index) => `
-      <span class="fv-cast-girl fv-cast-girl-${index + 1}" style="--slot:${index}">
-        <img
-          class="fv-cast-img fv-cast-real"
-          src="${heroPhoto(person)}"
-          alt=""
-          loading="${index <= 1 ? "eager" : "lazy"}"
-          decoding="async"
-          fetchpriority="${index === 1 ? "high" : "auto"}"
-        />
-      </span>
-    `).join("");
+  buildHeroCast();
+}
+
+/* ===== hero cast: 3 near-equal figures in front of the logo, rotated as groups ===== */
+let heroGroups = [];
+let heroGroupIndex = 0;
+let heroTimer = null;
+const HERO_PER_GROUP = 3;
+
+function buildHeroCast() {
+  const stage = $("#hero-cast");
+  if (!stage) return;
+  const cast = visibleStaff();
+  const people = cast.length
+    ? cast.map((p, i) => ({ name: p.displayName || "", roman: p.romanName || "", src: castPortrait(i) }))
+    : CAST_PORTRAITS.map((src) => ({ name: "", roman: "", src }));
+
+  // chunk into groups of 3
+  heroGroups = [];
+  for (let i = 0; i < people.length; i += HERO_PER_GROUP) heroGroups.push(people.slice(i, i + HERO_PER_GROUP));
+  if (!heroGroups.length) heroGroups = [[]];
+
+  // each group is a layer; figures positioned in near-equal slots
+  stage.innerHTML = heroGroups.map((group, gi) => {
+    const n = group.length;
+    const figs = group.map((person, idx) => {
+      // even horizontal distribution; center slot sits marginally forward (depth, not size)
+      const slotPct = n === 1 ? 50 : 50 + (idx - (n - 1) / 2) * (74 / Math.max(1, n));
+      const mid = (n - 1) / 2;
+      const depth = idx === Math.round(mid) ? "is-front" : "is-back";
+      return `
+        <span class="fv-cast-girl ${depth}" style="--x:${slotPct.toFixed(2)}%; --i:${idx}">
+          <img class="fv-cast-img" src="${person.src}" alt="${esc(person.name)}"
+               loading="${gi === 0 ? "eager" : "lazy"}" decoding="async" ${gi === 0 ? 'fetchpriority="high"' : ""} />
+        </span>`;
+    }).join("");
+    return `<div class="fv-cast-group ${gi === 0 ? "is-active" : ""}" data-group="${gi}">${figs}</div>`;
+  }).join("");
+
+  // name labels + dots live in a sibling overlay
+  renderHeroMeta();
+
+  heroGroupIndex = 0;
+  startHeroRotate();
+}
+
+function renderHeroMeta() {
+  const dots = $("#hero-dots");
+  if (dots) {
+    dots.innerHTML = heroGroups.map((_, gi) =>
+      `<button class="hero-dot ${gi === 0 ? "is-active" : ""}" data-go="${gi}" aria-label="cast group ${gi + 1}"></button>`
+    ).join("");
+    dots.querySelectorAll(".hero-dot").forEach(b =>
+      b.addEventListener("click", () => goHeroGroup(Number(b.dataset.go), true))
+    );
+  }
+  updateHeroNames();
+}
+
+function updateHeroNames() {
+  const label = $("#hero-names");
+  if (!label) return;
+  const group = heroGroups[heroGroupIndex] || [];
+  label.innerHTML = group.filter(p => p.name).map(p =>
+    `<span class="hero-name-chip"><b>${esc(p.name)}</b><i>${esc(p.roman)}</i></span>`
+  ).join("");
+}
+
+function goHeroGroup(idx, manual) {
+  if (!heroGroups.length) return;
+  heroGroupIndex = (idx + heroGroups.length) % heroGroups.length;
+  $$("#hero-cast .fv-cast-group").forEach(g => {
+    const on = Number(g.dataset.group) === heroGroupIndex;
+    g.classList.toggle("is-active", on);
+    if (on) g.querySelectorAll(".fv-cast-girl").forEach(f => { f.style.animation = "none"; void f.offsetWidth; f.style.animation = ""; });
+  });
+  $$("#hero-dots .hero-dot").forEach(d => d.classList.toggle("is-active", Number(d.dataset.go) === heroGroupIndex));
+  updateHeroNames();
+  if (manual) startHeroRotate();
+}
+
+function startHeroRotate() {
+  clearInterval(heroTimer);
+  if (heroGroups.length < 2) return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  heroTimer = setInterval(() => goHeroGroup(heroGroupIndex + 1, false), 4600);
 }
 
 function statusBadge(status) {
@@ -295,7 +390,7 @@ function renderTalentShowcase() {
   const status = todayShift?.status || person.workStatus || "off";
   const upcoming = upcomingShiftsForStaff(person.id, 1);
   const accentColors = ["#54d9e8", "#ff5f9c", "#f4d36a", "#8de8d4", "#b09cff"];
-  section.style.setProperty("--talent-bg-image", `url("${asset(person.photo || person.heroPhoto)}")`);
+  section.style.setProperty("--talent-bg-image", `url("${heroPhoto(person)}")`);
   section.style.setProperty("--talent-accent", accentColors[activeTalentIndex % accentColors.length]);
 
   icons.innerHTML = staff.map((candidate, index) => `
@@ -354,6 +449,36 @@ function renderEvents() {
   `).join("");
 }
 
+function renderMenu() {
+  const wrap = $("#menu-cats");
+  if (!wrap) return;
+  const cats = siteData.productCategories || [];
+  const products = (siteData.products || []).filter(p => p.active && p.menuVisible !== false);
+
+  // fall back: if no category metadata, group by raw category string
+  const groups = cats.length ? cats : [...new Set(products.map(p => p.category))].map(k => ({ key: k, label: k, en: "" }));
+
+  wrap.innerHTML = groups.map((cat, gi) => {
+    const items = products.filter(p => p.category === cat.key);
+    if (!items.length) return "";
+    return `
+      <div class="menu-cat reveal" style="--d:${gi * 0.06}s">
+        <div class="menu-cat-head">
+          <span class="menu-cat-en">${esc(cat.en || "")}</span>
+          <h3>${esc(cat.label)}</h3>
+        </div>
+        <ul class="menu-items">
+          ${items.map(p => `
+            <li class="menu-item">
+              <span class="mi-name">${esc(p.name)}</span>
+              <span class="mi-dot" aria-hidden="true"></span>
+              <span class="mi-price">¥${Number(p.salePrice).toLocaleString("ja-JP")}</span>
+            </li>`).join("")}
+        </ul>
+      </div>`;
+  }).join("");
+}
+
 function renderAccess() {
   $("#access-hours").textContent = siteData.shop.hours || "";
   $("#access-address").textContent = siteData.shop.address || "";
@@ -367,6 +492,7 @@ function render() {
   renderScheduleTabs();
   renderScheduleList();
   renderTalentShowcase();
+  renderMenu();
   renderEvents();
   renderAccess();
   observeRevealTargets();
@@ -441,12 +567,12 @@ function bindSectionTransitions() {
     window.setTimeout(() => {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
       if (target.id) history.pushState(null, "", `#${target.id}`);
-    }, 310);
+    }, 180);
 
     transitionTimer = window.setTimeout(() => {
       transition.classList.remove("is-active");
       document.documentElement.classList.remove("is-section-transitioning");
-    }, 1120);
+    }, 500);
   });
 }
 
@@ -461,12 +587,8 @@ function applyScrollMood(sectionId, shouldFlash = true) {
   document.body.style.setProperty("--mood-rotate", mood[3]);
 
   if (!shouldFlash || reduceMotion || !flash) return;
-  window.clearTimeout(scrollMoodTimer);
-  flash.dataset.label = sectionLabels[sectionId] || "NAUGHTY";
-  flash.classList.remove("is-active");
-  flash.getBoundingClientRect();
-  flash.classList.add("is-active");
-  scrollMoodTimer = window.setTimeout(() => flash.classList.remove("is-active"), 760);
+  // on-scroll flash disabled (too loud); color mood still applies above.
+  return;
 }
 
 function bindScrollMood() {

@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&family=Shippori+Mincho+B1:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=hybrid-21" />
+  <link rel="stylesheet" href="styles.css?v=hero-3" />
 </head>
 <body>
   <div class="section-transition" id="section-transition" aria-hidden="true">
@@ -94,13 +94,16 @@
             <div class="fv-impact-word" aria-hidden="true">NAUGHTY</div>
 
             <div class="fv-wordmark fv-wordmark-img" id="hero-stage">
+              <div class="fv-aura" aria-hidden="true"></div>
               <div class="fv-logo-band" aria-hidden="true">
                 <div class="fv-logo-band-track">
                   <img src="../01_existing_site/assets/logo-naughty.webp" alt="" />
                 </div>
               </div>
               <img class="fv-logo-img" src="../01_existing_site/assets/logo-naughty.webp" alt="NAUGHTY" />
-              <div class="fv-cast-row" id="hero-cast" aria-hidden="true"></div>
+              <div class="fv-cast-row" id="hero-cast"></div>
+              <div class="hero-names" id="hero-names" aria-hidden="true"></div>
+              <div class="hero-dots" id="hero-dots" aria-hidden="true"></div>
             </div>
           </div>
 
@@ -124,6 +127,10 @@
         </a>
         <a class="jump-pill" href="#schedule">
           <span class="jp-text">SCHEDULE</span>
+          <span class="jp-arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="jump-pill" href="#menu">
+          <span class="jp-text">PRICE</span>
           <span class="jp-arrow" aria-hidden="true">→</span>
         </a>
       </nav>
@@ -200,6 +207,16 @@
         </article>
       </section>
 
+      <section class="section menu-section" id="menu">
+        <div class="section-head">
+          <p class="section-kicker">PRICE</p>
+          <h2>料金・メニュー</h2>
+          <p>表示はすべて税込価格です。セット料金は店頭にてご案内します。</p>
+        </div>
+        <div class="menu-cats" id="menu-cats"></div>
+        <p class="menu-note" id="menu-note">※ 価格は予告なく変更になる場合があります。お支払いは現金のほか各種対応。</p>
+      </section>
+
       <section class="section event-section" id="events">
         <div class="section-head">
           <p class="section-kicker">EVENT</p>
@@ -240,8 +257,8 @@
     </footer>
   </div>
 
-    <script src="../03_system_seed/naughty_site_data.js?v=hybrid-21"></script>
+    <script src="../03_system_seed/naughty_site_data.js?v=hero-3"></script>
   <script src="../auth-gate.js"></script>
-    <script src="app.js?v=hybrid-21"></script>
+    <script src="app.js?v=hero-3"></script>
 </body>
 </html>
