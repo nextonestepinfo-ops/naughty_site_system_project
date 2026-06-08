@@ -86,6 +86,15 @@ function asset(path, fallback = "") {
   return `${ASSET_ROOT}${path}`;
 }
 
+// Prefer optimized .webp for the transparent hero portraits.
+// Source data points at .png (e.g. "assets/transparent/real_01.png?v=...");
+// the build pipeline produces a matching .webp next to it.
+function heroPhoto(person) {
+  const raw = person.heroRealPhoto || person.photo || person.heroPhoto || "";
+  const webp = raw.replace(/\.png(\?|$)/i, ".webp$1");
+  return asset(webp);
+}
+
 function siteAsset(path, fallback = "") {
   if (!path) return fallback;
   if (/^https?:\/\//.test(path)) return path;
@@ -93,7 +102,7 @@ function siteAsset(path, fallback = "") {
 }
 
 function staffChibiIcon(staff) {
-  return siteAsset(`chibi/${staff.id}-chibi.png`, asset(staff.photo));
+  return siteAsset(`chibi/${staff.id}-chibi.webp`, asset(staff.photo));
 }
 
 function dateKey(date) {
@@ -189,19 +198,12 @@ function renderHero() {
   $("#hero-cast").innerHTML = visibleStaff().slice(0, 5).map((person, index) => `
       <span class="fv-cast-girl fv-cast-girl-${index + 1}" style="--slot:${index}">
         <img
-          class="fv-cast-img fv-cast-art"
-          src="${asset(person.heroPhoto || person.photo)}"
+          class="fv-cast-img fv-cast-real"
+          src="${heroPhoto(person)}"
           alt=""
-          loading="eager"
+          loading="${index <= 1 ? "eager" : "lazy"}"
           decoding="async"
           fetchpriority="${index === 1 ? "high" : "auto"}"
-        />
-        <img
-          class="fv-cast-img fv-cast-real"
-          src="${asset(person.heroRealPhoto || person.photo || person.heroPhoto)}"
-          alt=""
-          loading="eager"
-          decoding="async"
         />
       </span>
     `).join("");
@@ -312,7 +314,7 @@ function renderTalentShowcase() {
   visual.innerHTML = `
     <div class="talent-roman-bg" aria-hidden="true">${person.romanName || person.displayName || "NAUGHTY"}</div>
     <div class="talent-portrait">
-      <img class="talent-real-img" src="${asset(person.heroRealPhoto || person.photo || person.heroPhoto)}" alt="${person.displayName}" loading="lazy" decoding="async" />
+      <img class="talent-real-img" src="${heroPhoto(person)}" alt="${person.displayName}" loading="lazy" decoding="async" />
     </div>
   `;
 
@@ -570,32 +572,6 @@ function bindHeroMotion() {
   window.addEventListener("pointermove", (event) => updateFromPoint(event.clientX, event.clientY), { passive: true });
 }
 
-function bindHeroNoise() {
-  const stage = $("#hero-stage");
-  const cast = $("#hero-cast");
-  if (!stage || !cast) return;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  let showReal = false;
-
-  function fireNoise() {
-    stage.classList.add("is-glitching");
-    cast.classList.add("is-glitching");
-    window.setTimeout(() => {
-      showReal = !showReal;
-      cast.classList.toggle("is-real", showReal);
-    }, 240);
-    window.setTimeout(() => {
-      stage.classList.remove("is-glitching");
-      cast.classList.remove("is-glitching");
-    }, 760);
-  }
-
-  window.setTimeout(() => {
-    fireNoise();
-    window.setInterval(fireNoise, 6800);
-  }, 1800);
-}
-
 function observeRevealTargets() {
   const targets = document.querySelectorAll(".reveal, .section-head");
   if (!("IntersectionObserver" in window)) {
@@ -627,5 +603,4 @@ bindTabs();
 bindScrollMood();
 bindTalentSwipe();
 bindHeroMotion();
-bindHeroNoise();
 loadData();

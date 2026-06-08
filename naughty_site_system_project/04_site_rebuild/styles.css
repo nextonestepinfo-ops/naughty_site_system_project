@@ -592,26 +592,11 @@ a {
   transition: opacity .42s ease, transform .42s var(--ease-out), filter .42s ease;
 }
 
-.fv-cast-art {
-  object-fit: contain;
-}
-
 .fv-cast-real {
   object-fit: contain;
   object-position: bottom center;
-  opacity: 0;
-  clip-path: none;
-  filter: saturate(1.04) contrast(1.06) brightness(.94);
-  transform: translateY(0) scale(1);
-}
-
-.fv-cast-row.is-real .fv-cast-art {
-  opacity: 0;
-  transform: translateY(0) scale(.96);
-}
-
-.fv-cast-row.is-real .fv-cast-real {
   opacity: 1;
+  filter: saturate(1.04) contrast(1.06) brightness(.94);
   transform: translateY(0) scale(1);
 }
 
@@ -3516,6 +3501,21 @@ body::before {
     transition-duration: .001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---- Performance: skip rendering + animating off-screen sections ----
+   The browser does not paint or run animations inside these sections
+   until they scroll near the viewport, which removes most scroll jank
+   and idle GPU/CPU load from the many ambient loops below the fold.
+   contain-intrinsic-size reserves height so the scrollbar stays stable. */
+.now-section,
+.schedule-section,
+.talent-section,
+.inside-section,
+.event-section,
+.access-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
 }
 
 @keyframes section-transition-shell {
