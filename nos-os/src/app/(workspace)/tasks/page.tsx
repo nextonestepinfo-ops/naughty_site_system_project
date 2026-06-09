@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Columns3, ListFilter, Loader2, Mic, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Columns3, GitBranch, ListFilter, Loader2, Mic, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -118,6 +118,39 @@ export default function TasksPage() {
   const overdueCount = useMemo(() => activeTasks.filter((task) => dayDistance(task.dueDate) < 0).length, [activeTasks]);
   const inProgressCount = useMemo(() => activeTasks.filter((task) => task.status === "in_progress").length, [activeTasks]);
   const totalMinutes = useMemo(() => activeTasks.reduce((sum, task) => sum + task.estimatedMinutes, 0), [activeTasks]);
+  const workload = useMemo(
+    () =>
+      (employees.data ?? [])
+        .map((employee) => {
+          const owned = activeTasks.filter((task) => task.primaryAssigneeId === employee.id || task.assigneeIds.includes(employee.id));
+          const projectsForEmployee = Array.from(new Set(owned.map((task) => projectMap.get(task.projectId)?.name).filter(Boolean) as string[])).slice(0, 3);
+          const topTask = [...owned].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null;
+          return {
+            employee,
+            total: owned.length,
+            inProgress: owned.filter((task) => task.status === "in_progress").length,
+            overdue: owned.filter((task) => dayDistance(task.dueDate) < 0).length,
+            projects: projectsForEmployee,
+            topTask,
+          };
+        })
+        .filter((item) => item.total > 0)
+        .sort((a, b) => b.inProgress - a.inProgress || b.total - a.total),
+    [activeTasks, employees.data, projectMap],
+  );
+  const branchWorkload = useMemo(() => {
+    const groups = new Map<string, { title: string; projectName: string; total: number; topTask: Task | null }>();
+    activeTasks.forEach((task) => {
+      const title = task.sourceBranchTitle || "大タスク未設定";
+      const projectName = projectMap.get(task.projectId)?.name ?? "案件未設定";
+      const key = `${title}:${projectName}`;
+      const current = groups.get(key) ?? { title, projectName, total: 0, topTask: null };
+      current.total += 1;
+      if (!current.topTask || task.aiPriorityScore > current.topTask.aiPriorityScore) current.topTask = task;
+      groups.set(key, current);
+    });
+    return Array.from(groups.values()).sort((a, b) => b.total - a.total).slice(0, 6);
+  }, [activeTasks, projectMap]);
   const aiContextPrompt = encodeURIComponent("タスクを増やす・減らす・小タスクに分解する相談をしたい。案件、大タスク、小タスク、担当者ごとに整理して、今日やるものと消してよい候補を提案して。");
 
   useEffect(() => {
@@ -237,6 +270,8 @@ export default function TasksPage() {
         onUpdate={(taskId, body) => patchTask(taskId, body)}
         onDelete={(taskId) => deleteTask.mutate(taskId)}
       />
+
+      <WorkloadOverview workload={workload} branchWorkload={branchWorkload} />
 
       <Card className="mb-5">
         <CardContent className="grid gap-3 p-4 md:grid-cols-3 xl:grid-cols-6">
@@ -421,6 +456,74 @@ export default function TasksPage() {
   );
 }
 
+function WorkloadOverview({
+  workload,
+  branchWorkload,
+}: {
+  workload: Array<{
+    employee: Employee;
+    total: number;
+    inProgress: number;
+    overdue: number;
+    projects: string[];
+    topTask: Task | null;
+  }>;
+  branchWorkload: Array<{ title: string; projectName: string; total: number; topTask: Task | null }>;
+}) {
+  if (!workload.length && !branchWorkload.length) return null;
+
+  return (
+    <Card className="mb-5">
+      <CardContent className="grid gap-5 p-4 xl:grid-cols-2">
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <UserRound className="h-4 w-4 text-accent" />
+            <p className="font-semibold">担当別の進行</p>
+          </div>
+          <div className="space-y-2">
+            {workload.map((item) => (
+              <div key={item.employee.id} className="rounded-panel border border-border px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{item.employee.name}</p>
+                    <p className="mt-1 truncate text-xs text-slate-500">{item.projects.length ? item.projects.join(" / ") : "案件未設定"}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge tone={item.overdue ? "red" : "blue"}>{item.total}件</Badge>
+                    {item.inProgress ? <Badge tone="green">進行中 {item.inProgress}</Badge> : null}
+                  </div>
+                </div>
+                {item.topTask ? <p className="mt-2 line-clamp-1 text-xs text-slate-500">次: {item.topTask.title}</p> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-accent" />
+            <p className="font-semibold">大タスク別の進行</p>
+          </div>
+          <div className="space-y-2">
+            {branchWorkload.map((item) => (
+              <div key={`${item.projectName}-${item.title}`} className="rounded-panel border border-border px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{item.title}</p>
+                    <p className="mt-1 truncate text-xs text-slate-500">案件: {item.projectName}</p>
+                  </div>
+                  <Badge tone={item.title === "大タスク未設定" ? "amber" : "blue"}>{item.total}件</Badge>
+                </div>
+                {item.topTask ? <p className="mt-2 line-clamp-1 text-xs text-slate-500">小タスク: {item.topTask.title}</p> : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      </CardContent>
+    </Card>
+  );
+}
+
 function TaskVoicePlanner({
   planPath,
   onCreate,
@@ -532,7 +635,7 @@ function TaskVoicePlanner({
           </Button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-          {["今日のタスクを分解", "完了済みを減らす", "営業タスクを追加", "この作業を明日に変更"].map((sample) => (
+          {["今日のタスクを分解", "減らせるタスクを保留", "完了済みを削除", "営業タスクを追加", "この作業を明日に変更"].map((sample) => (
             <button key={sample} className="rounded-full bg-slate-100 px-2 py-1 dark:bg-white/10 dark:text-slate-200" onClick={() => { setCommand(sample); void buildPlan(sample); }}>
               {sample}
             </button>
@@ -554,10 +657,11 @@ function TaskVoicePlanner({
               <div key={action.id} className="grid gap-3 rounded-panel border border-border p-3 sm:grid-cols-[1fr_auto] sm:items-center">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={action.type === "delete" ? "red" : action.type === "update" ? "amber" : "green"}>{action.type === "delete" ? "削除" : action.type === "update" ? "更新" : "追加"}</Badge>
+                    <Badge tone={action.type === "delete" ? "red" : action.type === "update" ? "amber" : "green"}>{action.type === "delete" ? "削除" : action.type === "update" && action.patch.priority === "hold" ? "保留" : action.type === "update" ? "更新" : "追加"}</Badge>
                     <p className="line-clamp-1 font-semibold">{action.title}</p>
                   </div>
                   <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{action.reason}</p>
+                  <ActionContextLine action={action} />
                   {action.type === "create" ? (
                     <p className="mt-1 text-xs text-slate-500">
                       期限 {formatDate(action.dueDate)} / {taskPriorityLabels[action.priority]} / {action.estimatedMinutes}分
@@ -565,6 +669,9 @@ function TaskVoicePlanner({
                   ) : null}
                   {action.type === "update" && action.patch.status ? (
                     <p className="mt-1 text-xs text-slate-500">状態: {taskStatusLabels[action.patch.status]}</p>
+                  ) : null}
+                  {action.type === "update" && action.patch.priority ? (
+                    <p className="mt-1 text-xs text-slate-500">優先度: {taskPriorityLabels[action.patch.priority]}</p>
                   ) : null}
                 </div>
                 <Button size="sm" variant={action.type === "delete" ? "danger" : "secondary"} disabled={disabled || appliedIds.includes(action.id)} onClick={() => applyAction(action)}>
@@ -577,6 +684,27 @@ function TaskVoicePlanner({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function ActionContextLine({ action }: { action: TaskAssistantAction }) {
+  const items = [
+    action.projectName ? { icon: <BriefcaseBusiness className="h-3.5 w-3.5" />, label: `案件: ${action.projectName}` } : null,
+    action.sourceBranchTitle ? { icon: <GitBranch className="h-3.5 w-3.5" />, label: `大タスク: ${action.sourceBranchTitle}` } : null,
+    action.assigneeName ? { icon: <UserRound className="h-3.5 w-3.5" />, label: `担当: ${action.assigneeName}` } : null,
+  ].filter(Boolean) as Array<{ icon: React.ReactNode; label: string }>;
+
+  if (!items.length) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-500">
+      {items.map((item) => (
+        <span key={item.label} className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-slate-100 px-2 py-1 dark:bg-white/10 dark:text-slate-200">
+          <span className="shrink-0">{item.icon}</span>
+          <span className="truncate">{item.label}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 

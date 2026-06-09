@@ -206,9 +206,13 @@ export type TaskAssistantAction =
       title: string;
       description: string;
       projectId: string;
+      projectName?: string;
       primaryAssigneeId: string;
+      assigneeName?: string;
       sourceGoalTreeId?: string | null;
+      sourceGoalTreeTitle?: string | null;
       sourceBranchId?: string | null;
+      sourceBranchTitle?: string | null;
       dueDate: string;
       priority: TaskPriority;
       estimatedMinutes: number;
@@ -220,6 +224,10 @@ export type TaskAssistantAction =
       taskId: string;
       title: string;
       patch: Partial<Pick<Task, "title" | "description" | "projectId" | "primaryAssigneeId" | "sourceGoalTreeId" | "sourceBranchId" | "dueDate" | "priority" | "status" | "estimatedMinutes">>;
+      projectName?: string;
+      assigneeName?: string;
+      sourceGoalTreeTitle?: string | null;
+      sourceBranchTitle?: string | null;
       reason: string;
     }
   | {
@@ -227,6 +235,10 @@ export type TaskAssistantAction =
       type: "delete";
       taskId: string;
       title: string;
+      projectName?: string;
+      assigneeName?: string;
+      sourceGoalTreeTitle?: string | null;
+      sourceBranchTitle?: string | null;
       reason: string;
     };
 

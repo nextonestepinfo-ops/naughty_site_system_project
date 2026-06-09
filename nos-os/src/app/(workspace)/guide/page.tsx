@@ -51,8 +51,9 @@ const adminFlow = [
 const mobileFlow = [
   { icon: Home, title: "ホーム画面に追加", body: "スマホの共有メニューからホーム画面へ追加すると、アプリのように開けます。" },
   { icon: Mic, title: "声で下書き", body: "タスク画面のAI整理で音声入力を使い、追加、削除、分解の案を作れます。" },
+  { icon: Bot, title: "iOS化の前提", body: "将来は同じタスクAPIをiOSアプリ、Shortcuts、Siri連携から呼べるようにします。今はWebで業務の型を固めます。" },
   { icon: CalendarClock, title: "予定へ入れる", body: "タスク画面の予定ボタン、またはホームのICSリンクからカレンダーへ取り込めます。双方向同期は次工程です。" },
-  { icon: BellRing, title: "通知を確認", body: "画面内では本日、明日、期限超過のタスク通知を自動表示します。自動プッシュ配信は次工程です。" },
+  { icon: BellRing, title: "通知を確認", body: "画面内では本日、明日、期限超過のタスク通知を自動表示します。VAPID設定後はバックグラウンドPushも使えます。" },
 ];
 
 export default function GuidePage() {
@@ -175,7 +176,8 @@ export default function GuidePage() {
             <StatusItem label="Google Sheets同期" />
             <StatusItem label="Gmail解析" />
             <StatusItem label="Googleカレンダー双方向同期" />
-            <StatusItem label="自動プッシュ配信" />
+            <StatusItem label="Googleカレンダー自動同期" />
+            <StatusItem label="Siri / App Shortcuts連携" />
             <p className="text-sm leading-6 text-slate-500 dark:text-slate-300">社員βでは、まずタスク、案件、勤怠、目標ツリー、AI秘書の使い勝手を確認します。</p>
           </CardContent>
         </Card>

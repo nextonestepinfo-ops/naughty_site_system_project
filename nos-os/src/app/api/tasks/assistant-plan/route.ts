@@ -29,7 +29,7 @@ function stripCommand(value: string) {
       .replace(/明日までに|今日までに|本日までに|今日中に|明日中に|来週までに/g, "")
       .replace(/小タスク|サブタスク/g, "")
       .replace(/タスク/g, "")
-      .replace(/追加|作って|作成|登録|増やして|増やす|消して|削除|減らして|減らす|完了|終わった|分解|編集|変更/g, "")
+      .replace(/追加|作って|作成|登録|増やして|増やす|消して|削除|減らして|減らす|減らせる|減らしたい|外して|保留|完了|終わった|分解|編集|変更/g, "")
       .replace(/[「」"']/g, ""),
   ).replace(/[をに、。,. ]+$/g, "");
 }
@@ -65,6 +65,10 @@ function findProject(message: string, projects: Project[]) {
   return projects.find((project) => message.includes(project.name) || message.includes(project.customerName));
 }
 
+function findProjectById(projects: Project[], projectId?: string | null) {
+  return projects.find((project) => project.id === projectId);
+}
+
 function branchOptions(goalTrees: GoalTree[]): BranchOption[] {
   return goalTrees.flatMap((tree) =>
     tree.branches.map((branch) => ({
@@ -82,9 +86,24 @@ function branchOptions(goalTrees: GoalTree[]): BranchOption[] {
 function findBranch(message: string, branches: BranchOption[], project?: Project) {
   return (
     branches.find((branch) => message.includes(branch.branchTitle) || message.includes(branch.treeTitle)) ??
-    branches.find((branch) => project && branch.projectId === project.id) ??
-    branches[0]
+    branches.find((branch) => project && branch.projectId === project.id)
   );
+}
+
+function findBranchByIds(branches: BranchOption[], treeId?: string | null, branchId?: string | null) {
+  return branches.find((branch) => branch.treeId === treeId && branch.branchId === branchId);
+}
+
+function actionContext(task: Task, projects: Project[], employees: Employee[], branches: BranchOption[]) {
+  const project = findProjectById(projects, task.projectId);
+  const assignee = employees.find((employee) => employee.id === task.primaryAssigneeId);
+  const branch = findBranchByIds(branches, task.sourceGoalTreeId, task.sourceBranchId);
+  return {
+    projectName: project?.name,
+    assigneeName: assignee?.name,
+    sourceGoalTreeTitle: task.sourceGoalTreeTitle ?? branch?.treeTitle ?? null,
+    sourceBranchTitle: task.sourceBranchTitle ?? branch?.branchTitle ?? null,
+  };
 }
 
 function focusTask(tasks: Task[]) {
@@ -96,8 +115,9 @@ function taskFromMessage(message: string, tasks: Task[]) {
   return tasks.find((task) => message.includes(task.title) || (query && task.title.includes(query))) ?? null;
 }
 
-function deleteActions(message: string, tasks: Task[]): TaskAssistantAction[] {
+function deleteActions(message: string, tasks: Task[], projects: Project[], employees: Employee[], branches: BranchOption[]): TaskAssistantAction[] {
   const query = stripCommand(message);
+  const reduceWithoutDelete = /減ら|保留|外して/.test(message) && !/消して|削除/.test(message);
   let candidates = tasks
     .filter((task) => {
       if (/完了済み|終わった|done/i.test(message)) return task.status === "done";
@@ -124,18 +144,33 @@ function deleteActions(message: string, tasks: Task[]): TaskAssistantAction[] {
       .slice(0, 4);
   }
 
-  return candidates.map((task) => ({
-    id: `delete-${task.id}`,
-    type: "delete",
-    taskId: task.id,
-    title: task.title,
-    reason:
-      task.status === "done"
-        ? "完了済みとして減らす候補です。"
-        : /完了済み|終わった|done/i.test(message)
+  return candidates.map((task) => {
+    const context = actionContext(task, projects, employees, branches);
+    if (reduceWithoutDelete && task.status !== "done") {
+      return {
+        id: `hold-${task.id}`,
+        type: "update",
+        taskId: task.id,
+        title: task.title,
+        patch: { priority: "hold" },
+        ...context,
+        reason: "今やるリストから外すため、削除ではなく保留にします。完全に不要なら削除を指定してください。",
+      };
+    }
+    return {
+      id: `delete-${task.id}`,
+      type: "delete",
+      taskId: task.id,
+      title: task.title,
+      ...context,
+      reason:
+        task.status === "done"
           ? "完了済みとして減らす候補です。"
-          : "優先度やAIスコアが低く、減らす候補です。必要なら削除ではなく保留にしてください。",
-  }));
+          : /完了済み|終わった|done/i.test(message)
+            ? "完了済みとして減らす候補です。"
+            : "優先度やAIスコアが低く、減らす候補です。必要なら削除ではなく保留にしてください。",
+    };
+  });
 }
 
 function updateActions(message: string, tasks: Task[], projects: Project[], employees: Employee[], branches: BranchOption[]): TaskAssistantAction[] {
@@ -146,42 +181,64 @@ function updateActions(message: string, tasks: Task[], projects: Project[], empl
     (/担当|任せ|アサイン|お願い/.test(message) && requestedAssignee ? tasks.find((task) => task.status !== "done" && task.primaryAssigneeId !== requestedAssignee.id) : undefined) ??
     focusTask(tasks);
   if (!target) return [];
+  const targetContext = actionContext(target, projects, employees, branches);
   const assignee = requestedAssignee ?? findEmployee(message, employees, target.primaryAssigneeId);
   const project = findProject(message, projects);
   const branch = findBranch(message, branches, project);
 
   if (/担当|任せ|アサイン|お願い/.test(message) && assignee && assignee.id !== target.primaryAssigneeId) {
-    return [{ id: `assign-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { primaryAssigneeId: assignee.id }, reason: `担当者を「${assignee.name}」に変更します。` }];
+    return [{ id: `assign-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { primaryAssigneeId: assignee.id }, ...targetContext, assigneeName: assignee.name, reason: `担当者を「${assignee.name}」に変更します。` }];
   }
-  if (/大タスク|親タスク|案件/.test(message) && branch) {
+  if (/大タスク|親タスク|案件/.test(message) && (branch || project)) {
     return [
       {
         id: `context-${target.id}`,
         type: "update",
         taskId: target.id,
         title: target.title,
-        patch: { projectId: branch.projectId || project?.id || target.projectId, sourceGoalTreeId: branch.treeId, sourceBranchId: branch.branchId },
-        reason: `大タスク「${branch.branchTitle}」の小タスクとして紐づけます。`,
+        patch: {
+          projectId: branch?.projectId || project?.id || target.projectId,
+          ...(branch ? { sourceGoalTreeId: branch.treeId, sourceBranchId: branch.branchId } : {}),
+        },
+        ...targetContext,
+        projectName: project?.name ?? findProjectById(projects, branch?.projectId)?.name ?? targetContext.projectName,
+        sourceGoalTreeTitle: branch?.treeTitle ?? targetContext.sourceGoalTreeTitle,
+        sourceBranchTitle: branch?.branchTitle ?? targetContext.sourceBranchTitle,
+        reason: branch ? `大タスク「${branch.branchTitle}」の小タスクとして紐づけます。` : `案件「${project?.name}」の作業として紐づけます。`,
       },
     ];
   }
   if (/完了|終わった/.test(message)) {
-    return [{ id: `done-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { status: "done" }, reason: "完了指示として状態を完了にします。" }];
+    return [{ id: `done-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { status: "done" }, ...targetContext, reason: "完了指示として状態を完了にします。" }];
   }
   if (/開始|着手/.test(message)) {
-    return [{ id: `start-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { status: "in_progress" }, reason: "開始指示として進行中にします。" }];
+    return [{ id: `start-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { status: "in_progress" }, ...targetContext, reason: "開始指示として進行中にします。" }];
   }
   if (/明日|あした|今日|本日|来週/.test(message)) {
-    return [{ id: `due-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { dueDate: dueDateFrom(message) }, reason: "日付変更の指示として期限を更新します。" }];
+    return [{ id: `due-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { dueDate: dueDateFrom(message) }, ...targetContext, reason: "日付変更の指示として期限を更新します。" }];
   }
   return [];
 }
 
-function createAction(message: string, projects: Project[], employees: Employee[], branches: BranchOption[], fallbackEmployeeId?: string, titleOverride?: string): TaskAssistantAction {
+function createAction(
+  message: string,
+  projects: Project[],
+  employees: Employee[],
+  branches: BranchOption[],
+  fallbackEmployeeId?: string,
+  titleOverride?: string,
+  context: { projectId?: string | null; assigneeId?: string | null; branch?: BranchOption } = {},
+): TaskAssistantAction {
   const project = findProject(message, projects);
-  const branch = findBranch(message, branches, project);
-  const assignee = findEmployee(message, employees, branch?.assigneeId ?? fallbackEmployeeId);
-  const projectId = project?.id ?? branch?.projectId ?? projects[0]?.id ?? "";
+  const branch = context.branch ?? findBranch(message, branches, project);
+  const projectId = project?.id ?? branch?.projectId ?? context.projectId ?? projects[0]?.id ?? "";
+  const resolvedProject = findProjectById(projects, projectId);
+  const assignee =
+    mentionedEmployee(message, employees) ??
+    employees.find((employee) => employee.id === context.assigneeId) ??
+    employees.find((employee) => employee.id === branch?.assigneeId) ??
+    employees.find((employee) => employee.id === fallbackEmployeeId) ??
+    employees[0];
   const title = compact(titleOverride || stripCommand(message) || "新しいタスク");
   return {
     id: `create-${Math.random().toString(16).slice(2)}`,
@@ -189,9 +246,13 @@ function createAction(message: string, projects: Project[], employees: Employee[
     title,
     description: `AI/音声メモ: ${message}`,
     projectId,
+    projectName: resolvedProject?.name,
     primaryAssigneeId: assignee?.id ?? employees[0]?.id ?? "",
+    assigneeName: assignee?.name,
     sourceGoalTreeId: branch?.treeId ?? null,
+    sourceGoalTreeTitle: branch?.treeTitle ?? null,
     sourceBranchId: branch?.branchId ?? null,
+    sourceBranchTitle: branch?.branchTitle ?? null,
     dueDate: dueDateFrom(message),
     priority: priorityFrom(message),
     estimatedMinutes: /すぐ|短/.test(message) ? 20 : 45,
@@ -211,8 +272,14 @@ function splitActions(message: string, tasks: Task[], projects: Project[], emplo
   const existingTask = taskFromMessage(message, tasks);
   const fallbackTitle = stripCommand(message).replace(/今日の|本日の|今週の|この作業/g, "").trim();
   const base = existingTask?.title || fallbackTitle || focusTask(tasks)?.title || "作業";
+  const requestedProject = findProject(message, projects);
+  const branch = findBranch(message, branches, requestedProject) ?? findBranchByIds(branches, existingTask?.sourceGoalTreeId, existingTask?.sourceBranchId);
+  const projectId = requestedProject?.id ?? branch?.projectId ?? existingTask?.projectId;
+  const assigneeId = mentionedEmployee(message, employees)?.id ?? existingTask?.primaryAssigneeId ?? branch?.assigneeId ?? fallbackEmployeeId;
   const pieces = ["目的と完了条件を決める", "必要情報を集める", "初稿を作る", "確認して修正する", "関係者に共有する", "修正を反映する", "完了条件を確認する", "完了報告する"];
-  return pieces.slice(0, splitCountFrom(message)).map((piece) => createAction(message, projects, employees, branches, fallbackEmployeeId, `${base}: ${piece}`));
+  return pieces
+    .slice(0, splitCountFrom(message))
+    .map((piece) => createAction(message, projects, employees, branches, fallbackEmployeeId, `${base}: ${piece}`, { projectId, assigneeId, branch }));
 }
 
 export async function POST(request: NextRequest) {
@@ -228,8 +295,8 @@ export async function POST(request: NextRequest) {
   const branches = branchOptions(goalTrees);
   let actions: TaskAssistantAction[] = [];
 
-  if (/消して|削除|減らして|減らす/.test(message)) {
-    actions = deleteActions(message, tasks);
+  if (/消して|削除|減ら|保留|外して/.test(message)) {
+    actions = deleteActions(message, tasks, projects, employees, branches);
   } else if (/分解|小タスク/.test(message)) {
     actions = splitActions(message, tasks, projects, employees, branches, employeeId);
   } else if (/完了|終わった|開始|着手|変更|明日|あした|今日|来週|担当|任せ|アサイン|お願い|大タスク|親タスク|案件/.test(message) && !/追加|作って|作成|登録|増や/.test(message)) {

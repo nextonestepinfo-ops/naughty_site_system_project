@@ -9,14 +9,35 @@ import { PageHeader } from "@/components/domain/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
+import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
 import type { Notification as AppNotification } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
+
+type PushConfig = {
+  enabled: boolean;
+  publicKey: string;
+  needsVapidKeys: boolean;
+};
+
+type PushSubscriptionResult = {
+  ok: boolean;
+  stored: boolean;
+  enabled: boolean;
+  reason?: string;
+};
+
+function urlBase64ToUint8Array(value: string) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(window.atob(base64), (char) => char.charCodeAt(0));
+}
 
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const notifications = useScopedQuery<AppNotification[]>(["notifications"], "/api/notifications");
+  const pushPath = useScopedPath("/api/notifications/push-subscription");
   const [permission, setPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
+  const [pushStatus, setPushStatus] = useState("");
 
   const markRead = useMutation({
     mutationFn: (id: string) => apiFetch<AppNotification>(`/api/notifications/${id}/read`, { method: "PATCH" }),
@@ -27,13 +48,40 @@ export default function NotificationsPage() {
   });
 
   async function requestPush() {
-    if (!("Notification" in window)) return;
+    if (!("Notification" in window)) {
+      setPushStatus("このブラウザは通知に未対応です。");
+      return;
+    }
     const result = await window.Notification.requestPermission();
     setPermission(result);
-    await apiFetch("/api/notifications/push-subscription", {
+    if (result !== "granted") {
+      setPushStatus("通知が許可されていません。");
+      return;
+    }
+
+    const config = await apiFetch<PushConfig>(pushPath).catch(() => ({ enabled: false, publicKey: "", needsVapidKeys: true }));
+    if (!config.enabled || !config.publicKey || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      const response = await apiFetch<PushSubscriptionResult>(pushPath, {
+        method: "POST",
+        body: JSON.stringify({ permission: result }),
+      }).catch(() => null);
+      setPushStatus(response?.enabled ? "通知許可を保存しました。" : "通知許可OK。サーバーPushはVAPID設定後に有効になります。");
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+    const subscription =
+      existing ??
+      (await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.publicKey),
+      }));
+    const response = await apiFetch<PushSubscriptionResult>(pushPath, {
       method: "POST",
-      body: JSON.stringify({ endpoint: "phase1-local-demo", permission: result }),
+      body: JSON.stringify({ permission: result, subscription: subscription.toJSON() }),
     });
+    setPushStatus(response.stored ? "バックグラウンド通知を登録しました。" : "通知許可OK。購読保存はまだ未完了です。");
   }
 
   if (notifications.isLoading || !notifications.data) return <LoadingPanel label="通知を読み込み中" />;
@@ -50,6 +98,7 @@ export default function NotificationsPage() {
           </Button>
         }
       />
+      {pushStatus ? <p className="mb-3 rounded-panel bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:bg-blue-500/15 dark:text-blue-100">{pushStatus}</p> : null}
 
       <section className="space-y-3">
         {notifications.data.map((notice) => (

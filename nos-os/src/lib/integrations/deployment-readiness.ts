@@ -10,6 +10,7 @@ export type DeploymentReadiness = {
   supabaseSchemaReady: boolean;
   googleOAuthConfigured: boolean;
   googleSheetsConfigured: boolean;
+  pwaPushConfigured: boolean;
   employeePreviewReady: boolean;
   blockers: string[];
   githubBranchUrl: string;
@@ -53,6 +54,7 @@ export async function getDeploymentReadiness(): Promise<DeploymentReadiness> {
   const supabaseSchemaReady = supabasePublicConfigured && supabaseServiceConfigured ? await checkSupabaseSchemaReady() : false;
   const googleOAuthConfigured = configured(process.env.GOOGLE_CLIENT_ID) && configured(process.env.GOOGLE_CLIENT_SECRET);
   const googleSheetsConfigured = configured(process.env.GOOGLE_SHEETS_ATTENDANCE_SPREADSHEET_ID);
+  const pwaPushConfigured = (configured(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) || configured(process.env.VAPID_PUBLIC_KEY)) && configured(process.env.VAPID_PRIVATE_KEY);
   const blockers = [
     !openaiConfigured ? "OpenAI API key is not configured on the server." : null,
     !supabasePublicConfigured ? "Supabase public URL/key are not configured on the server." : null,
@@ -73,6 +75,7 @@ export async function getDeploymentReadiness(): Promise<DeploymentReadiness> {
     supabaseSchemaReady,
     googleOAuthConfigured,
     googleSheetsConfigured,
+    pwaPushConfigured,
     employeePreviewReady: blockers.length === 0,
     blockers,
     githubBranchUrl:

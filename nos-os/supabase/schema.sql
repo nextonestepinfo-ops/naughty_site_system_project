@@ -151,6 +151,19 @@ create table if not exists public.notifications (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users(id) on delete cascade,
+  employee_id uuid references public.employees(id) on delete cascade,
+  endpoint text not null unique,
+  subscription jsonb not null,
+  user_agent text,
+  delivered_notice_ids jsonb not null default '[]'::jsonb,
+  last_sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.ai_summaries (
   id uuid primary key default gen_random_uuid(),
   target_type text not null check (target_type in ('employee', 'project', 'task', 'company')),
@@ -222,6 +235,7 @@ alter table public.emails enable row level security;
 alter table public.attendance_logs enable row level security;
 alter table public.leave_requests enable row level security;
 alter table public.notifications enable row level security;
+alter table public.push_subscriptions enable row level security;
 alter table public.ai_summaries enable row level security;
 alter table public.activity_logs enable row level security;
 alter table public.goals enable row level security;
@@ -234,6 +248,8 @@ create index if not exists idx_tasks_due_date on public.tasks(due_date);
 create index if not exists idx_tasks_status_priority on public.tasks(status, priority);
 create index if not exists idx_attendance_employee_recorded on public.attendance_logs(employee_id, recorded_at desc);
 create index if not exists idx_notifications_user_read on public.notifications(user_id, read_at);
+create index if not exists idx_push_subscriptions_user on public.push_subscriptions(user_id);
+create index if not exists idx_push_subscriptions_employee on public.push_subscriptions(employee_id);
 create index if not exists idx_activity_entity on public.activity_logs(entity_type, entity_id);
 create index if not exists idx_goal_trees_scope on public.goal_trees(scope);
 create index if not exists idx_goal_trees_owner on public.goal_trees(owner_employee_id);

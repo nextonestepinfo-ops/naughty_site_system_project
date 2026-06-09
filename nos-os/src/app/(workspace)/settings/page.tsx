@@ -373,7 +373,7 @@ export default function SettingsPage() {
             <Integration icon={Database} label="Supabase" ok={supabaseReady} positiveText="準備OK" negativeText="未接続" />
             <Integration icon={Bot} label="OpenAI" ok={openAiReady} positiveText="ホスト設定済み" negativeText="未設定" />
             <Integration icon={FileText} label="Google Sheets" ok={Boolean(readiness?.googleSheetsConfigured)} positiveText="準備OK" negativeText="未設定" />
-            <Integration icon={Smartphone} label="PWA Push" ok={false} positiveText="準備OK" negativeText="ローカル" />
+            <Integration icon={Smartphone} label="PWA Push" ok={Boolean(readiness?.pwaPushConfigured)} positiveText="準備OK" negativeText="画面内通知のみ" />
           </CardContent>
         </Card>
 
@@ -382,7 +382,7 @@ export default function SettingsPage() {
             <CardTitle>設計ドキュメント</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-            {["api.md", "ai-provider-setup.md", "supabase-setup.md", "employee-test-deployment.md"].map((file) => (
+            {["api.md", "ai-provider-setup.md", "supabase-setup.md", "employee-test-deployment.md", "pwa-push-setup.md", "ios-voice-integration-roadmap.md"].map((file) => (
               <Link key={file} href="#" className="rounded-panel bg-slate-50 px-3 py-2 text-accent dark:bg-white/5">
                 docs/{file}
               </Link>
