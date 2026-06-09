@@ -49,8 +49,12 @@ function dueDateFrom(message: string) {
   return todayOffset(1);
 }
 
+function mentionedEmployee(message: string, employees: Employee[]) {
+  return employees.find((employee) => message.includes(employee.name) || message.includes(employee.name.replace(/\s/g, "")));
+}
+
 function findEmployee(message: string, employees: Employee[], fallbackEmployeeId?: string) {
-  return employees.find((employee) => message.includes(employee.name) || message.includes(employee.name.replace(/\s/g, ""))) ?? employees.find((employee) => employee.id === fallbackEmployeeId) ?? employees[0];
+  return mentionedEmployee(message, employees) ?? employees.find((employee) => employee.id === fallbackEmployeeId) ?? employees[0];
 }
 
 function findProject(message: string, projects: Project[]) {
@@ -109,6 +113,13 @@ function deleteActions(message: string, tasks: Task[]): TaskAssistantAction[] {
       .slice(0, 4);
   }
 
+  if (!candidates.length && !/完了済み|終わった|done/i.test(message)) {
+    candidates = [...tasks]
+      .filter((task) => task.status !== "done")
+      .sort((a, b) => a.aiPriorityScore - b.aiPriorityScore)
+      .slice(0, 4);
+  }
+
   return candidates.map((task) => ({
     id: `delete-${task.id}`,
     type: "delete",
@@ -124,9 +135,14 @@ function deleteActions(message: string, tasks: Task[]): TaskAssistantAction[] {
 }
 
 function updateActions(message: string, tasks: Task[], projects: Project[], employees: Employee[], branches: BranchOption[]): TaskAssistantAction[] {
-  const target = taskFromMessage(message, tasks) ?? focusTask(tasks);
+  const requestedAssignee = mentionedEmployee(message, employees);
+  const explicitTarget = taskFromMessage(message, tasks);
+  const target =
+    explicitTarget ??
+    (/担当|任せ|アサイン|お願い/.test(message) && requestedAssignee ? tasks.find((task) => task.status !== "done" && task.primaryAssigneeId !== requestedAssignee.id) : undefined) ??
+    focusTask(tasks);
   if (!target) return [];
-  const assignee = findEmployee(message, employees, target.primaryAssigneeId);
+  const assignee = requestedAssignee ?? findEmployee(message, employees, target.primaryAssigneeId);
   const project = findProject(message, projects);
   const branch = findBranch(message, branches, project);
 
