@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployees, getGoalTrees, getProjects, getTasks } from "@/lib/data/repository";
 import { getRequestScope } from "@/lib/data/request";
-import { resolveOpenAIApiKey, resolveOpenAIModel } from "@/lib/integrations/openai-config";
+import { cleanOpenAIEnvValue, resolveOpenAIApiKey, resolveOpenAIModel } from "@/lib/integrations/openai-config";
 import type { Employee, GoalTree, Project, Task, TaskAssistantAction, TaskAssistantPlan, TaskPriority, TaskStatus } from "@/lib/types";
 
 type BranchOption = {
@@ -600,9 +600,10 @@ async function buildOpenAIPlan(
       schema: taskPlannerSchema,
     },
   };
-  const textVerbosity = process.env.OPENAI_TASK_PLANNER_TEXT_VERBOSITY?.trim();
+  const textVerbosity = cleanOpenAIEnvValue(process.env.OPENAI_TASK_PLANNER_TEXT_VERBOSITY);
   if (textVerbosity) textConfig.verbosity = textVerbosity;
-  const reasoningEffort = (process.env.OPENAI_TASK_PLANNER_REASONING_EFFORT || process.env.OPENAI_REASONING_EFFORT)?.trim();
+  const reasoningEffort =
+    cleanOpenAIEnvValue(process.env.OPENAI_TASK_PLANNER_REASONING_EFFORT) || cleanOpenAIEnvValue(process.env.OPENAI_REASONING_EFFORT);
   const body: Record<string, unknown> = {
     model,
     instructions:

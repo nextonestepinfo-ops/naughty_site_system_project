@@ -1,5 +1,5 @@
 import type { SecretaryReply } from "@/lib/types";
-import { resolveOpenAIApiKey, resolveOpenAIModel } from "@/lib/integrations/openai-config";
+import { cleanOpenAIEnvValue, resolveOpenAIApiKey, resolveOpenAIModel } from "@/lib/integrations/openai-config";
 import { buildSecretaryInput, localSecretaryReply, secretaryInstructions } from "@/lib/integrations/secretary-local";
 
 const openaiEndpoint = "https://api.openai.com/v1/responses";
@@ -53,8 +53,8 @@ export async function askSecretaryWithOpenAI(input: {
   if (!apiKey) return localSecretaryReply(message);
 
   const maxOutputTokens = numericEnv("OPENAI_MAX_OUTPUT_TOKENS", 520);
-  const reasoningEffort = process.env.OPENAI_REASONING_EFFORT?.trim();
-  const textVerbosity = process.env.OPENAI_TEXT_VERBOSITY?.trim();
+  const reasoningEffort = cleanOpenAIEnvValue(process.env.OPENAI_REASONING_EFFORT);
+  const textVerbosity = cleanOpenAIEnvValue(process.env.OPENAI_TEXT_VERBOSITY);
   const body: Record<string, unknown> = {
     model,
     instructions: secretaryInstructions,
