@@ -36,11 +36,12 @@ import {
 import type { DeploymentReadiness } from "@/lib/integrations/deployment-readiness";
 import { apiFetch } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
-import type { SecretaryReply } from "@/lib/types";
+import type { SecretaryReply, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const session = useAppStore((state) => state.session);
+  const setSession = useAppStore((state) => state.setSession);
   const { resolvedTheme, setTheme } = useTheme();
   const [integrationSettings, setIntegrationSettings] = useState<ClientIntegrationSettings>(clientIntegrationDefaults);
   const [readiness, setReadiness] = useState<DeploymentReadiness | null>(null);
@@ -48,6 +49,10 @@ export default function SettingsPage() {
   const [settingsStatus, setSettingsStatus] = useState("未保存");
   const [testStatus, setTestStatus] = useState("");
   const [supabaseTestStatus, setSupabaseTestStatus] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordStatus, setPasswordStatus] = useState("");
 
   const openAiReady = Boolean(readiness?.openaiConfigured);
   const supabaseReady = Boolean(readiness?.supabasePublicConfigured);
@@ -134,6 +139,37 @@ export default function SettingsPage() {
       setSupabaseTestStatus(`接続NG: ${response.status} ${response.statusText || ""}`.trim());
     } catch {
       setSupabaseTestStatus("接続NG: URLまたは公開キーを確認してください。");
+    }
+  }
+
+  async function changeOwnPassword() {
+    if (!session) return;
+    if (newPassword.length < 4) {
+      setPasswordStatus("新しいパスワードは4文字以上で設定してください。");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus("確認用パスワードが一致していません。");
+      return;
+    }
+
+    setPasswordStatus("変更中...");
+    try {
+      const user = await apiFetch<User>("/api/auth/password", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: session.id,
+          currentPassword,
+          newPassword,
+        }),
+      });
+      setSession(user);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordStatus("パスワードを変更しました。");
+    } catch {
+      setPasswordStatus("変更できませんでした。現在のパスワードを確認してください。");
     }
   }
 
@@ -304,11 +340,23 @@ export default function SettingsPage() {
               アカウント
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="space-y-4 text-sm">
             <Info label="氏名" value={session?.name ?? "-"} />
-            <Info label="メール" value={session?.email ?? "-"} />
+            <Info label="社員ID" value={session?.employeeId ?? "-"} />
             <Info label="権限" value={session ? roleLabels[session.role] : "-"} />
             <Info label="ログイン方式" value={session?.authProvider ?? "-"} />
+            <div className="rounded-panel border border-border p-3">
+              <p className="font-semibold">パスワード変更</p>
+              <div className="mt-3 space-y-2">
+                <Input value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="現在のパスワード" type="password" autoComplete="current-password" />
+                <Input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="新しいパスワード" type="password" autoComplete="new-password" />
+                <Input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="新しいパスワードをもう一度" type="password" autoComplete="new-password" />
+                <Button type="button" variant="secondary" onClick={() => void changeOwnPassword()}>
+                  パスワードを変更
+                </Button>
+                {passwordStatus ? <p className="rounded-panel bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-white/5 dark:text-slate-300">{passwordStatus}</p> : null}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </section>

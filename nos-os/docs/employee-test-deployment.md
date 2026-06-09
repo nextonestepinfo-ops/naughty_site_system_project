@@ -57,6 +57,7 @@ the local mock repository when `NOS_OS_DATA_MODE=mock`, and server-side Supabase
 REST calls when `NOS_OS_DATA_MODE=supabase`.
 
 Run `supabase/migrations/20260609_employee_beta.sql` in the Supabase SQL Editor,
+then run `supabase/migrations/20260609_employee_passwords.sql` in the same editor,
 then seed the beta data locally:
 
 ```bash
@@ -65,7 +66,22 @@ npm run supabase:seed
 
 The seed command is idempotent. It uses stable UUIDs and upserts users,
 employees, customers, projects, tasks, comments, goal trees, attendance logs,
-leave requests, and notifications without deleting existing records.
+leave requests, and notifications. It also removes the old demo accounts
+`admin@nostechnology.jp`, `akari@nostechnology.jp`, `ren@nostechnology.jp`, and
+`mio@nostechnology.jp` after the four employee beta accounts are present.
+
+## Employee Login
+
+The beta login screen uses a staff dropdown instead of email entry. The seeded
+accounts are:
+
+- `浦田 和真` - host/admin
+- `大崎 雄介` - host/admin
+- `橋迫 翔太` - employee
+- `渡邉 駿` - employee
+
+All accounts start with password `0000`. On first login, each employee must set
+their own password. Passwords can later be changed from `/settings`.
 
 ## GitHub Check
 

@@ -33,6 +33,10 @@ function stableUuid(input) {
   return `${hex.slice(0, 8).join("")}-${hex.slice(8, 12).join("")}-${hex.slice(12, 16).join("")}-${hex.slice(16, 20).join("")}-${hex.slice(20).join("")}`;
 }
 
+function passwordHash(password, salt) {
+  return createHash("sha256").update(`${salt}:${password}`).digest("hex");
+}
+
 function dateOffset(days, hour = 18) {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -74,20 +78,35 @@ async function upsert(table, rows, onConflict = "id") {
   });
 }
 
+async function patch(table, query, body) {
+  return rest(table, {
+    method: "PATCH",
+    query,
+    body,
+    prefer: "return=representation",
+  });
+}
+
+async function remove(table, query) {
+  return rest(table, {
+    method: "DELETE",
+    query,
+    prefer: "return=representation",
+  });
+}
+
 const ids = {
   users: {
-    admin: stableUuid("user-admin"),
     urata: stableUuid("user-urata"),
-    akari: stableUuid("user-akari"),
-    ren: stableUuid("user-ren"),
-    mio: stableUuid("user-mio"),
+    hashisako: stableUuid("user-hashisako"),
+    watanabe: stableUuid("user-watanabe"),
+    osaki: stableUuid("user-osaki"),
   },
   employees: {
-    admin: stableUuid("emp-admin"),
     urata: stableUuid("emp-urata"),
-    akari: stableUuid("emp-akari"),
-    ren: stableUuid("emp-ren"),
-    mio: stableUuid("emp-mio"),
+    hashisako: stableUuid("emp-hashisako"),
+    watanabe: stableUuid("emp-watanabe"),
+    osaki: stableUuid("emp-osaki"),
   },
   customers: {
     nos: stableUuid("cus-nos"),
@@ -114,20 +133,27 @@ const ids = {
   },
 };
 
+ids.users.admin = ids.users.osaki;
+ids.users.akari = ids.users.hashisako;
+ids.users.ren = ids.users.watanabe;
+ids.users.mio = ids.users.osaki;
+ids.employees.admin = ids.employees.osaki;
+ids.employees.akari = ids.employees.hashisako;
+ids.employees.ren = ids.employees.watanabe;
+ids.employees.mio = ids.employees.osaki;
+
 const users = [
-  { id: ids.users.admin, email: "admin@nostechnology.jp", role: "admin", employment_type: "full_time", auth_provider: "google" },
-  { id: ids.users.urata, email: "urata@nostechnology.jp", role: "admin", employment_type: "full_time", auth_provider: "google" },
-  { id: ids.users.akari, email: "akari@nostechnology.jp", role: "employee", employment_type: "full_time", auth_provider: "email" },
-  { id: ids.users.ren, email: "ren@nostechnology.jp", role: "employee", employment_type: "part_time", auth_provider: "google" },
-  { id: ids.users.mio, email: "mio@nostechnology.jp", role: "sales", employment_type: "full_time", auth_provider: "email" },
+  { id: ids.users.urata, email: "urata@nostechnology.jp", role: "admin", employment_type: "full_time", auth_provider: "email" },
+  { id: ids.users.osaki, email: "osaki@nostechnology.jp", role: "admin", employment_type: "full_time", auth_provider: "email" },
+  { id: ids.users.hashisako, email: "hashisako@nostechnology.jp", role: "employee", employment_type: "full_time", auth_provider: "email" },
+  { id: ids.users.watanabe, email: "watanabe@nostechnology.jp", role: "employee", employment_type: "full_time", auth_provider: "email" },
 ];
 
 const employees = [
-  { id: ids.employees.admin, user_id: ids.users.admin, name: "Admin Manager", position: "Operations Lead", department: "Management", avatar_url: "AD", bio: "Runs company-level task, revenue, and delivery checks.", leave_balance_days: 12, attendance_status: "working" },
-  { id: ids.employees.urata, user_id: ids.users.urata, name: "Urata", position: "CEO / Manager", department: "Management", avatar_url: "UR", bio: "Checks sales, replies, and today's highest-risk tasks.", leave_balance_days: 11, attendance_status: "working" },
-  { id: ids.employees.akari, user_id: ids.users.akari, name: "Akari", position: "Web Director", department: "Web Production", avatar_url: "AK", bio: "Owns demos, production briefs, and sales-ready design samples.", leave_balance_days: 8, attendance_status: "meeting" },
-  { id: ids.employees.ren, user_id: ids.users.ren, name: "Ren", position: "Full-stack Engineer", department: "System Development", avatar_url: "RN", bio: "Builds Next.js, database, and operations automation.", leave_balance_days: 10, attendance_status: "working" },
-  { id: ids.employees.mio, user_id: ids.users.mio, name: "Mio", position: "AI Sales Consultant", department: "AI Improvement", avatar_url: "MI", bio: "Turns field workflows into AI improvement proposals.", leave_balance_days: 14, attendance_status: "break" },
+  { id: ids.employees.urata, user_id: ids.users.urata, name: "浦田 和真", position: "Host / Manager", department: "Management", avatar_url: "UK", bio: "会社全体の案件、売上、タスク優先度を確認します。", leave_balance_days: 11, attendance_status: "working" },
+  { id: ids.employees.osaki, user_id: ids.users.osaki, name: "大崎 雄介", position: "Host / Operations", department: "Management", avatar_url: "OY", bio: "社員βの運用、案件確認、タスク整理を担当します。", leave_balance_days: 12, attendance_status: "working" },
+  { id: ids.employees.hashisako, user_id: ids.users.hashisako, name: "橋迫 翔太", position: "Staff", department: "Operations", avatar_url: "HS", bio: "制作、確認、営業準備のタスクを担当します。", leave_balance_days: 10, attendance_status: "meeting" },
+  { id: ids.employees.watanabe, user_id: ids.users.watanabe, name: "渡邉 駿", position: "Staff", department: "System Development", avatar_url: "WS", bio: "システム、DB、業務改善タスクを担当します。", leave_balance_days: 10, attendance_status: "working" },
 ];
 
 const customers = [
@@ -138,19 +164,19 @@ const customers = [
 ];
 
 const projects = [
-  { id: ids.projects.sales, name: "June first-order sales sprint", customer_id: ids.customers.nos, primary_owner_id: ids.employees.urata, secondary_owner_id: ids.employees.mio, start_date: dateOnly(-1), due_date: dateOnly(7), budget: 500000, status: "production", notes: "Daily sales sprint for first paid orders." },
-  { id: ids.projects.web, name: "Local shop web demo sales", customer_id: ids.customers.shops, primary_owner_id: ids.employees.akari, secondary_owner_id: ids.employees.urata, start_date: dateOnly(-2), due_date: dateOnly(5), budget: 300000, status: "proposal", notes: "Prepare demo pages and simple sales explanations." },
-  { id: ids.projects.tools, name: "Small business tool discovery", customer_id: ids.customers.tools, primary_owner_id: ids.employees.ren, secondary_owner_id: ids.employees.mio, start_date: dateOnly(-1), due_date: dateOnly(10), budget: 450000, status: "hearing", notes: "Clarify attendance, inventory, and sales memo workflows." },
-  { id: ids.projects.poc, name: "High-value system POC framing", customer_id: ids.customers.poc, primary_owner_id: ids.employees.mio, secondary_owner_id: ids.employees.ren, start_date: dateOnly(0), due_date: dateOnly(21), budget: 1200000, status: "pre_order", notes: "Split POC into small validation steps." },
-  { id: ids.projects.media, name: "SNS and outsourcing sales line", customer_id: ids.customers.nos, primary_owner_id: ids.employees.mio, secondary_owner_id: ids.employees.akari, start_date: dateOnly(-1), due_date: dateOnly(4), budget: 150000, status: "production", notes: "Prepare Coconala, cloud work, SNS, and DM entry points." },
+  { id: ids.projects.sales, name: "June first-order sales sprint", customer_id: ids.customers.nos, primary_owner_id: ids.employees.urata, secondary_owner_id: ids.employees.osaki, start_date: dateOnly(-1), due_date: dateOnly(7), budget: 500000, status: "production", notes: "Daily sales sprint for first paid orders." },
+  { id: ids.projects.web, name: "Local shop web demo sales", customer_id: ids.customers.shops, primary_owner_id: ids.employees.hashisako, secondary_owner_id: ids.employees.urata, start_date: dateOnly(-2), due_date: dateOnly(5), budget: 300000, status: "proposal", notes: "Prepare demo pages and simple sales explanations." },
+  { id: ids.projects.tools, name: "Small business tool discovery", customer_id: ids.customers.tools, primary_owner_id: ids.employees.watanabe, secondary_owner_id: ids.employees.osaki, start_date: dateOnly(-1), due_date: dateOnly(10), budget: 450000, status: "hearing", notes: "Clarify attendance, inventory, and sales memo workflows." },
+  { id: ids.projects.poc, name: "High-value system POC framing", customer_id: ids.customers.poc, primary_owner_id: ids.employees.osaki, secondary_owner_id: ids.employees.watanabe, start_date: dateOnly(0), due_date: dateOnly(21), budget: 1200000, status: "pre_order", notes: "Split POC into small validation steps." },
+  { id: ids.projects.media, name: "SNS and outsourcing sales line", customer_id: ids.customers.nos, primary_owner_id: ids.employees.osaki, secondary_owner_id: ids.employees.hashisako, start_date: dateOnly(-1), due_date: dateOnly(4), budget: 150000, status: "production", notes: "Prepare Coconala, cloud work, SNS, and DM entry points." },
 ];
 
 const projectMembers = [
-  [ids.projects.sales, ids.employees.urata, "primary"], [ids.projects.sales, ids.employees.admin, "secondary"], [ids.projects.sales, ids.employees.mio, "secondary"], [ids.projects.sales, ids.employees.akari, "secondary"],
-  [ids.projects.web, ids.employees.akari, "primary"], [ids.projects.web, ids.employees.urata, "secondary"], [ids.projects.web, ids.employees.ren, "secondary"],
-  [ids.projects.tools, ids.employees.ren, "primary"], [ids.projects.tools, ids.employees.mio, "secondary"], [ids.projects.tools, ids.employees.urata, "secondary"],
-  [ids.projects.poc, ids.employees.mio, "primary"], [ids.projects.poc, ids.employees.urata, "secondary"], [ids.projects.poc, ids.employees.ren, "secondary"], [ids.projects.poc, ids.employees.admin, "secondary"],
-  [ids.projects.media, ids.employees.mio, "primary"], [ids.projects.media, ids.employees.akari, "secondary"], [ids.projects.media, ids.employees.urata, "secondary"],
+  [ids.projects.sales, ids.employees.urata, "primary"], [ids.projects.sales, ids.employees.osaki, "secondary"], [ids.projects.sales, ids.employees.hashisako, "secondary"],
+  [ids.projects.web, ids.employees.hashisako, "primary"], [ids.projects.web, ids.employees.urata, "secondary"], [ids.projects.web, ids.employees.watanabe, "secondary"],
+  [ids.projects.tools, ids.employees.watanabe, "primary"], [ids.projects.tools, ids.employees.osaki, "secondary"], [ids.projects.tools, ids.employees.urata, "secondary"],
+  [ids.projects.poc, ids.employees.osaki, "primary"], [ids.projects.poc, ids.employees.urata, "secondary"], [ids.projects.poc, ids.employees.watanabe, "secondary"],
+  [ids.projects.media, ids.employees.osaki, "primary"], [ids.projects.media, ids.employees.hashisako, "secondary"], [ids.projects.media, ids.employees.urata, "secondary"],
 ].map(([project_id, employee_id, role]) => ({ project_id, employee_id, role }));
 
 const tasks = [
@@ -165,14 +191,14 @@ const tasks = [
 ];
 
 const taskAssignees = [
-  [ids.tasks.reply, ids.employees.urata], [ids.tasks.reply, ids.employees.mio],
-  [ids.tasks.salesList, ids.employees.urata], [ids.tasks.salesList, ids.employees.akari],
-  [ids.tasks.revenue, ids.employees.admin], [ids.tasks.revenue, ids.employees.urata], [ids.tasks.revenue, ids.employees.mio],
-  [ids.tasks.webDemo, ids.employees.akari], [ids.tasks.webDemo, ids.employees.ren],
-  [ids.tasks.outsourcing, ids.employees.akari], [ids.tasks.outsourcing, ids.employees.mio],
-  [ids.tasks.toolsHearing, ids.employees.ren], [ids.tasks.toolsHearing, ids.employees.mio],
-  [ids.tasks.pocSteps, ids.employees.mio], [ids.tasks.pocSteps, ids.employees.urata], [ids.tasks.pocSteps, ids.employees.ren],
-  [ids.tasks.weekly, ids.employees.admin], [ids.tasks.weekly, ids.employees.urata], [ids.tasks.weekly, ids.employees.akari], [ids.tasks.weekly, ids.employees.ren], [ids.tasks.weekly, ids.employees.mio],
+  [ids.tasks.reply, ids.employees.urata], [ids.tasks.reply, ids.employees.osaki],
+  [ids.tasks.salesList, ids.employees.urata], [ids.tasks.salesList, ids.employees.hashisako],
+  [ids.tasks.revenue, ids.employees.osaki], [ids.tasks.revenue, ids.employees.urata],
+  [ids.tasks.webDemo, ids.employees.hashisako], [ids.tasks.webDemo, ids.employees.watanabe],
+  [ids.tasks.outsourcing, ids.employees.hashisako], [ids.tasks.outsourcing, ids.employees.osaki],
+  [ids.tasks.toolsHearing, ids.employees.watanabe], [ids.tasks.toolsHearing, ids.employees.osaki],
+  [ids.tasks.pocSteps, ids.employees.osaki], [ids.tasks.pocSteps, ids.employees.urata], [ids.tasks.pocSteps, ids.employees.watanabe],
+  [ids.tasks.weekly, ids.employees.osaki], [ids.tasks.weekly, ids.employees.urata], [ids.tasks.weekly, ids.employees.hashisako], [ids.tasks.weekly, ids.employees.watanabe],
 ].map(([task_id, employee_id]) => ({ task_id, employee_id }));
 
 const goalTrees = [
@@ -224,22 +250,22 @@ const goalTrees = [
     ],
   },
   {
-    id: stableUuid("goal-tree-personal-akari"),
+    id: stableUuid("goal-tree-personal-hashisako"),
     scope: "personal",
-    title: "Akari personal",
+    title: "Hashisako personal",
     goal: "Make web samples easy to sell",
-    owner_employee_id: ids.employees.akari,
+    owner_employee_id: ids.employees.hashisako,
     due_date: dateOnly(7),
-    metrics: [{ id: "metric-akari-samples", label: "Samples", current: 5, target: 10, unit: "items" }],
+    metrics: [{ id: "metric-hashisako-samples", label: "Samples", current: 5, target: 10, unit: "items" }],
     branches: [
       {
-        id: "branch-akari-design",
+        id: "branch-hashisako-design",
         title: "Prepare design samples",
         dueDate: dateOnly(3),
-        assigneeId: ids.employees.akari,
+        assigneeId: ids.employees.hashisako,
         projectId: ids.projects.web,
         tasks: [
-          { id: "tree-task-akari-restaurant", title: "Review restaurant sample for sales", dueDate: dateOnly(1), assigneeId: ids.employees.akari, taskId: null },
+          { id: "tree-task-hashisako-restaurant", title: "Review restaurant sample for sales", dueDate: dateOnly(1), assigneeId: ids.employees.hashisako, taskId: null },
         ],
       },
     ],
@@ -247,25 +273,24 @@ const goalTrees = [
 ];
 
 const attendanceLogs = [
-  { id: stableUuid("att-admin-1"), employee_id: ids.employees.admin, event_type: "clock_in", recorded_at: dateOffset(0, 9), source: "manual" },
   { id: stableUuid("att-urata-1"), employee_id: ids.employees.urata, event_type: "clock_in", recorded_at: dateOffset(0, 8), source: "manual" },
-  { id: stableUuid("att-akari-1"), employee_id: ids.employees.akari, event_type: "meeting", recorded_at: dateOffset(0, 13), source: "manual" },
-  { id: stableUuid("att-ren-1"), employee_id: ids.employees.ren, event_type: "clock_in", recorded_at: dateOffset(0, 10), source: "manual" },
-  { id: stableUuid("att-mio-1"), employee_id: ids.employees.mio, event_type: "break_start", recorded_at: dateOffset(0, 12), source: "manual" },
+  { id: stableUuid("att-osaki-1"), employee_id: ids.employees.osaki, event_type: "clock_in", recorded_at: dateOffset(0, 9), source: "manual" },
+  { id: stableUuid("att-hashisako-1"), employee_id: ids.employees.hashisako, event_type: "meeting", recorded_at: dateOffset(0, 13), source: "manual" },
+  { id: stableUuid("att-watanabe-1"), employee_id: ids.employees.watanabe, event_type: "clock_in", recorded_at: dateOffset(0, 10), source: "manual" },
 ];
 
 const leaveRequests = [
-  { id: stableUuid("leave-akari-1"), employee_id: ids.employees.akari, start_date: dateOnly(10), end_date: dateOnly(11), days: 2, status: "pending" },
-  { id: stableUuid("leave-ren-1"), employee_id: ids.employees.ren, start_date: dateOnly(20), end_date: dateOnly(20), days: 1, status: "approved" },
+  { id: stableUuid("leave-hashisako-1"), employee_id: ids.employees.hashisako, start_date: dateOnly(10), end_date: dateOnly(11), days: 2, status: "pending" },
+  { id: stableUuid("leave-watanabe-1"), employee_id: ids.employees.watanabe, start_date: dateOnly(20), end_date: dateOnly(20), days: 1, status: "approved" },
 ];
 
 const taskComments = [
-  { id: stableUuid("comment-1"), task_id: ids.tasks.reply, author_user_id: ids.users.admin, body: "Reply before noon so the lead does not cool down." },
+  { id: stableUuid("comment-1"), task_id: ids.tasks.reply, author_user_id: ids.users.urata, body: "Reply before noon so the lead does not cool down." },
 ];
 
 const notifications = [
   { id: stableUuid("notice-urata-1"), user_id: ids.users.urata, type: "due_today", title: "Reply and sales contacts are due today", body: "Move replies first, then choose today's 10 sales contacts.", severity: "warning", target_href: "/", read_at: null },
-  { id: stableUuid("notice-admin-1"), user_id: ids.users.admin, type: "due_today", title: "Weekly deliverables are due today", body: "Ask each member to register one visible weekly result.", severity: "warning", target_href: "/tasks", read_at: null },
+  { id: stableUuid("notice-osaki-1"), user_id: ids.users.osaki, type: "due_today", title: "Weekly deliverables are due today", body: "Ask each member to register one visible weekly result.", severity: "warning", target_href: "/tasks", read_at: null },
 ];
 
 const tables = [
@@ -283,9 +308,39 @@ const tables = [
   ["notifications", notifications, "id"],
 ];
 
+async function ensureInitialPasswords() {
+  const userIds = users.map((user) => user.id).join(",");
+  const rows = await rest("users", { query: { id: `in.(${userIds})` } });
+
+  for (const row of rows) {
+    if (row.password_hash) continue;
+    const salt = row.password_salt || stableUuid(`password-salt-${row.id}`);
+    await patch(
+      "users",
+      { id: `eq.${row.id}` },
+      {
+        password_salt: salt,
+        password_hash: passwordHash("0000", salt),
+        must_change_password: true,
+        password_changed_at: null,
+      },
+    );
+    console.log(`users: initialized password for ${row.email}`);
+  }
+}
+
+async function removeDeprecatedDemoUsers() {
+  const deprecatedEmails = ["admin@nostechnology.jp", "akari@nostechnology.jp", "ren@nostechnology.jp", "mio@nostechnology.jp"];
+  const removed = await remove("users", { email: `in.(${deprecatedEmails.join(",")})` });
+  console.log(`users: removed ${Array.isArray(removed) ? removed.length : 0} deprecated demo accounts`);
+}
+
 for (const [table, rows, conflict] of tables) {
   const result = await upsert(table, rows, conflict);
   console.log(`${table}: upserted ${result.length}`);
 }
+
+await ensureInitialPasswords();
+await removeDeprecatedDemoUsers();
 
 console.log("Supabase employee beta seed complete.");

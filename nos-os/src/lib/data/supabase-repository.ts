@@ -1,3 +1,4 @@
+import { createPasswordSalt, hashPassword, passwordIsAcceptable, verifyPassword } from "@/lib/auth/password";
 import { priorityOrder } from "@/lib/data/labels";
 import { deleteRows, insertRows, newUuid, patchRows, selectOne, selectRows, stableUuid } from "@/lib/data/supabase-rest";
 import type {
@@ -28,6 +29,7 @@ import type {
   TaskPriority,
   TaskStatus,
   User,
+  LoginAccount,
 } from "@/lib/types";
 
 type UserRow = {
@@ -36,6 +38,10 @@ type UserRow = {
   role: string;
   employment_type: string;
   auth_provider: string;
+  password_salt?: string | null;
+  password_hash?: string | null;
+  must_change_password?: boolean | null;
+  password_changed_at?: string | null;
   created_at: string;
   updated_at?: string;
 };
@@ -53,6 +59,8 @@ type EmployeeRow = {
   created_at: string;
   updated_at?: string;
 };
+
+const deprecatedDemoEmails = new Set(["admin@nostechnology.jp", "akari@nostechnology.jp", "ren@nostechnology.jp", "mio@nostechnology.jp"]);
 
 type CustomerRow = {
   id: string;
@@ -326,6 +334,7 @@ function mapUser(row: UserRow, employees: EmployeeRow[]): User {
     employeeId: employee?.id ?? "",
     authProvider: row.auth_provider === "email" ? "email" : "google",
     createdAt: row.created_at,
+    mustChangePassword: row.must_change_password ?? !row.password_hash,
   };
 }
 
@@ -371,19 +380,65 @@ function filterTasksForRole(tasks: Task[], role: Role, employeeId?: string) {
   return isAdmin(role) ? tasks : tasks.filter((task) => taskVisibleToEmployee(task, employeeId));
 }
 
-export async function loginUser(input: { email?: string; password?: string; role?: Role; provider?: "google" | "email" }) {
+export async function loginUser(input: { employeeId?: string; email?: string; password?: string; role?: Role; provider?: "google" | "email" }) {
   const { users, employees } = await readCore();
   const requestedRole = input.role ?? "employee";
+  const selectedEmployee = employees.find((employee) => employee.id === dbId(input.employeeId));
   const found =
+    (selectedEmployee ? users.find((user) => user.id === selectedEmployee.user_id) : undefined) ??
     users.find((user) => user.email === input.email) ??
     users.find((user) => roleFrom(user.role) === requestedRole) ??
     users[0];
-  if (!found) return null;
-  if (found.email === "urata@nostechnology.jp") {
-    const requiredPassword = process.env.URATA_LOGIN_PASSWORD;
-    if (!requiredPassword || input.password !== requiredPassword) return null;
-  }
+  if (!found || deprecatedDemoEmails.has(found.email)) return null;
+  if (!verifyPassword(input.password ?? "", found.password_salt, found.password_hash)) return null;
   return { ...mapUser(found, employees), authProvider: input.provider ?? (found.auth_provider === "email" ? "email" : "google") };
+}
+
+export async function changePassword(input: { userId?: string; currentPassword?: string; newPassword?: string }) {
+  const normalized = dbId(input.userId);
+  if (!normalized || !passwordIsAcceptable(input.newPassword ?? "")) return null;
+
+  const { users, employees } = await readCore();
+  const current = users.find((user) => user.id === normalized);
+  if (!current || !verifyPassword(input.currentPassword ?? "", current.password_salt, current.password_hash)) return null;
+
+  const salt = createPasswordSalt();
+  const [row] = await patchRows<UserRow>(
+    "users",
+    { id: `eq.${normalized}` },
+    {
+      password_salt: salt,
+      password_hash: hashPassword(input.newPassword ?? "", salt),
+      must_change_password: false,
+      password_changed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  );
+  return row ? mapUser(row, employees) : null;
+}
+
+export async function getLoginAccounts(): Promise<LoginAccount[]> {
+  const { users, employees } = await readCore();
+  return employees
+    .map((employee) => {
+      const user = users.find((item) => item.id === employee.user_id);
+      if (!user || deprecatedDemoEmails.has(user.email)) return null;
+      return {
+        userId: user.id,
+        employeeId: employee.id,
+        name: employee.name,
+        role: roleFrom(user.role),
+        department: employee.department,
+        position: employee.position,
+        avatarUrl: employee.avatar_url ?? "",
+        mustChangePassword: user.must_change_password ?? !user.password_hash,
+      } satisfies LoginAccount;
+    })
+    .filter((account): account is LoginAccount => Boolean(account))
+    .sort((a, b) => {
+      if (a.role !== b.role) return a.role === "admin" ? -1 : b.role === "admin" ? 1 : 0;
+      return a.name.localeCompare(b.name, "ja");
+    });
 }
 
 export async function getUser(userId?: string) {
@@ -1057,7 +1112,7 @@ export async function getEmployeeProfile(role: Role, targetId: string, requester
 export async function getUsers(role: Role) {
   if (!isAdmin(role)) return [];
   const { users, employees } = await readCore();
-  return users.map((user) => mapUser(user, employees));
+  return users.filter((user) => !deprecatedDemoEmails.has(user.email)).map((user) => mapUser(user, employees));
 }
 
 export async function updateUserRole(userId: string, input: Pick<User, "role" | "employmentType">) {

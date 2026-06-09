@@ -48,6 +48,18 @@ export type User = {
   employeeId: string;
   authProvider: AuthProvider;
   createdAt: string;
+  mustChangePassword?: boolean;
+};
+
+export type LoginAccount = {
+  userId: string;
+  employeeId: string;
+  name: string;
+  role: Role;
+  department: string;
+  position: string;
+  avatarUrl: string;
+  mustChangePassword: boolean;
 };
 
 export type Employee = {

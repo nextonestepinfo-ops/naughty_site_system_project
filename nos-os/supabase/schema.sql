@@ -6,6 +6,10 @@ create table if not exists public.users (
   role text not null check (role in ('admin', 'employee', 'sales')),
   employment_type text not null default 'full_time' check (employment_type in ('full_time', 'part_time', 'contractor')),
   auth_provider text not null check (auth_provider in ('google', 'email')),
+  password_salt text not null default encode(gen_random_bytes(16), 'hex'),
+  password_hash text,
+  must_change_password boolean not null default true,
+  password_changed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

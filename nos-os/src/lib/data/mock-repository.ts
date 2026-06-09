@@ -18,6 +18,7 @@ import {
   tasks,
   users,
 } from "@/lib/data/mock";
+import { createPasswordSalt, hashPassword, passwordIsAcceptable, verifyPassword } from "@/lib/auth/password";
 import { priorityOrder } from "@/lib/data/labels";
 import type {
   ActivityLog,
@@ -34,6 +35,7 @@ import type {
   GoalTreeMetric,
   GoalTreeScope,
   GoalTreeTask,
+  LoginAccount,
   Project,
   ProjectDetail,
   ProjectStatus,
@@ -55,9 +57,41 @@ const mutableActivity = activityLogs;
 const mutableComments = taskComments;
 const mutableUsers = users;
 const mutableGoalTrees = goalTrees;
-const demoPasswordByEmail: Record<string, string | undefined> = {
-  "urata@nostechnology.jp": process.env.URATA_LOGIN_PASSWORD,
-};
+const mutablePasswords = new Map(
+  mutableUsers.map((user) => {
+    const salt = createPasswordSalt();
+    return [user.id, { salt, hash: hashPassword("0000", salt), mustChangePassword: true }];
+  }),
+);
+const betaProfiles = new Map([
+  ["emp-urata", { email: "urata@nostechnology.jp", name: "浦田 和真", role: "admin" as Role, position: "Host / Manager", department: "Management", avatarUrl: "UK" }],
+  ["emp-akari", { email: "hashisako@nostechnology.jp", name: "橋迫 翔太", role: "employee" as Role, position: "Staff", department: "Operations", avatarUrl: "HS" }],
+  ["emp-ren", { email: "watanabe@nostechnology.jp", name: "渡邉 駿", role: "employee" as Role, position: "Staff", department: "System Development", avatarUrl: "WS" }],
+  ["emp-mio", { email: "osaki@nostechnology.jp", name: "大崎 雄介", role: "admin" as Role, position: "Host / Operations", department: "Management", avatarUrl: "OY" }],
+]);
+const hiddenEmployeeIds = new Set(["emp-admin"]);
+
+function betaUser(user: User): User {
+  const profile = betaProfiles.get(user.employeeId);
+  return profile ? { ...user, email: profile.email, name: profile.name, role: profile.role, authProvider: "email" } : user;
+}
+
+function betaEmployee(employee: (typeof employees)[number]) {
+  const profile = betaProfiles.get(employee.id);
+  return profile
+    ? {
+        ...employee,
+        name: profile.name,
+        position: profile.position,
+        department: profile.department,
+        avatarUrl: profile.avatarUrl,
+      }
+    : employee;
+}
+
+function betaEmployees() {
+  return employees.filter((employee) => !hiddenEmployeeIds.has(employee.id)).map(betaEmployee);
+}
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -141,32 +175,68 @@ function countByStatus<T extends string>(values: T[], allStatuses: T[]) {
   );
 }
 
-export function loginUser(input: { email?: string; password?: string; role?: Role; provider?: "google" | "email" }) {
+export function loginUser(input: { employeeId?: string; email?: string; password?: string; role?: Role; provider?: "google" | "email" }) {
   const requestedRole = input.role ?? "employee";
-  const found = mutableUsers.find((user) => user.email === input.email) ?? mutableUsers.find((user) => user.role === requestedRole);
-  if (!found) return null;
-  if (found.email in demoPasswordByEmail) {
-    const requiredPassword = demoPasswordByEmail[found.email];
-    if (!requiredPassword || input.password !== requiredPassword) return null;
-  }
-  return { ...found, authProvider: input.provider ?? found.authProvider };
+  const found =
+    mutableUsers.find((user) => user.employeeId === input.employeeId) ??
+    mutableUsers.find((user) => user.email === input.email) ??
+    mutableUsers.find((user) => user.role === requestedRole);
+  if (!found || hiddenEmployeeIds.has(found.employeeId)) return null;
+  const passwordState = mutablePasswords.get(found.id);
+  if (!verifyPassword(input.password ?? "", passwordState?.salt, passwordState?.hash)) return null;
+  return { ...betaUser(found), authProvider: input.provider ?? "email", mustChangePassword: passwordState?.mustChangePassword ?? true };
+}
+
+export function changePassword(input: { userId?: string; currentPassword?: string; newPassword?: string }) {
+  if (!input.userId || !passwordIsAcceptable(input.newPassword ?? "")) return null;
+  const user = mutableUsers.find((item) => item.id === input.userId);
+  const current = input.userId ? mutablePasswords.get(input.userId) : undefined;
+  if (!user || !verifyPassword(input.currentPassword ?? "", current?.salt, current?.hash)) return null;
+  const salt = createPasswordSalt();
+  mutablePasswords.set(user.id, { salt, hash: hashPassword(input.newPassword ?? "", salt), mustChangePassword: false });
+  return { ...betaUser(user), mustChangePassword: false };
+}
+
+export function getLoginAccounts(): LoginAccount[] {
+  return betaEmployees()
+    .map((employee) => {
+      const user = mutableUsers.find((item) => item.employeeId === employee.id);
+      if (!user) return null;
+      const publicUser = betaUser(user);
+      return {
+        userId: publicUser.id,
+        employeeId: employee.id,
+        name: employee.name,
+        role: publicUser.role,
+        department: employee.department,
+        position: employee.position,
+        avatarUrl: employee.avatarUrl,
+        mustChangePassword: mutablePasswords.get(publicUser.id)?.mustChangePassword ?? true,
+      } satisfies LoginAccount;
+    })
+    .filter((account): account is LoginAccount => Boolean(account))
+    .sort((a, b) => {
+      if (a.role !== b.role) return a.role === "admin" ? -1 : b.role === "admin" ? 1 : 0;
+      return a.name.localeCompare(b.name, "ja");
+    });
 }
 
 export function getUser(userId?: string) {
-  return mutableUsers.find((user) => user.id === userId) ?? mutableUsers[0];
+  return betaUser(mutableUsers.find((user) => user.id === userId) ?? mutableUsers.find((user) => !hiddenEmployeeIds.has(user.employeeId)) ?? mutableUsers[0]);
 }
 
 export function getEmployee(employeeId?: string) {
-  return employees.find((employee) => employee.id === employeeId) ?? employees[0];
+  return betaEmployee(employees.find((employee) => employee.id === employeeId) ?? betaEmployees()[0] ?? employees[0]);
 }
 
 export function getEmployees(role: Role, employeeId?: string) {
-  return isAdmin(role) ? employees : employees.filter((employee) => employee.id === employeeId);
+  const scoped = isAdmin(role) ? betaEmployees() : betaEmployees().filter((employee) => employee.id === employeeId);
+  return scoped;
 }
 
 export function getEmployeeProfile(role: Role, targetId: string, requesterEmployeeId?: string): EmployeeProfile | null {
   if (!isAdmin(role) && targetId !== requesterEmployeeId) return null;
-  const employee = employees.find((item) => item.id === targetId);
+  const employee = betaEmployees().find((item) => item.id === targetId);
   if (!employee) return null;
   const profileSkills = employeeSkills
     .filter((item) => item.employeeId === targetId)
@@ -637,7 +707,7 @@ export function getLookupData() {
 }
 
 export function getUsers(role: Role) {
-  return isAdmin(role) ? mutableUsers : [];
+  return isAdmin(role) ? mutableUsers.filter((user) => !hiddenEmployeeIds.has(user.employeeId)).map(betaUser) : [];
 }
 
 export function updateUserRole(userId: string, input: Pick<User, "role" | "employmentType">) {
@@ -656,7 +726,8 @@ export function updateUserRole(userId: string, input: Pick<User, "role" | "emplo
 }
 
 export function getUserByEmployee(employeeId: string): User | undefined {
-  return mutableUsers.find((user) => user.employeeId === employeeId);
+  const user = mutableUsers.find((item) => item.employeeId === employeeId && !hiddenEmployeeIds.has(item.employeeId));
+  return user ? betaUser(user) : undefined;
 }
 
 export function getCustomerById(customerId: string): Customer | undefined {

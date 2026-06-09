@@ -11,8 +11,16 @@ export function calculatePriorityScore(task: Pick<Task, "dueDate" | "priority" |
   return repo().calculatePriorityScore(task);
 }
 
-export async function loginUser(input: { email?: string; password?: string; role?: Role; provider?: "google" | "email" }) {
+export async function loginUser(input: { employeeId?: string; email?: string; password?: string; role?: Role; provider?: "google" | "email" }) {
   return repo().loginUser(input);
+}
+
+export async function changePassword(input: { userId?: string; currentPassword?: string; newPassword?: string }) {
+  return repo().changePassword(input);
+}
+
+export async function getLoginAccounts() {
+  return repo().getLoginAccounts();
 }
 
 export async function getUser(userId?: string) {
