@@ -2,7 +2,7 @@
 
 NOS OS は、アプリを開いている間の期限通知に加えて、VAPID 設定後に Web Push でバックグラウンド通知を送れます。
 
-## 1. Supabase migration
+## 1. Supabase Migration
 
 Supabase SQL editor で次を実行します。
 
@@ -27,7 +27,7 @@ create index if not exists idx_push_subscriptions_user on public.push_subscripti
 create index if not exists idx_push_subscriptions_employee on public.push_subscriptions(employee_id);
 ```
 
-## 2. VAPID keys
+## 2. VAPID Keys
 
 ローカルで生成します。
 
@@ -48,3 +48,11 @@ NOS_OS_CRON_SECRET=
 
 `vercel.json` で毎朝 08:00 JST に `/api/cron/notifications` を実行します。
 VAPID 未設定時は送信せず、既存の画面内通知だけが動きます。
+
+## 4. Employee Test Flow
+
+1. `/notifications` を開く。
+2. `PWA通知` ボタンで通知許可を出す。
+3. iPhone は共有メニューからホーム画面に追加する。
+4. 翌朝、期限超過・本日期限・明日期限の件数を見る。
+5. `開く` から対象タスクへ移動して、完了・保留・期限変更をする。
