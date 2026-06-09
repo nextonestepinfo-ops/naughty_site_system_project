@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { PageHeader } from "@/components/domain/page-header";
@@ -23,6 +23,7 @@ export default function ProjectsPage() {
   const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
   const customers = useScopedQuery<Customer[]>(["customers"], "/api/customers");
   const [open, setOpen] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
 
   const createProject = useMutation({
     mutationFn: (body: Partial<Project>) =>
@@ -45,6 +46,7 @@ export default function ProjectsPage() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["projects"] });
+      void queryClient.invalidateQueries({ queryKey: ["project"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
@@ -60,6 +62,10 @@ export default function ProjectsPage() {
   if (projects.isLoading || !projects.data) return <LoadingPanel label="案件を読み込み中" />;
 
   const employeeMap = new Map((employees.data ?? []).map((employee) => [employee.id, employee]));
+
+  function patchProject(project: Project, body: Partial<Project>) {
+    updateProject.mutate({ id: project.id, body });
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -156,7 +162,7 @@ export default function ProjectsPage() {
                     type="number"
                     onBlur={(event) => {
                       const budget = Number(event.target.value || 0);
-                      if (budget !== project.budget) updateProject.mutate({ id: project.id, body: { budget } });
+                      if (budget !== project.budget) patchProject(project, { budget });
                     }}
                   />
                   <p className="mt-1 text-xs text-slate-500">{formatCurrency(project.budget)}</p>
@@ -170,20 +176,85 @@ export default function ProjectsPage() {
                 <Select
                   aria-label="案件ステータス"
                   value={project.status}
-                  onChange={(event) => updateProject.mutate({ id: project.id, body: { status: event.target.value as ProjectStatus } })}
+                  onChange={(event) => patchProject(project, { status: event.target.value as ProjectStatus })}
                 >
                   {statuses.map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </Select>
+                <Button
+                  aria-label="案件編集"
+                  title="案件編集"
+                  variant={editingProjectId === project.id ? "secondary" : "ghost"}
+                  size="icon"
+                  onClick={() => setEditingProjectId((current) => (current === project.id ? null : project.id))}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
                 <Button aria-label="案件削除" title="案件削除" variant="ghost" size="icon" onClick={() => deleteProject.mutate(project.id)}>
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
               </div>
+              {editingProjectId === project.id ? (
+                <ProjectQuickEdit
+                  project={project}
+                  employees={employees.data ?? []}
+                  disabled={updateProject.isPending}
+                  onSave={(body) => patchProject(project, body)}
+                />
+              ) : null}
             </CardContent>
           </Card>
         ))}
       </section>
     </>
+  );
+}
+
+function ProjectQuickEdit({
+  project,
+  employees,
+  onSave,
+  disabled,
+}: {
+  project: Project;
+  employees: Employee[];
+  onSave: (body: Partial<Project>) => void;
+  disabled?: boolean;
+}) {
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    onSave({
+      budget: Number(form.get("budget") || 0),
+      dueDate: String(form.get("dueDate")),
+      primaryOwnerId: String(form.get("primaryOwnerId")),
+      status: String(form.get("status")) as ProjectStatus,
+      notes: String(form.get("notes")),
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-4 grid gap-3 rounded-panel border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-500/30 dark:bg-blue-500/10">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input name="budget" type="number" inputMode="numeric" defaultValue={project.budget} aria-label="案件金額" />
+        <Input name="dueDate" type="date" defaultValue={project.dueDate.slice(0, 10)} aria-label="納期" />
+        <Select name="primaryOwnerId" defaultValue={project.primaryOwnerId} aria-label="主担当">
+          {employees.map((employee) => (
+            <option key={employee.id} value={employee.id}>{employee.name}</option>
+          ))}
+        </Select>
+        <Select name="status" defaultValue={project.status} aria-label="案件ステータス">
+          {statuses.map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </Select>
+      </div>
+      <Textarea name="notes" defaultValue={project.notes} placeholder="備考・金額変更理由・次の確認事項" />
+      <Button disabled={disabled} type="submit">
+        <Save className="h-4 w-4" />
+        案件を更新
+      </Button>
+    </form>
   );
 }
