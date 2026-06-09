@@ -50,7 +50,11 @@ function dueDateFrom(message: string) {
 }
 
 function mentionedEmployee(message: string, employees: Employee[]) {
-  return employees.find((employee) => message.includes(employee.name) || message.includes(employee.name.replace(/\s/g, "")));
+  return employees.find((employee) => {
+    const compactName = employee.name.replace(/\s/g, "");
+    const familyName = employee.name.split(/\s+/)[0];
+    return message.includes(employee.name) || message.includes(compactName) || Boolean(familyName && message.includes(familyName));
+  });
 }
 
 function findEmployee(message: string, employees: Employee[], fallbackEmployeeId?: string) {
