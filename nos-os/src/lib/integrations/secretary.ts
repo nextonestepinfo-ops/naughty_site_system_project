@@ -1,5 +1,6 @@
 import type { SecretaryReply } from "@/lib/types";
 import { askSecretaryWithClaude } from "@/lib/integrations/claude";
+import { resolveOpenAIApiKey } from "@/lib/integrations/openai-config";
 import { askSecretaryWithOpenAI } from "@/lib/integrations/openai";
 import { localSecretaryReply } from "@/lib/integrations/secretary-local";
 
@@ -19,7 +20,7 @@ export async function askSecretary(input: { message: string; context?: string })
   if (provider === "local") return localSecretaryReply(input.message);
 
   if (provider === "auto") {
-    if (process.env.OPENAI_API_KEY) return askSecretaryWithOpenAI(input);
+    if (resolveOpenAIApiKey(process.env.OPENAI_API_KEY)) return askSecretaryWithOpenAI(input);
     if (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_MODEL) return askSecretaryWithClaude(input);
     return localSecretaryReply(input.message);
   }

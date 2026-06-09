@@ -1,5 +1,5 @@
 import type { SecretaryReply } from "@/lib/types";
-import { resolveOpenAIModel } from "@/lib/integrations/openai-config";
+import { resolveOpenAIApiKey, resolveOpenAIModel } from "@/lib/integrations/openai-config";
 import { buildSecretaryInput, localSecretaryReply, secretaryInstructions } from "@/lib/integrations/secretary-local";
 
 const openaiEndpoint = "https://api.openai.com/v1/responses";
@@ -48,7 +48,7 @@ export async function askSecretaryWithOpenAI(input: {
   const message = input.message.trim();
   if (!message) return localSecretaryReply(message);
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = resolveOpenAIApiKey(process.env.OPENAI_API_KEY);
   const model = resolveOpenAIModel(process.env.OPENAI_MODEL, defaultModel);
   if (!apiKey) return localSecretaryReply(message);
 

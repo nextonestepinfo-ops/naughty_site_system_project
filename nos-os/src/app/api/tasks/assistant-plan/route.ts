@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployees, getGoalTrees, getProjects, getTasks } from "@/lib/data/repository";
 import { getRequestScope } from "@/lib/data/request";
-import { resolveOpenAIModel } from "@/lib/integrations/openai-config";
+import { resolveOpenAIApiKey, resolveOpenAIModel } from "@/lib/integrations/openai-config";
 import type { Employee, GoalTree, Project, Task, TaskAssistantAction, TaskAssistantPlan, TaskPriority, TaskStatus } from "@/lib/types";
 
 type BranchOption = {
@@ -587,7 +587,7 @@ async function buildOpenAIPlan(
   branches: BranchOption[],
   fallbackEmployeeId?: string,
 ) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = resolveOpenAIApiKey(process.env.OPENAI_API_KEY);
   if (!apiKey) return null;
 
   const model = resolveOpenAIModel(process.env.OPENAI_TASK_PLANNER_MODEL || process.env.OPENAI_MODEL, defaultPlannerModel);

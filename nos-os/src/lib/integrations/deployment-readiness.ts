@@ -1,4 +1,5 @@
 import { normalizeSupabaseUrl } from "@/lib/data/supabase-rest";
+import { resolveOpenAIApiKey } from "@/lib/integrations/openai-config";
 
 export type DeploymentReadiness = {
   appName: string;
@@ -48,7 +49,7 @@ async function checkSupabaseSchemaReady() {
 
 export async function getDeploymentReadiness(): Promise<DeploymentReadiness> {
   const dataMode = process.env.NOS_OS_DATA_MODE === "supabase" ? "supabase" : "mock";
-  const openaiConfigured = configured(process.env.OPENAI_API_KEY);
+  const openaiConfigured = Boolean(resolveOpenAIApiKey(process.env.OPENAI_API_KEY));
   const supabasePublicConfigured = configured(process.env.NEXT_PUBLIC_SUPABASE_URL) && configured(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const supabaseServiceConfigured = configured(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const supabaseSchemaReady = supabasePublicConfigured && supabaseServiceConfigured ? await checkSupabaseSchemaReady() : false;
