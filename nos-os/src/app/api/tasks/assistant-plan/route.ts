@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployees, getGoalTrees, getProjects, getTasks } from "@/lib/data/repository";
 import { getRequestScope } from "@/lib/data/request";
+import { resolveOpenAIModel } from "@/lib/integrations/openai-config";
 import type { Employee, GoalTree, Project, Task, TaskAssistantAction, TaskAssistantPlan, TaskPriority, TaskStatus } from "@/lib/types";
 
 type BranchOption = {
@@ -51,7 +52,7 @@ type RawPlannerPlan = {
 };
 
 const openaiEndpoint = "https://api.openai.com/v1/responses";
-const defaultPlannerModel = "gpt-5.5";
+const defaultPlannerModel = "gpt-5.4-mini";
 const priorities: TaskPriority[] = ["urgent", "high", "normal", "low", "hold"];
 const statuses: TaskStatus[] = ["todo", "in_progress", "review", "done"];
 const taskPlannerSchema = {
@@ -589,7 +590,7 @@ async function buildOpenAIPlan(
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
-  const model = process.env.OPENAI_TASK_PLANNER_MODEL || process.env.OPENAI_MODEL || defaultPlannerModel;
+  const model = resolveOpenAIModel(process.env.OPENAI_TASK_PLANNER_MODEL || process.env.OPENAI_MODEL, defaultPlannerModel);
   const maxOutputTokens = numericEnv("OPENAI_TASK_PLANNER_MAX_OUTPUT_TOKENS", 1400);
   const textConfig: Record<string, unknown> = {
     format: {

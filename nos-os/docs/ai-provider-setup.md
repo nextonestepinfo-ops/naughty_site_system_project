@@ -10,7 +10,7 @@ Set these environment variables in the deployment host, such as Vercel:
 ```bash
 AI_PROVIDER=openai
 OPENAI_API_KEY=your_openai_key_here
-OPENAI_MODEL=gpt-5.5
+OPENAI_MODEL=gpt-5.4-mini
 OPENAI_MAX_OUTPUT_TOKENS=520
 OPENAI_REASONING_EFFORT=low
 OPENAI_TEXT_VERBOSITY=low
@@ -28,6 +28,9 @@ OPENAI_PROJECT_ID=
 
 Keep all OpenAI values server-side. Do not expose them with `NEXT_PUBLIC_`.
 Do not paste API keys into chat, GitHub, screenshots, or employee browsers.
+`OPENAI_API_KEY` is the only place for the `sk-...` secret key. `OPENAI_MODEL`
+must be a model ID such as `gpt-5.4-mini`; if a secret key is pasted there, the
+app ignores it and falls back to the default model.
 
 ## How It Works
 

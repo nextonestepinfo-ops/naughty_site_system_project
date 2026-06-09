@@ -1,8 +1,9 @@
 import type { SecretaryReply } from "@/lib/types";
+import { resolveOpenAIModel } from "@/lib/integrations/openai-config";
 import { buildSecretaryInput, localSecretaryReply, secretaryInstructions } from "@/lib/integrations/secretary-local";
 
 const openaiEndpoint = "https://api.openai.com/v1/responses";
-const defaultModel = "gpt-5.5";
+const defaultModel = "gpt-5.4-mini";
 
 type OpenAIContentItem = {
   type?: string;
@@ -48,7 +49,7 @@ export async function askSecretaryWithOpenAI(input: {
   if (!message) return localSecretaryReply(message);
 
   const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL || defaultModel;
+  const model = resolveOpenAIModel(process.env.OPENAI_MODEL, defaultModel);
   if (!apiKey) return localSecretaryReply(message);
 
   const maxOutputTokens = numericEnv("OPENAI_MAX_OUTPUT_TOKENS", 520);

@@ -37,7 +37,7 @@ Set these in the deployment host, not in GitHub source files:
 ```text
 AI_PROVIDER=openai
 OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5.5
+OPENAI_MODEL=gpt-5.4-mini
 OPENAI_MAX_OUTPUT_TOKENS=520
 OPENAI_REASONING_EFFORT=low
 OPENAI_TEXT_VERBOSITY=low
@@ -49,6 +49,8 @@ SUPABASE_SERVICE_ROLE_KEY=
 ```
 
 Google OAuth and Sheets IDs can stay empty for this employee beta.
+Put the `sk-...` secret only in `OPENAI_API_KEY`. `OPENAI_MODEL` should be a
+model ID such as `gpt-5.4-mini`.
 
 ## Supabase Reality Check
 
