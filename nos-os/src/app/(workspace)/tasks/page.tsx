@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Columns3, ListFilter, Loader2, Mic, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
 import { TaskCard } from "@/components/domain/task-card";
@@ -42,6 +42,7 @@ export default function TasksPage() {
   const [view, setView] = useState<ViewMode>("list");
   const [open, setOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [focusedTaskId, setFocusedTaskId] = useState("");
   const [filters, setFilters] = useState({
     assigneeId: "",
     projectId: "",
@@ -107,12 +108,21 @@ export default function TasksPage() {
     [goalTrees.data],
   );
   const activeTasks = useMemo(() => (tasks.data ?? []).filter((task) => task.status !== "done"), [tasks.data]);
+  const displayedTasks = useMemo(() => {
+    const source = tasks.data ?? [];
+    if (!focusedTaskId) return source;
+    return [...source].sort((a, b) => (a.id === focusedTaskId ? -1 : b.id === focusedTaskId ? 1 : 0));
+  }, [focusedTaskId, tasks.data]);
   const focusTask = useMemo(() => [...activeTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null, [activeTasks]);
   const todayCount = useMemo(() => activeTasks.filter((task) => dayDistance(task.dueDate) === 0).length, [activeTasks]);
   const overdueCount = useMemo(() => activeTasks.filter((task) => dayDistance(task.dueDate) < 0).length, [activeTasks]);
   const inProgressCount = useMemo(() => activeTasks.filter((task) => task.status === "in_progress").length, [activeTasks]);
   const totalMinutes = useMemo(() => activeTasks.reduce((sum, task) => sum + task.estimatedMinutes, 0), [activeTasks]);
   const aiContextPrompt = encodeURIComponent("タスクを増やす・減らす・小タスクに分解する相談をしたい。案件、大タスク、小タスク、担当者ごとに整理して、今日やるものと消してよい候補を提案して。");
+
+  useEffect(() => {
+    setFocusedTaskId(new URLSearchParams(window.location.search).get("taskId") ?? "");
+  }, []);
 
   function patchTask(id: string, body: Partial<Task>) {
     updateTask.mutate({ id, body });
@@ -322,8 +332,8 @@ export default function TasksPage() {
 
       {view === "list" ? (
         <div className="space-y-3">
-          {tasks.data.map((task) => (
-            <div key={task.id} className="space-y-2">
+          {displayedTasks.map((task) => (
+            <div key={task.id} className={cn("space-y-2", focusedTaskId === task.id && "rounded-panel ring-2 ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-950")}>
               <div className="grid gap-2 lg:grid-cols-[1fr_auto]">
                 <TaskCard task={task} project={projectMap.get(task.projectId)} assignee={employeeMap.get(task.primaryAssigneeId)} />
                 <TaskActions
@@ -376,8 +386,8 @@ export default function TasksPage() {
 
       {view === "calendar" ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {tasks.data.map((task) => (
-            <Card key={task.id}>
+          {displayedTasks.map((task) => (
+            <Card key={task.id} className={cn(focusedTaskId === task.id && "ring-2 ring-blue-400 ring-offset-2 ring-offset-white dark:ring-offset-slate-950")}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <Badge tone={task.priority === "urgent" ? "red" : "blue"}>{taskPriorityLabels[task.priority]}</Badge>

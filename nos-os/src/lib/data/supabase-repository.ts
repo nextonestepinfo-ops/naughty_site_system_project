@@ -1,6 +1,6 @@
 import { createPasswordSalt, hashPassword, passwordIsAcceptable, verifyPassword } from "@/lib/auth/password";
 import { priorityOrder } from "@/lib/data/labels";
-import { deleteRows, insertRows, newUuid, patchRows, selectOne, selectRows, stableUuid } from "@/lib/data/supabase-rest";
+import { deleteRows, insertRows, newUuid, patchRows, selectOne, selectRows, stableUuid, upsertRows } from "@/lib/data/supabase-rest";
 import type {
   ActivityLog,
   AiSummary,
@@ -30,6 +30,7 @@ import type {
   TaskStatus,
   User,
   LoginAccount,
+  Notification as AppNotification,
 } from "@/lib/types";
 
 type UserRow = {
@@ -165,7 +166,7 @@ type NotificationRow = {
   body: string;
   severity: "info" | "success" | "warning" | "danger";
   target_href: string | null;
-  read_at: string | null;
+  read_at?: string | null;
   created_at: string;
 };
 
@@ -1013,12 +1014,96 @@ function mapNotification(row: NotificationRow) {
     body: row.body,
     severity: row.severity,
     targetHref: row.target_href ?? undefined,
-    readAt: row.read_at,
+    readAt: row.read_at ?? null,
     createdAt: row.created_at,
   };
 }
 
-export async function getNotifications(role: Role, userId?: string) {
+function taskDueNoticeType(task: Task): Pick<AppNotification, "type" | "severity"> | null {
+  if (task.status === "done") return null;
+  const diff = dayDiff(task.dueDate);
+  if (diff < 0) return { type: "overdue", severity: "danger" };
+  if (diff === 0) return { type: "due_today", severity: "warning" };
+  if (diff === 1) return { type: "due_tomorrow", severity: "info" };
+  return null;
+}
+
+function autoNoticeId(taskId: string, type: AppNotification["type"], userId: string) {
+  return stableUuid(`auto-notice:${type}:${taskId}:${userId}`);
+}
+
+function autoNoticeIdsForTask(taskId: string, userId: string) {
+  return (["overdue", "due_today", "due_tomorrow"] as const).map((type) => autoNoticeId(taskId, type, userId));
+}
+
+function taskDueNoticeRow(task: Task, userId: string, projectName?: string): NotificationRow | null {
+  const notice = taskDueNoticeType(task);
+  if (!notice) return null;
+  const diff = dayDiff(task.dueDate);
+  const context = [projectName, task.sourceBranchTitle].filter(Boolean).join(" / ");
+  const contextText = context ? `${context} の ` : "";
+  const dateText = toDate(task.dueDate);
+  const title =
+    notice.type === "overdue"
+      ? `期限超過: ${task.title}`
+      : notice.type === "due_today"
+        ? `本日期限: ${task.title}`
+        : `明日期限: ${task.title}`;
+  const body =
+    notice.type === "overdue"
+      ? `${contextText}タスクが${Math.abs(diff)}日遅れています。今日中に完了、または期限変更してください。`
+      : notice.type === "due_today"
+        ? `${contextText}タスクは本日期限です。進行中か完了に更新してください。`
+        : `${contextText}タスクは明日 ${dateText} が期限です。今日のうちに着手準備をしてください。`;
+
+  return {
+    id: autoNoticeId(task.id, notice.type, userId),
+    user_id: userId,
+    type: notice.type,
+    title,
+    body,
+    severity: notice.severity,
+    target_href: `/tasks?taskId=${task.id}`,
+    created_at: task.updatedAt || new Date().toISOString(),
+  };
+}
+
+async function ensureTaskDueNotifications(role: Role, userId?: string, employeeId?: string) {
+  const { users, employees, projects, projectMembers, taskAssignees, taskComments, goalTrees, tasks } = await readCore();
+  const mappedProjects = projects.map((project) => mapProject(project, [], projectMembers));
+  const projectNames = new Map(mappedProjects.map((project) => [project.id, project.name]));
+  const mappedTasks = filterTasksForRole(
+    tasks.map((task) => mapTask(task, taskAssignees, taskComments, goalTrees)),
+    role,
+    employeeId,
+  );
+
+  const userByEmployee = new Map(employees.map((employee) => [employee.id, users.find((user) => user.id === employee.user_id)?.id]).filter((entry): entry is [string, string] => Boolean(entry[1])));
+  const rows = mappedTasks.flatMap((task) =>
+    Array.from(new Set([task.primaryAssigneeId, ...task.assigneeIds].filter(Boolean)))
+      .map((assigneeId) => userByEmployee.get(assigneeId))
+      .filter((assigneeUserId): assigneeUserId is string => Boolean(assigneeUserId))
+      .filter((assigneeUserId) => isAdmin(role) || assigneeUserId === dbId(userId))
+      .map((assigneeUserId) => taskDueNoticeRow(task, assigneeUserId, projectNames.get(task.projectId)))
+      .filter((row): row is NotificationRow => Boolean(row)),
+  );
+
+  const currentIds = new Set(rows.map((row) => row.id));
+  const staleIds = mappedTasks.flatMap((task) =>
+    Array.from(new Set([task.primaryAssigneeId, ...task.assigneeIds].filter(Boolean)))
+      .map((assigneeId) => userByEmployee.get(assigneeId))
+      .filter((assigneeUserId): assigneeUserId is string => Boolean(assigneeUserId))
+      .filter((assigneeUserId) => isAdmin(role) || assigneeUserId === dbId(userId))
+      .flatMap((assigneeUserId) => autoNoticeIdsForTask(task.id, assigneeUserId))
+      .filter((id) => !currentIds.has(id)),
+  );
+
+  await Promise.all(staleIds.map((id) => deleteRows<NotificationRow>("notifications", { id: `eq.${id}` })));
+  if (rows.length) await upsertRows<NotificationRow>("notifications", rows, "id");
+}
+
+export async function getNotifications(role: Role, userId?: string, employeeId?: string) {
+  await ensureTaskDueNotifications(role, userId, employeeId);
   const rows = await selectRows<NotificationRow>("notifications", { order: "created_at.desc" });
   const normalized = dbId(userId);
   return (isAdmin(role) ? rows : rows.filter((notice) => notice.user_id === normalized)).map(mapNotification);
@@ -1151,7 +1236,7 @@ export async function getDashboard(role: Role, employeeId?: string, userId?: str
     getTasks(role, employeeId),
     getProjects(role, employeeId),
     getEmployees("admin"),
-    getNotifications(role, userId),
+    getNotifications(role, userId, employeeId),
     selectRows<AiSummaryRow>("ai_summaries", { order: "created_at.desc" }).catch(() => []),
   ]);
   const todayTasks = scopedTasks.filter((task) => dayDiff(task.dueDate) === 0 && task.status !== "done");

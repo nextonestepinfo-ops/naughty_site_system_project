@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BellRing, Check, Smartphone } from "lucide-react";
+import { ArrowRight, BellRing, Check, Smartphone } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
@@ -66,10 +67,20 @@ export default function NotificationsPage() {
                 <p className="mt-1 text-sm text-slate-500">{notice.body}</p>
                 <p className="mt-1 text-xs text-slate-400">{formatDateTime(notice.createdAt)}</p>
               </div>
-              <Button variant="ghost" disabled={Boolean(notice.readAt) || markRead.isPending} onClick={() => markRead.mutate(notice.id)}>
-                <Check className="h-4 w-4" />
-                既読
-              </Button>
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                {notice.targetHref ? (
+                  <Link href={notice.targetHref}>
+                    <Button variant="secondary">
+                      <ArrowRight className="h-4 w-4" />
+                      開く
+                    </Button>
+                  </Link>
+                ) : null}
+                <Button variant="ghost" disabled={Boolean(notice.readAt) || markRead.isPending} onClick={() => markRead.mutate(notice.id)}>
+                  <Check className="h-4 w-4" />
+                  既読
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}

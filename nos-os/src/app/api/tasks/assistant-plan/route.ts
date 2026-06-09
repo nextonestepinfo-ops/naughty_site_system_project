@@ -90,7 +90,7 @@ function taskFromMessage(message: string, tasks: Task[]) {
 
 function deleteActions(message: string, tasks: Task[]): TaskAssistantAction[] {
   const query = stripCommand(message);
-  const candidates = tasks
+  let candidates = tasks
     .filter((task) => {
       if (/完了済み|終わった|done/i.test(message)) return task.status === "done";
       if (!query) return false;
@@ -98,18 +98,53 @@ function deleteActions(message: string, tasks: Task[]): TaskAssistantAction[] {
     })
     .slice(0, 4);
 
+  if (!candidates.length && !/完了済み|終わった|done/i.test(message)) {
+    candidates = [...tasks]
+      .filter((task) => task.status === "done" || task.priority === "low" || task.priority === "hold" || task.aiPriorityScore < 45)
+      .sort((a, b) => {
+        if (a.status === "done" && b.status !== "done") return -1;
+        if (b.status === "done" && a.status !== "done") return 1;
+        return a.aiPriorityScore - b.aiPriorityScore;
+      })
+      .slice(0, 4);
+  }
+
   return candidates.map((task) => ({
     id: `delete-${task.id}`,
     type: "delete",
     taskId: task.id,
     title: task.title,
-    reason: /完了済み|終わった|done/i.test(message) ? "完了済みとして減らす候補です。" : "音声/テキスト内容に近い削除候補です。",
+    reason:
+      task.status === "done"
+        ? "完了済みとして減らす候補です。"
+        : /完了済み|終わった|done/i.test(message)
+          ? "完了済みとして減らす候補です。"
+          : "優先度やAIスコアが低く、減らす候補です。必要なら削除ではなく保留にしてください。",
   }));
 }
 
-function updateActions(message: string, tasks: Task[]): TaskAssistantAction[] {
+function updateActions(message: string, tasks: Task[], projects: Project[], employees: Employee[], branches: BranchOption[]): TaskAssistantAction[] {
   const target = taskFromMessage(message, tasks) ?? focusTask(tasks);
   if (!target) return [];
+  const assignee = findEmployee(message, employees, target.primaryAssigneeId);
+  const project = findProject(message, projects);
+  const branch = findBranch(message, branches, project);
+
+  if (/担当|任せ|アサイン|お願い/.test(message) && assignee && assignee.id !== target.primaryAssigneeId) {
+    return [{ id: `assign-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { primaryAssigneeId: assignee.id }, reason: `担当者を「${assignee.name}」に変更します。` }];
+  }
+  if (/大タスク|親タスク|案件/.test(message) && branch) {
+    return [
+      {
+        id: `context-${target.id}`,
+        type: "update",
+        taskId: target.id,
+        title: target.title,
+        patch: { projectId: branch.projectId || project?.id || target.projectId, sourceGoalTreeId: branch.treeId, sourceBranchId: branch.branchId },
+        reason: `大タスク「${branch.branchTitle}」の小タスクとして紐づけます。`,
+      },
+    ];
+  }
   if (/完了|終わった/.test(message)) {
     return [{ id: `done-${target.id}`, type: "update", taskId: target.id, title: target.title, patch: { status: "done" }, reason: "完了指示として状態を完了にします。" }];
   }
@@ -144,12 +179,20 @@ function createAction(message: string, projects: Project[], employees: Employee[
   };
 }
 
+function splitCountFrom(message: string) {
+  const digit = message.match(/([2-8])\s*(つ|個|件)/)?.[1];
+  if (digit) return Number(digit);
+  const table: Record<string, number> = { 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8 };
+  const kanji = message.match(/([二三四五六七八])\s*(つ|個|件)/)?.[1];
+  return kanji ? table[kanji] : 5;
+}
+
 function splitActions(message: string, tasks: Task[], projects: Project[], employees: Employee[], branches: BranchOption[], fallbackEmployeeId?: string): TaskAssistantAction[] {
   const existingTask = taskFromMessage(message, tasks);
   const fallbackTitle = stripCommand(message).replace(/今日の|本日の|今週の|この作業/g, "").trim();
   const base = existingTask?.title || fallbackTitle || focusTask(tasks)?.title || "作業";
-  const pieces = ["目的と完了条件を決める", "必要情報を集める", "初稿を作る", "確認して修正する", "完了報告する"];
-  return pieces.map((piece) => createAction(message, projects, employees, branches, fallbackEmployeeId, `${base}: ${piece}`));
+  const pieces = ["目的と完了条件を決める", "必要情報を集める", "初稿を作る", "確認して修正する", "関係者に共有する", "修正を反映する", "完了条件を確認する", "完了報告する"];
+  return pieces.slice(0, splitCountFrom(message)).map((piece) => createAction(message, projects, employees, branches, fallbackEmployeeId, `${base}: ${piece}`));
 }
 
 export async function POST(request: NextRequest) {
@@ -169,8 +212,8 @@ export async function POST(request: NextRequest) {
     actions = deleteActions(message, tasks);
   } else if (/分解|小タスク/.test(message)) {
     actions = splitActions(message, tasks, projects, employees, branches, employeeId);
-  } else if (/完了|終わった|開始|着手|変更|明日|あした|今日|来週/.test(message) && !/追加|作って|作成|登録|増や/.test(message)) {
-    actions = updateActions(message, tasks);
+  } else if (/完了|終わった|開始|着手|変更|明日|あした|今日|来週|担当|任せ|アサイン|お願い|大タスク|親タスク|案件/.test(message) && !/追加|作って|作成|登録|増や/.test(message)) {
+    actions = updateActions(message, tasks, projects, employees, branches);
   } else {
     actions = [createAction(message, projects, employees, branches, employeeId)];
   }

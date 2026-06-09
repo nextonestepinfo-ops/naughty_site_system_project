@@ -37,6 +37,7 @@ import type {
   GoalTreeScope,
   GoalTreeTask,
   LoginAccount,
+  Notification as AppNotification,
   Project,
   ProjectDetail,
   ProjectStatus,
@@ -607,7 +608,79 @@ export function clockAttendance(employeeId: string, eventType: AttendanceEvent, 
   return log;
 }
 
-export function getNotifications(role: Role, userId?: string) {
+function taskDueNoticeType(task: Task): Pick<AppNotification, "type" | "severity"> | null {
+  if (task.status === "done") return null;
+  const diff = dayDiff(task.dueDate);
+  if (diff < 0) return { type: "overdue", severity: "danger" };
+  if (diff === 0) return { type: "due_today", severity: "warning" };
+  if (diff === 1) return { type: "due_tomorrow", severity: "info" };
+  return null;
+}
+
+function autoNoticeId(taskId: string, type: AppNotification["type"], userId: string) {
+  return `auto-${type}-${taskId}-${userId}`;
+}
+
+function taskDueNotice(task: Task, userId: string): AppNotification | null {
+  const notice = taskDueNoticeType(task);
+  if (!notice) return null;
+  const diff = dayDiff(task.dueDate);
+  const title =
+    notice.type === "overdue"
+      ? `期限超過: ${task.title}`
+      : notice.type === "due_today"
+        ? `本日期限: ${task.title}`
+        : `明日期限: ${task.title}`;
+  const body =
+    notice.type === "overdue"
+      ? `このタスクが${Math.abs(diff)}日遅れています。今日中に完了、または期限変更してください。`
+      : notice.type === "due_today"
+        ? "このタスクは本日期限です。進行中か完了に更新してください。"
+        : "このタスクは明日期限です。今日のうちに着手準備をしてください。";
+  return {
+    id: autoNoticeId(task.id, notice.type, userId),
+    userId,
+    type: notice.type,
+    title,
+    body,
+    severity: notice.severity,
+    targetHref: `/tasks?taskId=${task.id}`,
+    readAt: null,
+    createdAt: task.updatedAt,
+  };
+}
+
+function ensureTaskDueNotifications(role: Role, userId?: string, employeeId?: string) {
+  const scopedTasks = visibleTasks(role, employeeId);
+  const generated = scopedTasks.flatMap((task) =>
+    Array.from(new Set([task.primaryAssigneeId, ...task.assigneeIds].filter(Boolean)))
+      .map((assigneeId) => mutableUsers.find((user) => user.employeeId === assigneeId && !hiddenEmployeeIds.has(user.employeeId))?.id)
+      .filter((assigneeUserId): assigneeUserId is string => Boolean(assigneeUserId))
+      .filter((assigneeUserId) => isAdmin(role) || assigneeUserId === userId)
+      .map((assigneeUserId) => taskDueNotice(task, assigneeUserId))
+      .filter((notice): notice is AppNotification => Boolean(notice)),
+  );
+  const generatedIds = new Set(generated.map((notice) => notice.id));
+  const scopedAutoPrefixes = scopedTasks.flatMap((task) =>
+    Array.from(new Set([task.primaryAssigneeId, ...task.assigneeIds].filter(Boolean))).flatMap((assigneeId) => {
+      const assigneeUserId = mutableUsers.find((user) => user.employeeId === assigneeId && !hiddenEmployeeIds.has(user.employeeId))?.id;
+      return assigneeUserId ? ["overdue", "due_today", "due_tomorrow"].map((type) => autoNoticeId(task.id, type as AppNotification["type"], assigneeUserId)) : [];
+    }),
+  );
+  const scopedAutoIds = new Set(scopedAutoPrefixes);
+  for (let index = mutableNotifications.length - 1; index >= 0; index -= 1) {
+    const notice = mutableNotifications[index];
+    if (scopedAutoIds.has(notice.id) && !generatedIds.has(notice.id)) mutableNotifications.splice(index, 1);
+  }
+  generated.forEach((notice) => {
+    const existing = mutableNotifications.find((item) => item.id === notice.id);
+    if (existing) Object.assign(existing, { ...notice, readAt: existing.readAt });
+    else mutableNotifications.unshift(notice);
+  });
+}
+
+export function getNotifications(role: Role, userId?: string, employeeId?: string) {
+  ensureTaskDueNotifications(role, userId, employeeId);
   if (isAdmin(role)) return mutableNotifications;
   return mutableNotifications.filter((notice) => notice.userId === userId);
 }
@@ -764,7 +837,7 @@ export function getDashboard(role: Role, employeeId?: string, userId?: string): 
     employeeStatus: countByStatus(employees.map((item) => item.attendanceStatus), allAttendanceStatuses),
     projectStatus: countByStatus(scopedProjects.map((item) => item.status), allProjectStatuses),
     activeProjects: scopedProjects.filter((project) => project.status !== "completed").slice(0, 6),
-    notifications: getNotifications(role, userId).slice(0, 5),
+    notifications: getNotifications(role, userId, employeeId).slice(0, 5),
     leaveBalanceDays: isAdmin(role) ? null : employee?.leaveBalanceDays ?? null,
     aiRecommendations,
   };

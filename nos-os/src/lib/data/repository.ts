@@ -99,8 +99,8 @@ export async function clockAttendance(employeeId: string, eventType: AttendanceE
   return repo().clockAttendance(employeeId, eventType, source);
 }
 
-export async function getNotifications(role: Role, userId?: string) {
-  return repo().getNotifications(role, userId);
+export async function getNotifications(role: Role, userId?: string, employeeId?: string) {
+  return repo().getNotifications(role, userId, employeeId);
 }
 
 export async function markNotificationRead(id: string) {
