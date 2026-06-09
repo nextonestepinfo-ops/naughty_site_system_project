@@ -110,10 +110,10 @@ export async function patchRows<T>(table: string, query: Query, patch: Record<st
   });
 }
 
-export async function deleteRows(table: string, query: Query) {
-  return supabaseRest<void>(table, {
+export async function deleteRows<T = unknown>(table: string, query: Query) {
+  return supabaseRest<T[]>(table, {
     method: "DELETE",
-    query,
-    allowEmpty: true,
+    query: { select: "*", ...query },
+    prefer: "return=representation",
   });
 }

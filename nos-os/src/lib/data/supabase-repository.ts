@@ -643,11 +643,15 @@ export async function deleteTask(id: string) {
   const normalized = dbId(id);
   if (!normalized) return false;
   const task = await getTaskById(normalized);
+  if (!task) return false;
+  await deleteRows<TaskCommentRow>("task_comments", { task_id: `eq.${normalized}` });
+  await deleteRows<TaskAssigneeRow>("task_assignees", { task_id: `eq.${normalized}` });
   if (task) {
     await syncTaskGoalLink(task, { sourceGoalTreeId: null, sourceBranchId: null });
   }
-  await deleteRows("tasks", { id: `eq.${normalized}` });
-  return true;
+  const deletedRows = await deleteRows<TaskRow>("tasks", { id: `eq.${normalized}` });
+  if (!deletedRows.length) return !(await getTaskById(normalized));
+  return !(await getTaskById(normalized));
 }
 
 export async function addTaskComment(taskId: string, authorUserId: string, body: string) {
