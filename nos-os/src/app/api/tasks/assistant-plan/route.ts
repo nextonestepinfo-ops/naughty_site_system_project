@@ -496,7 +496,7 @@ function coerceOpenAIPlan(
 
     const target = raw.taskId ? tasks.find((task) => task.id === raw.taskId) : raw.title ? tasks.find((task) => task.title.includes(raw.title!) || raw.title!.includes(task.title)) : undefined;
     const rawBranch = findBranchByIds(branches, raw.sourceGoalTreeId, raw.sourceBranchId);
-    const project = findProjectById(projects, raw.projectId ?? rawBranch?.projectId) ?? findProject(message, projects);
+    const project = findProjectById(projects, rawBranch?.projectId || raw.projectId) ?? findProject(message, projects);
     const assignee =
       employees.find((employee) => employee.id === (raw.primaryAssigneeId ?? raw.assigneeId)) ??
       employees.find((employee) => employee.id === rawBranch?.assigneeId) ??
