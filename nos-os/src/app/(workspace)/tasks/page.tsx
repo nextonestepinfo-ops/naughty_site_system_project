@@ -657,6 +657,7 @@ function TaskVoicePlanner({
                   <Sparkles className="h-4 w-4 shrink-0" />
                   <span>{plan.summary}</span>
                 </div>
+                <Badge tone={plan.source === "openai" ? "blue" : "slate"}>{plan.source === "openai" ? "OpenAI" : "Local"}</Badge>
                 {safePendingCount ? (
                   <Button size="sm" variant="secondary" disabled={disabled} onClick={applySafeActions}>
                     <CheckCircle2 className="h-4 w-4" />

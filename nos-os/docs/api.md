@@ -26,6 +26,7 @@ set.
 | `DELETE` | `/api/projects/:id` | Delete project | admin |
 | `GET` | `/api/tasks` | Task list with filters/sort | all |
 | `POST` | `/api/tasks` | Create task | admin/owner |
+| `POST` | `/api/tasks/assistant-plan` | Voice/text task planning with OpenAI/local safe fallback | all |
 | `PATCH` | `/api/tasks/:id` | Update task | admin/assignee |
 | `DELETE` | `/api/tasks/:id` | Delete task | admin |
 | `POST` | `/api/tasks/:id/comments` | Add task comment | all |

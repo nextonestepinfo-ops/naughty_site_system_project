@@ -14,6 +14,9 @@ OPENAI_MODEL=gpt-5.5
 OPENAI_MAX_OUTPUT_TOKENS=520
 OPENAI_REASONING_EFFORT=low
 OPENAI_TEXT_VERBOSITY=low
+OPENAI_TASK_PLANNER_MAX_OUTPUT_TOKENS=1400
+OPENAI_TASK_PLANNER_REASONING_EFFORT=low
+OPENAI_TASK_PLANNER_TEXT_VERBOSITY=low
 ```
 
 Optional:
@@ -35,6 +38,11 @@ Do not paste API keys into chat, GitHub, screenshots, or employee browsers.
 5. If the key is missing or the API fails, Nos OS falls back to local replies.
 
 This lets one company-owned host key serve all users without distributing secrets.
+
+The task screen also uses the same host-side `OPENAI_API_KEY` for `/api/tasks/assistant-plan`.
+That route asks OpenAI for a JSON action plan, then the server validates every task,
+employee, project, and big-task ID against current Nos OS data before returning
+anything to the browser. The AI never writes to the database directly.
 
 ## Provider Switching
 
@@ -64,6 +72,7 @@ Open `/test` to see the same readiness status in a simple checklist.
 - API route: `src/app/api/ai/secretary/route.ts`
 - Floating secretary UI: `src/components/domain/assistant-dock.tsx`
 - Assistant page: `src/app/(workspace)/assistant/page.tsx`
+- Task AI planner route: `src/app/api/tasks/assistant-plan/route.ts`
 
 ## Local Test
 
