@@ -29,18 +29,18 @@ type OpenAIResponsePayload = {
 
 type RawPlannerAction = {
   type?: string;
-  taskId?: string;
-  title?: string;
-  description?: string;
-  projectId?: string;
-  primaryAssigneeId?: string;
-  assigneeId?: string;
+  taskId?: string | null;
+  title?: string | null;
+  description?: string | null;
+  projectId?: string | null;
+  primaryAssigneeId?: string | null;
+  assigneeId?: string | null;
   sourceGoalTreeId?: string | null;
   sourceBranchId?: string | null;
-  dueDate?: string;
-  priority?: string;
-  status?: string;
-  estimatedMinutes?: number;
+  dueDate?: string | null;
+  priority?: string | null;
+  status?: string | null;
+  estimatedMinutes?: number | null;
   reason?: string;
 };
 
@@ -54,6 +54,53 @@ const openaiEndpoint = "https://api.openai.com/v1/responses";
 const defaultPlannerModel = "gpt-5.5";
 const priorities: TaskPriority[] = ["urgent", "high", "normal", "low", "hold"];
 const statuses: TaskStatus[] = ["todo", "in_progress", "review", "done"];
+const taskPlannerSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["summary", "warnings", "actions"],
+  properties: {
+    summary: { type: "string" },
+    warnings: { type: "array", items: { type: "string" } },
+    actions: {
+      type: "array",
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "type",
+          "taskId",
+          "title",
+          "description",
+          "projectId",
+          "primaryAssigneeId",
+          "sourceGoalTreeId",
+          "sourceBranchId",
+          "dueDate",
+          "priority",
+          "status",
+          "estimatedMinutes",
+          "reason",
+        ],
+        properties: {
+          type: { type: "string", enum: ["create", "update", "delete"] },
+          taskId: { type: ["string", "null"] },
+          title: { type: ["string", "null"] },
+          description: { type: ["string", "null"] },
+          projectId: { type: ["string", "null"] },
+          primaryAssigneeId: { type: ["string", "null"] },
+          sourceGoalTreeId: { type: ["string", "null"] },
+          sourceBranchId: { type: ["string", "null"] },
+          dueDate: { type: ["string", "null"] },
+          priority: { type: ["string", "null"], enum: ["urgent", "high", "normal", "low", "hold", null] },
+          status: { type: ["string", "null"], enum: ["todo", "in_progress", "review", "done", null] },
+          estimatedMinutes: { type: ["number", "null"] },
+          reason: { type: "string" },
+        },
+      },
+    },
+  },
+};
 
 function todayOffset(days: number) {
   const date = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -99,15 +146,15 @@ function extractJsonObject(value: string) {
   }
 }
 
-function validPriority(value?: string): TaskPriority | null {
+function validPriority(value?: string | null): TaskPriority | null {
   return priorities.includes(value as TaskPriority) ? (value as TaskPriority) : null;
 }
 
-function validStatus(value?: string): TaskStatus | null {
+function validStatus(value?: string | null): TaskStatus | null {
   return statuses.includes(value as TaskStatus) ? (value as TaskStatus) : null;
 }
 
-function validDate(value?: string) {
+function validDate(value?: string | null) {
   if (!value) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
@@ -544,6 +591,17 @@ async function buildOpenAIPlan(
 
   const model = process.env.OPENAI_TASK_PLANNER_MODEL || process.env.OPENAI_MODEL || defaultPlannerModel;
   const maxOutputTokens = numericEnv("OPENAI_TASK_PLANNER_MAX_OUTPUT_TOKENS", 1400);
+  const textConfig: Record<string, unknown> = {
+    format: {
+      type: "json_schema",
+      name: "nos_task_planner",
+      strict: true,
+      schema: taskPlannerSchema,
+    },
+  };
+  const textVerbosity = process.env.OPENAI_TASK_PLANNER_TEXT_VERBOSITY?.trim();
+  if (textVerbosity) textConfig.verbosity = textVerbosity;
+  const reasoningEffort = (process.env.OPENAI_TASK_PLANNER_REASONING_EFFORT || process.env.OPENAI_REASONING_EFFORT)?.trim();
   const body: Record<string, unknown> = {
     model,
     instructions:
@@ -575,17 +633,21 @@ async function buildOpenAIPlan(
       catalog: compactCatalog(tasks, projects, employees, branches),
     }),
     max_output_tokens: maxOutputTokens,
-    reasoning: { effort: process.env.OPENAI_TASK_PLANNER_REASONING_EFFORT || process.env.OPENAI_REASONING_EFFORT || "low" },
-    text: { verbosity: process.env.OPENAI_TASK_PLANNER_TEXT_VERBOSITY || "low" },
+    text: textConfig,
   };
+  if (reasoningEffort) body.reasoning = { effort: reasoningEffort };
 
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    };
+    if (process.env.OPENAI_ORGANIZATION_ID) headers["OpenAI-Organization"] = process.env.OPENAI_ORGANIZATION_ID;
+    if (process.env.OPENAI_PROJECT_ID) headers["OpenAI-Project"] = process.env.OPENAI_PROJECT_ID;
+
     const response = await fetch(openaiEndpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify(body),
     });
     if (!response.ok) return null;
