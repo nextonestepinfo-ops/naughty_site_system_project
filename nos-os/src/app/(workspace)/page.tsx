@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarCheck, CalendarDays, Check, CheckCircle2, Clock3, Download, Mic, Sparkles, Users } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CalendarDays, CalendarPlus, Check, CheckCircle2, Clock3, Download, Mic, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
 import { GoalTreeBoard } from "@/components/domain/goal-tree-board";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { attendanceStatusLabels } from "@/lib/data/labels";
-import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
+import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import type { DashboardSummary, Employee, Project, Task } from "@/lib/types";
 import { cn, formatDateTime, formatTime } from "@/lib/utils";
@@ -24,6 +24,9 @@ export default function DashboardPage() {
   const dashboard = useScopedQuery<DashboardSummary>(["dashboard"], "/api/dashboard");
   const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
   const projects = useScopedQuery<Project[]>(["projects"], "/api/projects");
+  const focusGoogleCalendarPath = useScopedPath(
+    dashboard.data?.dailyPlan.focusTask ? `/api/calendar/tasks/${dashboard.data.dailyPlan.focusTask.id}/google` : "/api/calendar/ics",
+  );
 
   const completeTask = useMutation({
     mutationFn: (taskId: string) => apiFetch<Task>(`/api/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify({ status: "done" }) }),
@@ -69,9 +72,17 @@ export default function DashboardPage() {
               <a href={plan.calendarExportUrl}>
                 <Button variant="secondary">
                   <Download className="h-4 w-4" />
-                  予定
+                  ICS
                 </Button>
               </a>
+              {plan.focusTask ? (
+                <a href={focusGoogleCalendarPath} target="_blank" rel="noreferrer">
+                  <Button variant="secondary">
+                    <CalendarPlus className="h-4 w-4" />
+                    Google
+                  </Button>
+                </a>
+              ) : null}
               <Link href="/assistant">
                 <Button variant="ghost">
                   <Mic className="h-4 w-4" />

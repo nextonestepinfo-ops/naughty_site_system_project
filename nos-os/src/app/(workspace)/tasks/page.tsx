@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Columns3, GitBranch, ListFilter, Loader2, Mic, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CalendarDays, CalendarPlus, CheckCircle2, Clock3, Columns3, GitBranch, ListFilter, Loader2, Mic, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -613,6 +613,13 @@ function TaskVoicePlanner({
     setAppliedIds((ids) => [...ids, action.id]);
   }
 
+  function applySafeActions() {
+    if (!plan || disabled) return;
+    plan.actions.filter((action) => action.type !== "delete" && !appliedIds.includes(action.id)).forEach((action) => applyAction(action));
+  }
+
+  const safePendingCount = plan?.actions.filter((action) => action.type !== "delete" && !appliedIds.includes(action.id)).length ?? 0;
+
   return (
     <Card className="mb-5 overflow-hidden border-blue-200 dark:border-blue-500/30">
       <CardContent className="p-4">
@@ -645,13 +652,22 @@ function TaskVoicePlanner({
         {plan ? (
           <div className="mt-4 space-y-3">
             <div className="rounded-panel bg-blue-50 p-3 text-sm leading-6 text-blue-900 dark:bg-blue-500/10 dark:text-blue-100">
-              <div className="flex items-center gap-2 font-semibold">
-                <Sparkles className="h-4 w-4" />
-                {plan.summary}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2 font-semibold">
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <span>{plan.summary}</span>
+                </div>
+                {safePendingCount ? (
+                  <Button size="sm" variant="secondary" disabled={disabled} onClick={applySafeActions}>
+                    <CheckCircle2 className="h-4 w-4" />
+                    削除以外を反映
+                  </Button>
+                ) : null}
               </div>
               {plan.warnings.map((warning) => (
                 <p key={warning} className="mt-1 text-xs">{warning}</p>
               ))}
+              {safePendingCount ? <p className="mt-2 text-xs">削除候補は事故防止のため、個別に確認してから反映します。</p> : null}
             </div>
             {plan.actions.map((action) => (
               <div key={action.id} className="grid gap-3 rounded-panel border border-border p-3 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -853,6 +869,7 @@ function TaskActions({
   compact?: boolean;
 }) {
   const calendarPath = useScopedPath(`/api/calendar/tasks/${task.id}/ics`);
+  const googleCalendarPath = useScopedPath(`/api/calendar/tasks/${task.id}/google`);
   return (
     <div className={cn("flex gap-2", compact ? "flex-wrap" : "lg:flex-col")}>
       {compact ? null : (
@@ -866,7 +883,7 @@ function TaskActions({
         <QuickStatusButtons task={task} onStatus={onStatus} disabled={disabled} compact />
         <a
           aria-label="カレンダー追加"
-          title="カレンダー追加"
+          title="ICS予定をダウンロード"
           href={calendarPath}
           className={cn(
             "inline-flex items-center justify-center gap-2 rounded-panel bg-transparent font-medium text-foreground transition hover:bg-slate-100 dark:hover:bg-white/10",
@@ -874,7 +891,21 @@ function TaskActions({
           )}
         >
           <CalendarDays className="h-4 w-4" />
-          {compact ? null : "予定"}
+          {compact ? null : "ICS"}
+        </a>
+        <a
+          aria-label="Googleカレンダー追加"
+          title="Googleカレンダー追加"
+          href={googleCalendarPath}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            "inline-flex items-center justify-center gap-2 rounded-panel bg-transparent font-medium text-foreground transition hover:bg-slate-100 dark:hover:bg-white/10",
+            compact ? "h-10 w-10 p-0" : "h-9 px-3 text-sm",
+          )}
+        >
+          <CalendarPlus className="h-4 w-4" />
+          {compact ? null : "Google"}
         </a>
         {onEdit ? (
           <Button aria-label="タスク編集" title="タスク編集" variant="ghost" size={compact ? "icon" : "sm"} onClick={onEdit} disabled={disabled}>

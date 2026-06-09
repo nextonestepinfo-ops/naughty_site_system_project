@@ -13,6 +13,8 @@ set.
 | `GET` | `/api/dashboard` | Role-aware dashboard summary | all |
 | `GET` | `/api/daily-plan` | Employee-first daily plan, schedule, risk, revenue | all |
 | `GET` | `/api/calendar/ics` | Download today's schedule as `.ics` calendar file | all |
+| `GET` | `/api/calendar/tasks/:id/ics` | Download one task as `.ics` calendar file | all |
+| `GET` | `/api/calendar/tasks/:id/google` | Open Google Calendar event creation for one task | all |
 | `GET` | `/api/users` | User and permission list | admin |
 | `PATCH` | `/api/users/:id/role` | Update role and employment status | admin |
 | `GET` | `/api/employees` | Employee list | admin |
