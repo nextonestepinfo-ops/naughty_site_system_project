@@ -4003,7 +4003,7 @@ body::before {
 .fv-cast-group .fv-cast-girl{
   position:absolute; bottom:0; top:auto;
   left:var(--x,50%);
-  width:auto; height:96%;
+  width:clamp(180px, 24vw, 330px); height:96%;
   transform:translateX(-50%);
   filter:
     drop-shadow(0 10px 8px rgba(0,0,0,.30))
@@ -4015,7 +4015,7 @@ body::before {
 .fv-cast-group .fv-cast-girl.is-front{ z-index:3; }
 .fv-cast-group .fv-cast-girl.is-back { z-index:2; }
 .fv-cast-group .fv-cast-img{
-  height:100%; width:auto; object-fit:contain; object-position:bottom center;
+  height:100%; width:100%; object-fit:contain; object-position:bottom center;
   -webkit-user-drag:none;
 }
 @keyframes castIn{
@@ -4060,7 +4060,7 @@ body::before {
 /* ===== MOBILE FIRST: 3 near-equal cast, large ===== */
 @media (max-width:720px){
   .fv-wordmark-img{ min-height:clamp(420px,72vh,640px); margin-top:8px; }
-  .fv-cast-group .fv-cast-girl{ height:88%; }
+  .fv-cast-group .fv-cast-girl{ width:clamp(126px, 37vw, 190px); height:88%; }
   /* slight size parity tweak so all three read as same scale */
   .fv-cast-group .fv-cast-girl.is-front{ height:92%; }
   .hero-names{ gap:10px; bottom:2px; }
