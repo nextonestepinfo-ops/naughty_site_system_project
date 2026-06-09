@@ -41,6 +41,17 @@ function numericEnv(name: string, fallback: number) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+function summarizeOpenAIError(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const error = (value as { error?: { type?: string; code?: string; message?: string } }).error;
+  if (!error) return null;
+  return {
+    type: error.type,
+    code: error.code,
+    message: error.message?.slice(0, 180),
+  };
+}
+
 export async function askSecretaryWithOpenAI(input: {
   message: string;
   context?: string;
@@ -93,14 +104,22 @@ export async function askSecretaryWithOpenAI(input: {
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) return localSecretaryReply(message);
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => null);
+      console.warn("[openai] secretary request failed", { status: response.status, model, error: summarizeOpenAIError(errorPayload) });
+      return localSecretaryReply(message);
+    }
 
     const payload = (await response.json()) as OpenAIResponsePayload;
     const text = extractOpenAIText(payload);
-    if (!text) return localSecretaryReply(message);
+    if (!text) {
+      console.warn("[openai] secretary response had no text", { model });
+      return localSecretaryReply(message);
+    }
 
     return { reply: text, source: "openai", configured: true };
-  } catch {
+  } catch (error) {
+    console.warn("[openai] secretary request threw", { model, message: error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180) });
     return localSecretaryReply(message);
   }
 }

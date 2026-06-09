@@ -147,6 +147,17 @@ function extractJsonObject(value: string) {
   }
 }
 
+function summarizeOpenAIError(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const error = (value as { error?: { type?: string; code?: string; message?: string } }).error;
+  if (!error) return null;
+  return {
+    type: error.type,
+    code: error.code,
+    message: error.message?.slice(0, 180),
+  };
+}
+
 function validPriority(value?: string | null): TaskPriority | null {
   return priorities.includes(value as TaskPriority) ? (value as TaskPriority) : null;
 }
@@ -652,12 +663,18 @@ async function buildOpenAIPlan(
       headers,
       body: JSON.stringify(body),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => null);
+      console.warn("[openai] task planner request failed", { status: response.status, model, error: summarizeOpenAIError(errorPayload) });
+      return null;
+    }
     const payload = (await response.json()) as OpenAIResponsePayload;
     const text = extractOpenAIText(payload);
     const rawPlan = text ? extractJsonObject(text) : null;
+    if (!text || !rawPlan) console.warn("[openai] task planner response had no JSON plan", { model, hasText: Boolean(text) });
     return rawPlan ? coerceOpenAIPlan(rawPlan, message, tasks, projects, employees, branches, fallbackEmployeeId) : null;
-  } catch {
+  } catch (error) {
+    console.warn("[openai] task planner request threw", { model, message: error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180) });
     return null;
   }
 }
