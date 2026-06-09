@@ -12,8 +12,13 @@ export function isSupabaseDataMode() {
   return process.env.NOS_OS_DATA_MODE === "supabase";
 }
 
+export function normalizeSupabaseUrl(value?: string) {
+  if (!value) return "";
+  return value.trim().replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
+}
+
 export function getSupabaseConfig(): SupabaseConfig | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const url = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !anonKey || !serviceRoleKey) return null;

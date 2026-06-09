@@ -1,3 +1,5 @@
+import { normalizeSupabaseUrl } from "@/lib/data/supabase-rest";
+
 export type DeploymentReadiness = {
   appName: string;
   buildLabel: string;
@@ -18,7 +20,7 @@ function configured(value?: string) {
 }
 
 async function checkSupabaseSchemaReady() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const url = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRoleKey) return false;
 
