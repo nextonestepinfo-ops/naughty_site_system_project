@@ -464,8 +464,39 @@ export async function getEmployees(role: Role, employeeId?: string) {
   return scopedRows.map((employee) => mapEmployee(employee, projectMembers, mappedTasks));
 }
 
+export async function updateEmployee(id: string, input: Partial<Employee>) {
+  const normalized = dbId(id);
+  if (!normalized) return null;
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.position !== undefined) patch.position = input.position;
+  if (input.department !== undefined) patch.department = input.department;
+  if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl;
+  if (input.bio !== undefined) patch.bio = input.bio;
+  if (input.leaveBalanceDays !== undefined) patch.leave_balance_days = Number(input.leaveBalanceDays);
+  if (input.attendanceStatus !== undefined) patch.attendance_status = input.attendanceStatus;
+  await patchRows<EmployeeRow>("employees", { id: `eq.${normalized}` }, patch);
+  const { employees, projectMembers, tasks, taskAssignees, taskComments } = await readCore();
+  const row = employees.find((employee) => employee.id === normalized);
+  return row ? mapEmployee(row, projectMembers, tasks.map((task) => mapTask(task, taskAssignees, taskComments))) : null;
+}
+
 export async function getCustomers() {
   return (await selectRows<CustomerRow>("customers", { order: "created_at.asc" })).map(mapCustomer);
+}
+
+export async function updateCustomer(id: string, input: Partial<Customer>) {
+  const normalized = dbId(id);
+  if (!normalized) return null;
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.company !== undefined) patch.company = input.company;
+  if (input.email !== undefined) patch.email = input.email || null;
+  if (input.phone !== undefined) patch.phone = input.phone || null;
+  if (input.notes !== undefined) patch.notes = input.notes;
+  if (input.health !== undefined) patch.health = input.health;
+  const [row] = await patchRows<CustomerRow>("customers", { id: `eq.${normalized}` }, patch);
+  return row ? mapCustomer(row) : null;
 }
 
 export async function getProjects(role: Role, employeeId?: string) {

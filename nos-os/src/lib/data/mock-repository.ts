@@ -29,6 +29,7 @@ import type {
   Customer,
   DailyPlan,
   DashboardSummary,
+  Employee,
   EmployeeProfile,
   GoalTree,
   GoalTreeBranch,
@@ -64,10 +65,10 @@ const mutablePasswords = new Map(
   }),
 );
 const betaProfiles = new Map([
-  ["emp-urata", { email: "urata@nostechnology.jp", name: "浦田 和真", role: "admin" as Role, position: "Host / Manager", department: "Management", avatarUrl: "UK" }],
-  ["emp-akari", { email: "hashisako@nostechnology.jp", name: "橋迫 翔太", role: "employee" as Role, position: "Staff", department: "Operations", avatarUrl: "HS" }],
-  ["emp-ren", { email: "watanabe@nostechnology.jp", name: "渡邉 駿", role: "employee" as Role, position: "Staff", department: "System Development", avatarUrl: "WS" }],
-  ["emp-mio", { email: "osaki@nostechnology.jp", name: "大崎 雄介", role: "admin" as Role, position: "Host / Operations", department: "Management", avatarUrl: "OY" }],
+  ["emp-urata", { email: "urata@nostechnology.jp", name: "浦田 和真", role: "admin" as Role, position: "管理者 / 代表", department: "経営・営業", avatarUrl: "UK" }],
+  ["emp-akari", { email: "hashisako@nostechnology.jp", name: "橋迫 翔太", role: "employee" as Role, position: "社員", department: "制作・運用", avatarUrl: "HS" }],
+  ["emp-ren", { email: "watanabe@nostechnology.jp", name: "渡邉 駿", role: "employee" as Role, position: "社員", department: "システム開発", avatarUrl: "WS" }],
+  ["emp-mio", { email: "osaki@nostechnology.jp", name: "大崎 雄介", role: "admin" as Role, position: "管理者 / 運用", department: "経営・運用", avatarUrl: "OY" }],
 ]);
 const hiddenEmployeeIds = new Set(["emp-admin"]);
 
@@ -234,6 +235,13 @@ export function getEmployees(role: Role, employeeId?: string) {
   return scoped;
 }
 
+export function updateEmployee(id: string, input: Partial<Employee>) {
+  const index = employees.findIndex((employee) => employee.id === id);
+  if (index < 0) return null;
+  employees[index] = { ...employees[index], ...input };
+  return betaEmployee(employees[index]);
+}
+
 export function getEmployeeProfile(role: Role, targetId: string, requesterEmployeeId?: string): EmployeeProfile | null {
   if (!isAdmin(role) && targetId !== requesterEmployeeId) return null;
   const employee = betaEmployees().find((item) => item.id === targetId);
@@ -255,6 +263,16 @@ export function getEmployeeProfile(role: Role, targetId: string, requesterEmploy
 
 export function getCustomers() {
   return customers;
+}
+
+export function updateCustomer(id: string, input: Partial<Customer>) {
+  const index = customers.findIndex((customer) => customer.id === id);
+  if (index < 0) return null;
+  customers[index] = { ...customers[index], ...input };
+  mutableProjects.forEach((project) => {
+    if (project.customerId === id) project.customerName = customers[index].company;
+  });
+  return customers[index];
 }
 
 export function getProjects(role: Role, employeeId?: string) {

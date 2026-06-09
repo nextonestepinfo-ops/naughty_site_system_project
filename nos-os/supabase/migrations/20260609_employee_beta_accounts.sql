@@ -57,10 +57,10 @@ with beta_employees(
   attendance_status
 ) as (
   values
-    ('0646e8a9-dbc2-525b-b99f-dddaa74dfdee'::uuid, '7b15b29d-84e2-5c94-8adc-ac8d6345d10c'::uuid, '浦田 和真', 'Host / Manager', 'Management', 'UK', '会社全体の案件、売上、タスク優先度を確認します。', 11, 'working'),
-    ('e47d3925-107f-5836-b288-bc701828be71'::uuid, '0b7ff346-13f0-506e-a5ca-45d2fb80f53c'::uuid, '大崎 雄介', 'Host / Operations', 'Management', 'OY', '社員βの運用、案件確認、タスク整理を担当します。', 12, 'working'),
-    ('592a547d-7c00-502e-a5a3-dd57fec5679d'::uuid, 'bd5299e1-ef26-5155-b34a-7612f1b2060d'::uuid, '橋迫 翔太', 'Staff', 'Operations', 'HS', '制作、確認、営業準備のタスクを担当します。', 10, 'meeting'),
-    ('4bd50f79-5bed-5dd5-9d39-1908f8d16ff2'::uuid, 'f9a1f3e5-8849-5f40-9a13-a4521661e2dc'::uuid, '渡邉 駿', 'Staff', 'System Development', 'WS', 'システム、DB、業務改善タスクを担当します。', 10, 'working')
+    ('0646e8a9-dbc2-525b-b99f-dddaa74dfdee'::uuid, '7b15b29d-84e2-5c94-8adc-ac8d6345d10c'::uuid, '浦田 和真', '管理者 / 代表', '経営・営業', 'UK', '会社全体の案件、売上、タスク優先度を確認します。', 11, 'working'),
+    ('e47d3925-107f-5836-b288-bc701828be71'::uuid, '0b7ff346-13f0-506e-a5ca-45d2fb80f53c'::uuid, '大崎 雄介', '管理者 / 運用', '経営・運用', 'OY', '社員βの運用、案件確認、タスク整理を担当します。', 12, 'working'),
+    ('592a547d-7c00-502e-a5a3-dd57fec5679d'::uuid, 'bd5299e1-ef26-5155-b34a-7612f1b2060d'::uuid, '橋迫 翔太', '社員', '制作・運用', 'HS', '制作、確認、営業準備のタスクを担当します。', 10, 'meeting'),
+    ('4bd50f79-5bed-5dd5-9d39-1908f8d16ff2'::uuid, 'f9a1f3e5-8849-5f40-9a13-a4521661e2dc'::uuid, '渡邉 駿', '社員', 'システム開発', 'WS', 'システム、DB、業務改善タスクを担当します。', 10, 'working')
 )
 insert into public.employees (
   id,

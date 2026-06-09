@@ -1,7 +1,7 @@
 import * as mock from "@/lib/data/mock-repository";
 import * as supabase from "@/lib/data/supabase-repository";
 import { isSupabaseDataMode } from "@/lib/data/supabase-rest";
-import type { ActivityLog, AttendanceEvent, AttendanceLog, GoalTree, Project, Role, Task, TaskFilter, User } from "@/lib/types";
+import type { ActivityLog, AttendanceEvent, AttendanceLog, Customer, Employee, GoalTree, Project, Role, Task, TaskFilter, User } from "@/lib/types";
 
 function repo() {
   return isSupabaseDataMode() ? supabase : mock;
@@ -35,12 +35,20 @@ export async function getEmployees(role: Role, employeeId?: string) {
   return repo().getEmployees(role, employeeId);
 }
 
+export async function updateEmployee(id: string, input: Partial<Employee>) {
+  return repo().updateEmployee(id, input);
+}
+
 export async function getEmployeeProfile(role: Role, targetId: string, requesterEmployeeId?: string) {
   return repo().getEmployeeProfile(role, targetId, requesterEmployeeId);
 }
 
 export async function getCustomers() {
   return repo().getCustomers();
+}
+
+export async function updateCustomer(id: string, input: Partial<Customer>) {
+  return repo().updateCustomer(id, input);
 }
 
 export async function getProjects(role: Role, employeeId?: string) {

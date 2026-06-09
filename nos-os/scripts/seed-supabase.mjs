@@ -18,7 +18,7 @@ function loadEnv(file) {
 loadEnv(".env.local");
 loadEnv(".env");
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !serviceRoleKey) {
@@ -150,25 +150,25 @@ const users = [
 ];
 
 const employees = [
-  { id: ids.employees.urata, user_id: ids.users.urata, name: "浦田 和真", position: "Host / Manager", department: "Management", avatar_url: "UK", bio: "会社全体の案件、売上、タスク優先度を確認します。", leave_balance_days: 11, attendance_status: "working" },
-  { id: ids.employees.osaki, user_id: ids.users.osaki, name: "大崎 雄介", position: "Host / Operations", department: "Management", avatar_url: "OY", bio: "社員βの運用、案件確認、タスク整理を担当します。", leave_balance_days: 12, attendance_status: "working" },
-  { id: ids.employees.hashisako, user_id: ids.users.hashisako, name: "橋迫 翔太", position: "Staff", department: "Operations", avatar_url: "HS", bio: "制作、確認、営業準備のタスクを担当します。", leave_balance_days: 10, attendance_status: "meeting" },
-  { id: ids.employees.watanabe, user_id: ids.users.watanabe, name: "渡邉 駿", position: "Staff", department: "System Development", avatar_url: "WS", bio: "システム、DB、業務改善タスクを担当します。", leave_balance_days: 10, attendance_status: "working" },
+  { id: ids.employees.urata, user_id: ids.users.urata, name: "浦田 和真", position: "管理者 / 代表", department: "経営・営業", avatar_url: "UK", bio: "会社全体の案件、売上、タスク優先度を確認します。", leave_balance_days: 11, attendance_status: "working" },
+  { id: ids.employees.osaki, user_id: ids.users.osaki, name: "大崎 雄介", position: "管理者 / 運用", department: "経営・運用", avatar_url: "OY", bio: "社員βの運用、案件確認、タスク整理を担当します。", leave_balance_days: 12, attendance_status: "working" },
+  { id: ids.employees.hashisako, user_id: ids.users.hashisako, name: "橋迫 翔太", position: "社員", department: "制作・運用", avatar_url: "HS", bio: "制作、確認、営業準備のタスクを担当します。", leave_balance_days: 10, attendance_status: "meeting" },
+  { id: ids.employees.watanabe, user_id: ids.users.watanabe, name: "渡邉 駿", position: "社員", department: "システム開発", avatar_url: "WS", bio: "システム、DB、業務改善タスクを担当します。", leave_balance_days: 10, attendance_status: "working" },
 ];
 
 const customers = [
-  { id: ids.customers.nos, name: "NosTechnology Operations", company: "NosTechnology", email: "ops@nostechnology.jp", phone: "03-0000-1001", notes: "Internal beta customer for the first employee test.", health: "good" },
-  { id: ids.customers.shops, name: "Local Shop Leads", company: "Local Shop Leads", email: "owner@example-shop.local", phone: "06-0000-2202", notes: "Small shop web production sales candidates.", health: "watch" },
-  { id: ids.customers.tools, name: "SMB Tool Leads", company: "SMB Tool Leads", email: "backoffice@example-smb.local", phone: "052-0000-3303", notes: "Back-office tool candidates.", health: "good" },
-  { id: ids.customers.poc, name: "Enterprise POC Lead", company: "Enterprise POC Lead", email: "system@example-enterprise.local", phone: "03-0000-4404", notes: "High-value POC candidate.", health: "watch" },
+  { id: ids.customers.nos, name: "NosTechnology 事業運営", company: "NosTechnology", email: "ops@nostechnology.jp", phone: "03-0000-1001", notes: "社員βで使う社内運用データ。営業、案件、タスク、勤怠の確認に使います。", health: "good" },
+  { id: ids.customers.shops, name: "店舗向けWeb制作候補", company: "店舗向けWeb制作候補", email: "owner@example-shop.local", phone: "06-0000-2202", notes: "飲食店、カフェ、店舗向けにWeb制作デモを見せて初回商談につなげる候補。", health: "watch" },
+  { id: ids.customers.tools, name: "中小企業ツール候補", company: "中小企業ツール候補", email: "backoffice@example-smb.local", phone: "052-0000-3303", notes: "勤怠、在庫、売上メモ、問い合わせ管理など小さい業務改善ツールの相談候補。", health: "good" },
+  { id: ids.customers.poc, name: "高単価POC候補", company: "高単価POC候補", email: "system@example-enterprise.local", phone: "03-0000-4404", notes: "ヒアリング、サンプル確認、POC、検証、本開発の順で無理なく進める候補。", health: "watch" },
 ];
 
 const projects = [
-  { id: ids.projects.sales, name: "June first-order sales sprint", customer_id: ids.customers.nos, primary_owner_id: ids.employees.urata, secondary_owner_id: ids.employees.osaki, start_date: dateOnly(-1), due_date: dateOnly(7), budget: 500000, status: "production", notes: "Daily sales sprint for first paid orders." },
-  { id: ids.projects.web, name: "Local shop web demo sales", customer_id: ids.customers.shops, primary_owner_id: ids.employees.hashisako, secondary_owner_id: ids.employees.urata, start_date: dateOnly(-2), due_date: dateOnly(5), budget: 300000, status: "proposal", notes: "Prepare demo pages and simple sales explanations." },
-  { id: ids.projects.tools, name: "Small business tool discovery", customer_id: ids.customers.tools, primary_owner_id: ids.employees.watanabe, secondary_owner_id: ids.employees.osaki, start_date: dateOnly(-1), due_date: dateOnly(10), budget: 450000, status: "hearing", notes: "Clarify attendance, inventory, and sales memo workflows." },
-  { id: ids.projects.poc, name: "High-value system POC framing", customer_id: ids.customers.poc, primary_owner_id: ids.employees.osaki, secondary_owner_id: ids.employees.watanabe, start_date: dateOnly(0), due_date: dateOnly(21), budget: 1200000, status: "pre_order", notes: "Split POC into small validation steps." },
-  { id: ids.projects.media, name: "SNS and outsourcing sales line", customer_id: ids.customers.nos, primary_owner_id: ids.employees.osaki, secondary_owner_id: ids.employees.hashisako, start_date: dateOnly(-1), due_date: dateOnly(4), budget: 150000, status: "production", notes: "Prepare Coconala, cloud work, SNS, and DM entry points." },
+  { id: ids.projects.sales, name: "6月 初受注・営業スプリント", customer_id: ids.customers.nos, primary_owner_id: ids.employees.urata, secondary_owner_id: ids.employees.osaki, start_date: dateOnly(-1), due_date: dateOnly(7), budget: 500000, status: "production", notes: "初回受注に向けて、連絡先選定、返信対応、商談化、見積提出まで毎日確認します。" },
+  { id: ids.projects.web, name: "店舗向けWeb制作デモ販売", customer_id: ids.customers.shops, primary_owner_id: ids.employees.hashisako, secondary_owner_id: ids.employees.urata, start_date: dateOnly(-2), due_date: dateOnly(5), budget: 300000, status: "proposal", notes: "店舗向けデモページと説明文を整え、営業で見せられる状態にします。" },
+  { id: ids.projects.tools, name: "小規模業務改善ツール雛形", customer_id: ids.customers.tools, primary_owner_id: ids.employees.watanabe, secondary_owner_id: ids.employees.osaki, start_date: dateOnly(-1), due_date: dateOnly(10), budget: 450000, status: "hearing", notes: "勤怠、在庫、売上メモ、問い合わせ管理を小さく作れる型にします。" },
+  { id: ids.projects.poc, name: "高単価システム開発 POC準備", customer_id: ids.customers.poc, primary_owner_id: ids.employees.osaki, secondary_owner_id: ids.employees.watanabe, start_date: dateOnly(0), due_date: dateOnly(21), budget: 1200000, status: "pre_order", notes: "サンプル確認、POC、検証、本開発の段階に分けて提案します。" },
+  { id: ids.projects.media, name: "SNS・受託サイト営業導線", customer_id: ids.customers.nos, primary_owner_id: ids.employees.osaki, secondary_owner_id: ids.employees.hashisako, start_date: dateOnly(-1), due_date: dateOnly(4), budget: 150000, status: "production", notes: "ココナラ、クラウドワークス、SNS、DM、紹介営業の入口を準備します。" },
 ];
 
 const projectMembers = [
@@ -180,14 +180,14 @@ const projectMembers = [
 ].map(([project_id, employee_id, role]) => ({ project_id, employee_id, role }));
 
 const tasks = [
-  { id: ids.tasks.reply, title: "Return next confirmation dates to replied leads", body: "Send next-date replies before the opportunity cools down.", project_id: ids.projects.sales, primary_assignee_id: ids.employees.urata, due_date: dateOnly(0, 10), priority: "urgent", status: "in_progress", attachments: ["lead-replies.csv"], customer_waiting: true, delay_risk: 75, ai_priority_score: 0, estimated_minutes: 35, scheduled_start: dateOffset(0, 9), scheduled_end: dateOffset(0, 10) },
-  { id: ids.tasks.salesList, title: "Pick today's 10 sales contacts", body: "Choose the highest-fit prospects and prepare one-line openings.", project_id: ids.projects.sales, primary_assignee_id: ids.employees.urata, due_date: dateOnly(0, 11), priority: "urgent", status: "todo", attachments: ["sales-list.xlsx"], customer_waiting: false, delay_risk: 72, ai_priority_score: 0, estimated_minutes: 45, scheduled_start: dateOffset(0, 10), scheduled_end: dateOffset(0, 11) },
-  { id: ids.tasks.revenue, title: "Confirm first columns for the revenue sheet", body: "Set owner, source, product category, status, forecast amount, confidence, and next action.", project_id: ids.projects.sales, primary_assignee_id: ids.employees.admin, due_date: dateOnly(0, 13), priority: "high", status: "todo", attachments: [], customer_waiting: false, delay_risk: 58, ai_priority_score: 0, estimated_minutes: 40, scheduled_start: dateOffset(0, 11), scheduled_end: dateOffset(0, 12) },
-  { id: ids.tasks.webDemo, title: "Make the web demo explanation sales-ready", body: "Rewrite demo differences, price entry points, and delivery flow in sales language.", project_id: ids.projects.web, primary_assignee_id: ids.employees.akari, due_date: dateOnly(0, 15), priority: "high", status: "in_progress", attachments: ["demo-sites.md"], customer_waiting: false, delay_risk: 48, ai_priority_score: 0, estimated_minutes: 50, scheduled_start: dateOffset(0, 13), scheduled_end: dateOffset(0, 14) },
-  { id: ids.tasks.outsourcing, title: "Review Coconala and cloud work copy before publishing", body: "Polish public copy for web production, small tools, and material creation.", project_id: ids.projects.media, primary_assignee_id: ids.employees.akari, due_date: dateOnly(0, 17), priority: "high", status: "review", attachments: ["coconala-draft.md"], customer_waiting: false, delay_risk: 43, ai_priority_score: 0, estimated_minutes: 45, scheduled_start: dateOffset(0, 15), scheduled_end: dateOffset(0, 16) },
-  { id: ids.tasks.toolsHearing, title: "Prepare one-page hearing questions for small tools", body: "Focus on attendance, stock, sales memos, and daily reporting.", project_id: ids.projects.tools, primary_assignee_id: ids.employees.ren, due_date: dateOnly(1, 12), priority: "high", status: "todo", attachments: [], customer_waiting: false, delay_risk: 42, ai_priority_score: 0, estimated_minutes: 60, scheduled_start: dateOffset(1, 10), scheduled_end: dateOffset(1, 11) },
-  { id: ids.tasks.pocSteps, title: "Split the high-value POC into validation steps", body: "Define sample confirmation, POC, evaluation, and main development milestones.", project_id: ids.projects.poc, primary_assignee_id: ids.employees.mio, due_date: dateOnly(1, 16), priority: "high", status: "review", attachments: ["poc-framing.md"], customer_waiting: true, delay_risk: 57, ai_priority_score: 0, estimated_minutes: 70, scheduled_start: dateOffset(1, 14), scheduled_end: dateOffset(1, 15) },
-  { id: ids.tasks.weekly, title: "Register each member's weekly deliverable", body: "Each member decides one visible result for this week.", project_id: ids.projects.sales, primary_assignee_id: ids.employees.admin, due_date: dateOnly(0, 14), priority: "urgent", status: "todo", attachments: [], customer_waiting: false, delay_risk: 68, ai_priority_score: 0, estimated_minutes: 30, scheduled_start: dateOffset(0, 14), scheduled_end: dateOffset(0, 15) },
+  { id: ids.tasks.reply, title: "返信が来た候補へ次回確認日を返す", body: "温度が下がる前に、日程候補と次に確認する内容を短く返します。", project_id: ids.projects.sales, primary_assignee_id: ids.employees.urata, due_date: dateOnly(0, 10), priority: "urgent", status: "in_progress", attachments: ["lead-replies.csv"], customer_waiting: true, delay_risk: 75, ai_priority_score: 0, estimated_minutes: 35, scheduled_start: dateOffset(0, 9), scheduled_end: dateOffset(0, 10) },
+  { id: ids.tasks.salesList, title: "今日連絡する営業先10件を決める", body: "見込みが高い候補を選び、最初の一言まで用意します。", project_id: ids.projects.sales, primary_assignee_id: ids.employees.urata, due_date: dateOnly(0, 11), priority: "urgent", status: "todo", attachments: ["sales-list.xlsx"], customer_waiting: false, delay_risk: 72, ai_priority_score: 0, estimated_minutes: 45, scheduled_start: dateOffset(0, 10), scheduled_end: dateOffset(0, 11) },
+  { id: ids.tasks.revenue, title: "売上管理シートの初期項目を確定", body: "担当、流入元、商品カテゴリ、状態、見込み金額、確度、次アクションを固定します。", project_id: ids.projects.sales, primary_assignee_id: ids.employees.admin, due_date: dateOnly(0, 13), priority: "high", status: "todo", attachments: [], customer_waiting: false, delay_risk: 58, ai_priority_score: 0, estimated_minutes: 40, scheduled_start: dateOffset(0, 11), scheduled_end: dateOffset(0, 12) },
+  { id: ids.tasks.webDemo, title: "Webデモの説明を営業向けに整える", body: "デモの違い、価格の入口、納品までの流れを営業で話しやすい言葉に直します。", project_id: ids.projects.web, primary_assignee_id: ids.employees.akari, due_date: dateOnly(0, 15), priority: "high", status: "in_progress", attachments: ["demo-sites.md"], customer_waiting: false, delay_risk: 48, ai_priority_score: 0, estimated_minutes: 50, scheduled_start: dateOffset(0, 13), scheduled_end: dateOffset(0, 14) },
+  { id: ids.tasks.outsourcing, title: "ココナラ出品文と応募文を公開前確認", body: "Web制作、小ツール、資料作成の3カテゴリで最初に出せる文面を整えます。", project_id: ids.projects.media, primary_assignee_id: ids.employees.akari, due_date: dateOnly(0, 17), priority: "high", status: "review", attachments: ["coconala-draft.md"], customer_waiting: false, delay_risk: 43, ai_priority_score: 0, estimated_minutes: 45, scheduled_start: dateOffset(0, 15), scheduled_end: dateOffset(0, 16) },
+  { id: ids.tasks.toolsHearing, title: "小規模ツールのヒアリング質問を1枚にする", body: "勤怠、在庫、売上メモ、日報の確認項目に絞って商談で使える形にします。", project_id: ids.projects.tools, primary_assignee_id: ids.employees.ren, due_date: dateOnly(1, 12), priority: "high", status: "todo", attachments: [], customer_waiting: false, delay_risk: 42, ai_priority_score: 0, estimated_minutes: 60, scheduled_start: dateOffset(1, 10), scheduled_end: dateOffset(1, 11) },
+  { id: ids.tasks.pocSteps, title: "高単価POCの検証ステップを整理", body: "サンプル確認、POC、検証、本開発を分け、見積前に潰す不確実性を書きます。", project_id: ids.projects.poc, primary_assignee_id: ids.employees.mio, due_date: dateOnly(1, 16), priority: "high", status: "review", attachments: ["poc-framing.md"], customer_waiting: true, delay_risk: 57, ai_priority_score: 0, estimated_minutes: 70, scheduled_start: dateOffset(1, 14), scheduled_end: dateOffset(1, 15) },
+  { id: ids.tasks.weekly, title: "メンバー別の今週成果物を登録", body: "各メンバーが今週出す見える成果物を1つずつ決めます。", project_id: ids.projects.sales, primary_assignee_id: ids.employees.admin, due_date: dateOnly(0, 14), priority: "urgent", status: "todo", attachments: [], customer_waiting: false, delay_risk: 68, ai_priority_score: 0, estimated_minutes: 30, scheduled_start: dateOffset(0, 14), scheduled_end: dateOffset(0, 15) },
 ];
 
 const taskAssignees = [
@@ -205,24 +205,24 @@ const goalTrees = [
   {
     id: stableUuid("goal-tree-company-2026"),
     scope: "company",
-    title: "Company",
-    goal: "Reach 10,000,000 yen by December 2026",
+    title: "会社",
+    goal: "2026年12月までに売上1000万円を達成する",
     owner_employee_id: null,
     due_date: dateOnly(206),
     metrics: [
-      { id: "metric-company-revenue", label: "Revenue", current: 0, target: 10000000, unit: "yen" },
-      { id: "metric-company-contracts", label: "Contracts", current: 0, target: 3, unit: "deals" },
+      { id: "metric-company-revenue", label: "売上", current: 0, target: 10000000, unit: "円" },
+      { id: "metric-company-contracts", label: "契約", current: 0, target: 3, unit: "件" },
     ],
     branches: [
       {
         id: "branch-company-web",
-        title: "Create first paid web production order",
+        title: "Web制作で初受注を作る",
         dueDate: dateOnly(22),
         assigneeId: ids.employees.urata,
         projectId: ids.projects.sales,
         tasks: [
-          { id: "tree-task-company-list", title: "Build sales list", dueDate: dateOnly(1), assigneeId: ids.employees.urata, taskId: ids.tasks.salesList },
-          { id: "tree-task-company-reply", title: "Turn replied leads into meetings", dueDate: dateOnly(3), assigneeId: ids.employees.urata, taskId: ids.tasks.reply },
+          { id: "tree-task-company-list", title: "営業リストを作る", dueDate: dateOnly(1), assigneeId: ids.employees.urata, taskId: ids.tasks.salesList },
+          { id: "tree-task-company-reply", title: "返信候補を商談につなげる", dueDate: dateOnly(3), assigneeId: ids.employees.urata, taskId: ids.tasks.reply },
         ],
       },
     ],
@@ -230,21 +230,21 @@ const goalTrees = [
   {
     id: stableUuid("goal-tree-daily-urata"),
     scope: "daily",
-    title: "Today",
-    goal: "Move replies, sales contacts, and sample checks today",
+    title: "今日",
+    goal: "返信対応、営業先選定、サンプル確認を今日進める",
     owner_employee_id: ids.employees.urata,
     due_date: dateOnly(0),
-    metrics: [{ id: "metric-daily-contact", label: "Contacts", current: 0, target: 10, unit: "items" }],
+    metrics: [{ id: "metric-daily-contact", label: "連絡", current: 0, target: 10, unit: "件" }],
     branches: [
       {
         id: "branch-daily-sales",
-        title: "Start sales before noon",
+        title: "午前中に営業を動かす",
         dueDate: dateOnly(0, 12),
         assigneeId: ids.employees.urata,
         projectId: ids.projects.sales,
         tasks: [
-          { id: "tree-task-daily-reply", title: "Reply to 3 candidates", dueDate: dateOnly(0, 10), assigneeId: ids.employees.urata, taskId: ids.tasks.reply },
-          { id: "tree-task-daily-ten", title: "Pick 10 contacts", dueDate: dateOnly(0, 11), assigneeId: ids.employees.urata, taskId: ids.tasks.salesList },
+          { id: "tree-task-daily-reply", title: "返信候補に次回確認日を返す", dueDate: dateOnly(0, 10), assigneeId: ids.employees.urata, taskId: ids.tasks.reply },
+          { id: "tree-task-daily-ten", title: "今日連絡する10件を決める", dueDate: dateOnly(0, 11), assigneeId: ids.employees.urata, taskId: ids.tasks.salesList },
         ],
       },
     ],
@@ -252,20 +252,20 @@ const goalTrees = [
   {
     id: stableUuid("goal-tree-personal-hashisako"),
     scope: "personal",
-    title: "Hashisako personal",
-    goal: "Make web samples easy to sell",
+    title: "橋迫 個人目標",
+    goal: "Webサンプルを営業で売りやすい状態にする",
     owner_employee_id: ids.employees.hashisako,
     due_date: dateOnly(7),
-    metrics: [{ id: "metric-hashisako-samples", label: "Samples", current: 5, target: 10, unit: "items" }],
+    metrics: [{ id: "metric-hashisako-samples", label: "サンプル", current: 5, target: 10, unit: "個" }],
     branches: [
       {
         id: "branch-hashisako-design",
-        title: "Prepare design samples",
+        title: "デザインサンプルを整える",
         dueDate: dateOnly(3),
         assigneeId: ids.employees.hashisako,
         projectId: ids.projects.web,
         tasks: [
-          { id: "tree-task-hashisako-restaurant", title: "Review restaurant sample for sales", dueDate: dateOnly(1), assigneeId: ids.employees.hashisako, taskId: null },
+          { id: "tree-task-hashisako-restaurant", title: "飲食店サンプルを営業向けに見直す", dueDate: dateOnly(1), assigneeId: ids.employees.hashisako, taskId: null },
         ],
       },
     ],
@@ -285,12 +285,12 @@ const leaveRequests = [
 ];
 
 const taskComments = [
-  { id: stableUuid("comment-1"), task_id: ids.tasks.reply, author_user_id: ids.users.urata, body: "Reply before noon so the lead does not cool down." },
+  { id: stableUuid("comment-1"), task_id: ids.tasks.reply, author_user_id: ids.users.urata, body: "午前中に一言だけでも返して、商談化の温度を落とさないようにします。" },
 ];
 
 const notifications = [
-  { id: stableUuid("notice-urata-1"), user_id: ids.users.urata, type: "due_today", title: "Reply and sales contacts are due today", body: "Move replies first, then choose today's 10 sales contacts.", severity: "warning", target_href: "/", read_at: null },
-  { id: stableUuid("notice-osaki-1"), user_id: ids.users.osaki, type: "due_today", title: "Weekly deliverables are due today", body: "Ask each member to register one visible weekly result.", severity: "warning", target_href: "/tasks", read_at: null },
+  { id: stableUuid("notice-urata-1"), user_id: ids.users.urata, type: "due_today", title: "返信対応と営業先選定が本日期限です", body: "先に返信対応を済ませてから、今日連絡する10件を決めてください。", severity: "warning", target_href: "/", read_at: null },
+  { id: stableUuid("notice-osaki-1"), user_id: ids.users.osaki, type: "due_today", title: "今週成果物の登録が本日期限です", body: "各メンバーに、今週出す見える成果物を1つずつ登録してもらってください。", severity: "warning", target_href: "/tasks", read_at: null },
 ];
 
 const tables = [
