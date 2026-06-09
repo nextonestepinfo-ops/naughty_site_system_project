@@ -2,6 +2,7 @@
 
 import {
   Bell,
+  BookOpenCheck,
   Bot,
   BriefcaseBusiness,
   Building2,
@@ -39,11 +40,12 @@ const navItems: Array<{ href: string; label: string; icon: LucideIcon; adminOnly
   { href: "/customers", label: "顧客", icon: Building2, adminOnly: true },
   { href: "/employees", label: "社員", icon: Users, adminOnly: true },
   { href: "/attendance", label: "勤怠", icon: CalendarClock },
+  { href: "/guide", label: "使い方", icon: BookOpenCheck },
   { href: "/assistant", label: "AI", icon: Bot },
   { href: "/test", label: "テスト", icon: FlaskConical, adminOnly: true },
 ];
 
-const mobileItems = navItems.filter((item) => ["/", "/projects", "/tasks", "/sales", "/attendance", "/assistant"].includes(item.href));
+const mobileItems = navItems.filter((item) => ["/", "/projects", "/tasks", "/attendance", "/assistant", "/guide"].includes(item.href));
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
