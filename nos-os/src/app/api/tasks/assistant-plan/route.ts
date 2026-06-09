@@ -271,7 +271,14 @@ function taskFromMessage(message: string, tasks: Task[]) {
 function deleteActions(message: string, tasks: Task[], projects: Project[], employees: Employee[], branches: BranchOption[]): TaskAssistantAction[] {
   const query = stripCommand(message);
   const reduceWithoutDelete = /減ら|保留|外して/.test(message) && !/消して|削除/.test(message);
-  let candidates = tasks
+  const requestedProject = findProject(message, projects);
+  const requestedBranch = findBranch(message, branches, requestedProject);
+  const scopedTasks = tasks.filter((task) => {
+    if (requestedBranch) return task.sourceGoalTreeId === requestedBranch.treeId && task.sourceBranchId === requestedBranch.branchId;
+    if (requestedProject) return task.projectId === requestedProject.id;
+    return true;
+  });
+  let candidates = scopedTasks
     .filter((task) => {
       if (/完了済み|終わった|done/i.test(message)) return task.status === "done";
       if (!query) return false;
@@ -280,7 +287,7 @@ function deleteActions(message: string, tasks: Task[], projects: Project[], empl
     .slice(0, 4);
 
   if (!candidates.length && !/完了済み|終わった|done/i.test(message)) {
-    candidates = [...tasks]
+    candidates = [...scopedTasks]
       .filter((task) => task.status === "done" || task.priority === "low" || task.priority === "hold" || task.aiPriorityScore < 45)
       .sort((a, b) => {
         if (a.status === "done" && b.status !== "done") return -1;
@@ -291,7 +298,7 @@ function deleteActions(message: string, tasks: Task[], projects: Project[], empl
   }
 
   if (!candidates.length && !/完了済み|終わった|done/i.test(message)) {
-    candidates = [...tasks]
+    candidates = [...scopedTasks]
       .filter((task) => task.status !== "done")
       .sort((a, b) => a.aiPriorityScore - b.aiPriorityScore)
       .slice(0, 4);

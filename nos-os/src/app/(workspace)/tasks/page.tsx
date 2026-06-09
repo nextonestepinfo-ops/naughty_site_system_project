@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, BriefcaseBusiness, CalendarDays, CalendarPlus, CheckCircle2, Clock3, Columns3, GitBranch, ListFilter, Loader2, Mic, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CalendarDays, CalendarPlus, CheckCircle2, Clock3, Columns3, GitBranch, ListFilter, Loader2, Mic, PauseCircle, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -21,9 +21,13 @@ type BranchOption = {
   value: string;
   label: string;
   treeId: string;
+  treeTitle: string;
   branchId: string;
+  branchTitle: string;
   projectId: string | null;
+  projectName?: string;
   assigneeId: string | null;
+  assigneeName?: string;
 };
 
 type SpeechRecognitionCtor = new () => {
@@ -43,9 +47,11 @@ export default function TasksPage() {
   const [open, setOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [focusedTaskId, setFocusedTaskId] = useState("");
+  const [newBigTaskRef, setNewBigTaskRef] = useState("");
   const [filters, setFilters] = useState({
     assigneeId: "",
     projectId: "",
+    bigTaskRef: "",
     priority: "",
     status: "",
     due: "",
@@ -69,6 +75,7 @@ export default function TasksPage() {
     mutationFn: (body: Partial<Task>) => apiFetch<Task>("/api/tasks", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       setOpen(false);
+      setNewBigTaskRef("");
       void queryClient.invalidateQueries({ queryKey: ["tasks"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -100,19 +107,28 @@ export default function TasksPage() {
           value: `${tree.id}::${branch.id}`,
           label: `${tree.title} / ${branch.title}`,
           treeId: tree.id,
+          treeTitle: tree.title,
           branchId: branch.id,
+          branchTitle: branch.title,
           projectId: branch.projectId,
+          projectName: branch.projectId ? projectMap.get(branch.projectId)?.name : undefined,
           assigneeId: branch.assigneeId,
+          assigneeName: branch.assigneeId ? employeeMap.get(branch.assigneeId)?.name : undefined,
         })),
       ),
-    [goalTrees.data],
+    [employeeMap, goalTrees.data, projectMap],
   );
-  const activeTasks = useMemo(() => (tasks.data ?? []).filter((task) => task.status !== "done"), [tasks.data]);
+  const activeTasks = useMemo(() => (tasks.data ?? []).filter((task) => task.status !== "done" && task.priority !== "hold"), [tasks.data]);
+  const holdCount = useMemo(() => (tasks.data ?? []).filter((task) => task.status !== "done" && task.priority === "hold").length, [tasks.data]);
   const displayedTasks = useMemo(() => {
-    const source = tasks.data ?? [];
+    const source = (tasks.data ?? []).filter((task) => {
+      if (!filters.bigTaskRef) return true;
+      const [treeId, branchId] = filters.bigTaskRef.split("::");
+      return task.sourceGoalTreeId === treeId && task.sourceBranchId === branchId;
+    });
     if (!focusedTaskId) return source;
     return [...source].sort((a, b) => (a.id === focusedTaskId ? -1 : b.id === focusedTaskId ? 1 : 0));
-  }, [focusedTaskId, tasks.data]);
+  }, [filters.bigTaskRef, focusedTaskId, tasks.data]);
   const focusTask = useMemo(() => [...activeTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null, [activeTasks]);
   const todayCount = useMemo(() => activeTasks.filter((task) => dayDistance(task.dueDate) === 0).length, [activeTasks]);
   const overdueCount = useMemo(() => activeTasks.filter((task) => dayDistance(task.dueDate) < 0).length, [activeTasks]);
@@ -151,6 +167,7 @@ export default function TasksPage() {
     });
     return Array.from(groups.values()).sort((a, b) => b.total - a.total).slice(0, 6);
   }, [activeTasks, projectMap]);
+  const selectedNewBranch = useMemo(() => branchOptions.find((option) => option.value === newBigTaskRef), [branchOptions, newBigTaskRef]);
   const aiContextPrompt = encodeURIComponent("タスクを増やす・減らす・小タスクに分解する相談をしたい。案件、大タスク、小タスク、担当者ごとに整理して、今日やるものと消してよい候補を提案して。");
 
   useEffect(() => {
@@ -234,7 +251,7 @@ export default function TasksPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-2">
-            <OpsMetric icon={<Target className="h-4 w-4" />} label="未完了" value={activeTasks.length} />
+            <OpsMetric icon={<Target className="h-4 w-4" />} label="今やる" value={activeTasks.length} helper={holdCount ? `保留 ${holdCount}` : undefined} />
             <OpsMetric icon={<Clock3 className="h-4 w-4" />} label="今日" value={todayCount} />
             <OpsMetric icon={<AlertTriangle className="h-4 w-4" />} label="期限超過" value={overdueCount} tone={overdueCount ? "red" : "green"} />
             <OpsMetric icon={<PlayCircle className="h-4 w-4" />} label="進行中" value={inProgressCount} helper={`${totalMinutes}分`} />
@@ -274,7 +291,7 @@ export default function TasksPage() {
       <WorkloadOverview workload={workload} branchWorkload={branchWorkload} />
 
       <Card className="mb-5">
-        <CardContent className="grid gap-3 p-4 md:grid-cols-3 xl:grid-cols-6">
+        <CardContent className="grid gap-3 p-4 md:grid-cols-3 xl:grid-cols-7">
           <Select value={filters.assigneeId} onChange={(event) => setFilters((value) => ({ ...value, assigneeId: event.target.value }))}>
             <option value="">担当者すべて</option>
             {(employees.data ?? []).map((employee) => (
@@ -285,6 +302,12 @@ export default function TasksPage() {
             <option value="">案件すべて</option>
             {(projects.data ?? []).map((project) => (
               <option key={project.id} value={project.id}>{project.name}</option>
+            ))}
+          </Select>
+          <Select value={filters.bigTaskRef} onChange={(event) => setFilters((value) => ({ ...value, bigTaskRef: event.target.value }))}>
+            <option value="">大タスクすべて</option>
+            {branchOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </Select>
           <Select value={filters.priority} onChange={(event) => setFilters((value) => ({ ...value, priority: event.target.value }))}>
@@ -319,7 +342,7 @@ export default function TasksPage() {
           <CardContent className="p-4">
             <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
               <Input name="title" required placeholder="タイトル" />
-              <Select name="bigTaskRef">
+              <Select name="bigTaskRef" value={newBigTaskRef} onChange={(event) => setNewBigTaskRef(event.target.value)}>
                 <option value="">大タスクを選択しない</option>
                 {branchOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -354,6 +377,13 @@ export default function TasksPage() {
                 顧客返信待ち
               </label>
               <Textarea name="description" className="md:col-span-2" placeholder="内容" />
+              {selectedNewBranch ? (
+                <div className="flex flex-wrap gap-2 rounded-panel bg-blue-50 p-3 text-xs text-blue-900 dark:bg-blue-500/10 dark:text-blue-100 md:col-span-2">
+                  <span>大タスク: {selectedNewBranch.branchTitle}</span>
+                  {selectedNewBranch.projectName ? <span>案件: {selectedNewBranch.projectName}</span> : null}
+                  {selectedNewBranch.assigneeName ? <span>担当: {selectedNewBranch.assigneeName}</span> : null}
+                </div>
+              ) : null}
               <div className="md:col-span-2">
                 <Button disabled={createTask.isPending} type="submit">
                   <Save className="h-4 w-4" />
@@ -374,6 +404,7 @@ export default function TasksPage() {
                 <TaskActions
                   task={task}
                   onStatus={(status) => patchTask(task.id, { status })}
+                  onPatch={(body) => patchTask(task.id, body)}
                   onEdit={() => setEditingTaskId((current) => (current === task.id ? null : task.id))}
                   onDelete={() => deleteTask.mutate(task.id)}
                   disabled={updateTask.isPending || deleteTask.isPending}
@@ -410,7 +441,7 @@ export default function TasksPage() {
                 {tasks.data.filter((task) => task.status === status).map((task) => (
                   <div key={task.id} className="space-y-2">
                     <TaskCard task={task} project={projectMap.get(task.projectId)} assignee={employeeMap.get(task.primaryAssigneeId)} />
-                    <TaskActions task={task} onStatus={(nextStatus) => patchTask(task.id, { status: nextStatus })} onDelete={() => deleteTask.mutate(task.id)} disabled={updateTask.isPending || deleteTask.isPending} compact />
+                    <TaskActions task={task} onStatus={(nextStatus) => patchTask(task.id, { status: nextStatus })} onPatch={(body) => patchTask(task.id, body)} onDelete={() => deleteTask.mutate(task.id)} disabled={updateTask.isPending || deleteTask.isPending} compact />
                   </div>
                 ))}
               </div>
@@ -445,7 +476,7 @@ export default function TasksPage() {
                   ) : null}
                 </div>
                 <div className="mt-3">
-                  <TaskActions task={task} onStatus={(nextStatus) => patchTask(task.id, { status: nextStatus })} onDelete={() => deleteTask.mutate(task.id)} disabled={updateTask.isPending || deleteTask.isPending} compact />
+                  <TaskActions task={task} onStatus={(nextStatus) => patchTask(task.id, { status: nextStatus })} onPatch={(body) => patchTask(task.id, body)} onDelete={() => deleteTask.mutate(task.id)} disabled={updateTask.isPending || deleteTask.isPending} compact />
                 </div>
               </CardContent>
             </Card>
@@ -631,7 +662,7 @@ function TaskVoicePlanner({
           <Input
             value={command}
             onChange={(event) => setCommand(event.target.value)}
-            placeholder="例: 明日までにLP見積を作るタスクを追加"
+            placeholder="例: 橋迫さんに明日までにデザイン確認を追加して営業スプリントにつなげて"
             onKeyDown={(event) => event.key === "Enter" && void buildPlan()}
           />
           <Button aria-label="AI整理" title="AI整理" size="icon" disabled={planning || !command.trim()} onClick={() => void buildPlan()}>
@@ -642,7 +673,7 @@ function TaskVoicePlanner({
           </Button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-          {["今日のタスクを分解", "減らせるタスクを保留", "完了済みを削除", "営業タスクを追加", "この作業を明日に変更"].map((sample) => (
+          {["橋迫さんに明日までの確認タスクを追加", "今日の営業スプリントを3つに分解", "優先度が低いものを保留", "完了済みを削除候補にする", "この作業を明日に変更"].map((sample) => (
             <button key={sample} className="rounded-full bg-slate-100 px-2 py-1 dark:bg-white/10 dark:text-slate-200" onClick={() => { setCommand(sample); void buildPlan(sample); }}>
               {sample}
             </button>
@@ -684,12 +715,7 @@ function TaskVoicePlanner({
                       期限 {formatDate(action.dueDate)} / {taskPriorityLabels[action.priority]} / {action.estimatedMinutes}分
                     </p>
                   ) : null}
-                  {action.type === "update" && action.patch.status ? (
-                    <p className="mt-1 text-xs text-slate-500">状態: {taskStatusLabels[action.patch.status]}</p>
-                  ) : null}
-                  {action.type === "update" && action.patch.priority ? (
-                    <p className="mt-1 text-xs text-slate-500">優先度: {taskPriorityLabels[action.patch.priority]}</p>
-                  ) : null}
+                  {action.type === "update" ? <ActionPatchLine action={action} /> : null}
                 </div>
                 <Button size="sm" variant={action.type === "delete" ? "danger" : "secondary"} disabled={disabled || appliedIds.includes(action.id)} onClick={() => applyAction(action)}>
                   {appliedIds.includes(action.id) ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
@@ -725,6 +751,30 @@ function ActionContextLine({ action }: { action: TaskAssistantAction }) {
   );
 }
 
+function ActionPatchLine({ action }: { action: Extract<TaskAssistantAction, { type: "update" }> }) {
+  const patchItems = [
+    action.patch.status ? `状態: ${taskStatusLabels[action.patch.status]}` : null,
+    action.patch.priority ? `優先度: ${taskPriorityLabels[action.patch.priority]}` : null,
+    action.patch.dueDate ? `期限: ${formatDate(action.patch.dueDate)}` : null,
+    action.patch.estimatedMinutes ? `見積: ${action.patch.estimatedMinutes}分` : null,
+    action.patch.projectId && action.projectName ? `案件: ${action.projectName}` : null,
+    action.patch.primaryAssigneeId && action.assigneeName ? `担当: ${action.assigneeName}` : null,
+    action.patch.sourceBranchId && action.sourceBranchTitle ? `大タスク: ${action.sourceBranchTitle}` : null,
+  ].filter(Boolean) as string[];
+
+  if (!patchItems.length) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+      {patchItems.map((item) => (
+        <span key={item} className="rounded-full bg-amber-50 px-2 py-1 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function TaskEditForm({
   task,
   projects,
@@ -742,11 +792,13 @@ function TaskEditForm({
   onCancel: () => void;
   disabled?: boolean;
 }) {
+  const currentBigTaskRef = task.sourceGoalTreeId && task.sourceBranchId ? `${task.sourceGoalTreeId}::${task.sourceBranchId}` : "";
+  const [bigTaskRef, setBigTaskRef] = useState(currentBigTaskRef);
+  const selectedBranch = branchOptions.find((option) => option.value === bigTaskRef);
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const bigTaskRef = String(form.get("bigTaskRef") ?? "");
-    const selectedBranch = branchOptions.find((option) => option.value === bigTaskRef);
     const primaryAssigneeId = String(form.get("primaryAssigneeId"));
     onSave({
       title: String(form.get("title")),
@@ -763,14 +815,12 @@ function TaskEditForm({
     });
   }
 
-  const currentBigTaskRef = task.sourceGoalTreeId && task.sourceBranchId ? `${task.sourceGoalTreeId}::${task.sourceBranchId}` : "";
-
   return (
     <Card>
       <CardContent className="p-4">
         <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
           <Input name="title" required defaultValue={task.title} placeholder="タイトル" />
-          <Select name="bigTaskRef" defaultValue={currentBigTaskRef}>
+          <Select name="bigTaskRef" value={bigTaskRef} onChange={(event) => setBigTaskRef(event.target.value)}>
             <option value="">大タスクを選択しない</option>
             {branchOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -801,6 +851,13 @@ function TaskEditForm({
             ))}
           </Select>
           <Textarea name="description" className="md:col-span-2" defaultValue={task.description} placeholder="内容" />
+          {selectedBranch ? (
+            <div className="flex flex-wrap gap-2 rounded-panel bg-blue-50 p-3 text-xs text-blue-900 dark:bg-blue-500/10 dark:text-blue-100 md:col-span-2">
+              <span>大タスク: {selectedBranch.branchTitle}</span>
+              {selectedBranch.projectName ? <span>案件: {selectedBranch.projectName}</span> : null}
+              {selectedBranch.assigneeName ? <span>担当: {selectedBranch.assigneeName}</span> : null}
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-2 md:col-span-2">
             <Button disabled={disabled} type="submit">
               <Save className="h-4 w-4" />
@@ -857,6 +914,7 @@ function OpsMetric({
 function TaskActions({
   task,
   onStatus,
+  onPatch,
   onEdit,
   onDelete,
   disabled,
@@ -864,6 +922,7 @@ function TaskActions({
 }: {
   task: Task;
   onStatus: (status: TaskStatus) => void;
+  onPatch?: (body: Partial<Task>) => void;
   onEdit?: () => void;
   onDelete: () => void;
   disabled?: boolean;
@@ -882,6 +941,19 @@ function TaskActions({
       )}
       <div className="flex gap-2">
         <QuickStatusButtons task={task} onStatus={onStatus} disabled={disabled} compact />
+        {onPatch ? (
+          <Button
+            aria-label="保留"
+            title="今やるリストから外す"
+            variant={task.priority === "hold" ? "secondary" : "ghost"}
+            size={compact ? "icon" : "sm"}
+            onClick={() => onPatch({ priority: task.priority === "hold" ? "normal" : "hold" })}
+            disabled={disabled || task.status === "done"}
+          >
+            <PauseCircle className="h-4 w-4" />
+            {compact ? null : task.priority === "hold" ? "復帰" : "保留"}
+          </Button>
+        ) : null}
         <a
           aria-label="カレンダー追加"
           title="ICS予定をダウンロード"
