@@ -17,3 +17,7 @@ export function resolveOpenAIModel(value: string | undefined, fallback: string) 
   if (!model || model.startsWith(secretKeyPrefix)) return fallback;
   return model;
 }
+
+export function supportsOpenAITuning(model: string) {
+  return model.startsWith("gpt-5");
+}

@@ -1,5 +1,5 @@
 import type { SecretaryReply } from "@/lib/types";
-import { cleanOpenAIEnvValue, resolveOpenAIApiKey, resolveOpenAIModel } from "@/lib/integrations/openai-config";
+import { cleanOpenAIEnvValue, resolveOpenAIApiKey, resolveOpenAIModel, supportsOpenAITuning } from "@/lib/integrations/openai-config";
 import { buildSecretaryInput, localSecretaryReply, secretaryInstructions } from "@/lib/integrations/secretary-local";
 
 const openaiEndpoint = "https://api.openai.com/v1/responses";
@@ -73,11 +73,11 @@ export async function askSecretaryWithOpenAI(input: {
     max_output_tokens: maxOutputTokens,
   };
 
-  if (reasoningEffort) {
+  if (reasoningEffort && supportsOpenAITuning(model)) {
     body.reasoning = { effort: reasoningEffort };
   }
 
-  if (textVerbosity) {
+  if (textVerbosity && supportsOpenAITuning(model)) {
     body.text = { verbosity: textVerbosity };
   }
 

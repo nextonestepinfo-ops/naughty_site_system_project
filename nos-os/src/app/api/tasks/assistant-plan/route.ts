@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployees, getGoalTrees, getProjects, getTasks } from "@/lib/data/repository";
 import { getRequestScope } from "@/lib/data/request";
-import { cleanOpenAIEnvValue, resolveOpenAIApiKey, resolveOpenAIModel } from "@/lib/integrations/openai-config";
+import { cleanOpenAIEnvValue, resolveOpenAIApiKey, resolveOpenAIModel, supportsOpenAITuning } from "@/lib/integrations/openai-config";
 import type { Employee, GoalTree, Project, Task, TaskAssistantAction, TaskAssistantPlan, TaskPriority, TaskStatus } from "@/lib/types";
 
 type BranchOption = {
@@ -648,7 +648,8 @@ async function buildOpenAIPlan(
     max_output_tokens: maxOutputTokens,
     text: textConfig,
   };
-  if (reasoningEffort) body.reasoning = { effort: reasoningEffort };
+  if (!supportsOpenAITuning(model)) delete textConfig.verbosity;
+  if (reasoningEffort && supportsOpenAITuning(model)) body.reasoning = { effort: reasoningEffort };
 
   try {
     const headers: Record<string, string> = {
