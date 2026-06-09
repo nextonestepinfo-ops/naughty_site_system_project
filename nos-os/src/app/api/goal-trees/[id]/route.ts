@@ -8,7 +8,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   const { id } = await context.params;
   const { role, employeeId } = getRequestScope(request);
   const body = await request.json().catch(() => ({}));
-  const data = updateGoalTree(id, body, role, employeeId);
+  const data = await updateGoalTree(id, body, role, employeeId);
   if (!data) return NextResponse.json({ error: "Not found or not allowed" }, { status: 404 });
   return NextResponse.json({ data });
 }
@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest, context: Context) {
 export async function DELETE(request: NextRequest, context: Context) {
   const { id } = await context.params;
   const { role, employeeId } = getRequestScope(request);
-  const ok = deleteGoalTree(id, role, employeeId);
+  const ok = await deleteGoalTree(id, role, employeeId);
   if (!ok) return NextResponse.json({ error: "Not found or not allowed" }, { status: 404 });
   return NextResponse.json({ data: { ok: true } });
 }

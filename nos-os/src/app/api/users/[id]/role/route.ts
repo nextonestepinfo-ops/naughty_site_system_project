@@ -10,7 +10,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   if (body.actorRole !== "admin") {
     return NextResponse.json({ error: "Admin role is required" }, { status: 403 });
   }
-  const data = updateUserRole(id, {
+  const data = await updateUserRole(id, {
     role: body.role as Role,
     employmentType: body.employmentType as EmploymentType,
   });

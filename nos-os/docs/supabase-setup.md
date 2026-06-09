@@ -5,9 +5,10 @@ attendance, leave balance, notifications, audit logs, and Row Level Security.
 
 ## What Can Be Done From This Repo
 
-- Use `supabase/schema.sql` as the initial database schema.
+- Use `supabase/schema.sql` as the initial database schema, or apply
+  `supabase/migrations/20260609_employee_beta.sql` to an existing project.
 - Add Supabase URL and keys to `.env.local`.
-- Replace the local mock repository with Supabase queries step by step.
+- Switch data mode with `NOS_OS_DATA_MODE=supabase`.
 - Keep UI components unchanged while the data layer is swapped.
 
 ## What The Owner Needs To Provide
@@ -31,21 +32,23 @@ GOOGLE_CLIENT_SECRET=
 ## Dashboard Steps
 
 1. Create or open a Supabase project for Nos OS.
-2. Go to SQL Editor and run `supabase/schema.sql`.
+2. Go to SQL Editor and run `supabase/schema.sql` for a new project, or
+   `supabase/migrations/20260609_employee_beta.sql` for an existing project.
 3. Go to Project Settings, then API.
 4. Copy Project URL, anon public key, and service role key.
 5. Add those values to `nos-os/.env.local`.
-6. Restart the local server.
+6. Set `NOS_OS_DATA_MODE=supabase`.
+7. Run `npm run supabase:seed`.
+8. Restart the local server.
 
 ## Recommended Migration Order
 
-1. Supabase Auth session adapter.
-2. `users` and `employees`.
-3. `projects`, `project_members`, and `customers`.
-4. `tasks` and `task_comments`.
-5. `attendance_logs`, `leave_requests`, and `notifications`.
-6. RLS policies and audit logs.
+1. Employee beta persistence: users, employees, customers, projects, tasks,
+   goal trees, attendance, leave requests, and notifications.
+2. Supabase Auth session adapter.
+3. RLS policies and audit logs.
+4. Google OAuth and Sheets sync.
+5. Gmail parsing and task candidates.
 
-The current app intentionally keeps all screen code behind route handlers so
-this can be done like the Beauty app style: connect the backend under the same
-UI, then replace mock reads/writes one module at a time.
+The app intentionally keeps all screen code behind route handlers. That lets the
+same UI run against mock data locally or shared Supabase data for the beta.

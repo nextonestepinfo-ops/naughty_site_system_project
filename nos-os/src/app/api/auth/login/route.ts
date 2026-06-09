@@ -3,7 +3,7 @@ import { loginUser } from "@/lib/data/repository";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const user = loginUser({
+  const user = await loginUser({
     email: body.email,
     password: body.password,
     role: body.role,

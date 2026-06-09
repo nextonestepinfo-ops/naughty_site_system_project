@@ -3,7 +3,7 @@ create extension if not exists "pgcrypto";
 create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
-  role text not null check (role in ('admin', 'employee', 'sales', 'part_time')),
+  role text not null check (role in ('admin', 'employee', 'sales')),
   employment_type text not null default 'full_time' check (employment_type in ('full_time', 'part_time', 'contractor')),
   auth_provider text not null check (auth_provider in ('google', 'email')),
   created_at timestamptz not null default now(),
@@ -178,6 +178,19 @@ create table if not exists public.goals (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.goal_trees (
+  id uuid primary key default gen_random_uuid(),
+  scope text not null check (scope in ('company', 'daily', 'personal')),
+  title text not null,
+  goal text not null,
+  owner_employee_id uuid references public.employees(id) on delete cascade,
+  due_date date not null,
+  metrics jsonb not null default '[]'::jsonb,
+  branches jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.skills (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
@@ -208,6 +221,7 @@ alter table public.notifications enable row level security;
 alter table public.ai_summaries enable row level security;
 alter table public.activity_logs enable row level security;
 alter table public.goals enable row level security;
+alter table public.goal_trees enable row level security;
 alter table public.skills enable row level security;
 alter table public.employee_skills enable row level security;
 
@@ -217,3 +231,6 @@ create index if not exists idx_tasks_status_priority on public.tasks(status, pri
 create index if not exists idx_attendance_employee_recorded on public.attendance_logs(employee_id, recorded_at desc);
 create index if not exists idx_notifications_user_read on public.notifications(user_id, read_at);
 create index if not exists idx_activity_entity on public.activity_logs(entity_type, entity_id);
+create index if not exists idx_goal_trees_scope on public.goal_trees(scope);
+create index if not exists idx_goal_trees_owner on public.goal_trees(owner_employee_id);
+create index if not exists idx_goal_trees_due_date on public.goal_trees(due_date);

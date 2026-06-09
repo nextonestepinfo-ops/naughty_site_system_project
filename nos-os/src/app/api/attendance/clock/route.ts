@@ -6,6 +6,5 @@ export async function POST(request: NextRequest) {
   if (!body.employeeId || !body.eventType) {
     return NextResponse.json({ error: "employeeId and eventType are required" }, { status: 400 });
   }
-  return NextResponse.json({ data: clockAttendance(body.employeeId, body.eventType, body.source ?? "manual") }, { status: 201 });
+  return NextResponse.json({ data: await clockAttendance(body.employeeId, body.eventType, body.source ?? "manual") }, { status: 201 });
 }
-

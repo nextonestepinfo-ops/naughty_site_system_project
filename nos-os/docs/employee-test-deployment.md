@@ -6,6 +6,7 @@
 - Local task screen: `http://localhost:3100/tasks`
 - Local preview status: `http://localhost:3100/test`
 - Local safe health check: `http://localhost:3100/api/health`
+- Employee beta URL: `https://nos-os-silk.vercel.app`
 - GitHub branch: `https://github.com/nextonestepinfo-ops/naughty_site_system_project/tree/codex/nos-os-daily-cockpit/nos-os`
 
 ## Current GitHub Status
@@ -25,8 +26,9 @@ GitHub-connected app host such as Vercel.
 2. Set the Vercel root directory to `nos-os`.
 3. Set the production branch to `codex/nos-os-daily-cockpit` for the first
    internal test, or merge to `main` later.
-4. Add environment variables from `nos-os/.env.example`.
-5. Deploy and share the Vercel preview URL with employees.
+4. Run the Supabase SQL migration and seed command below.
+5. Add environment variables from `nos-os/.env.example`.
+6. Deploy and share the Vercel URL with employees.
 
 ## Required Environment Variables
 
@@ -39,32 +41,31 @@ OPENAI_MODEL=gpt-5.5
 OPENAI_MAX_OUTPUT_TOKENS=520
 OPENAI_REASONING_EFFORT=low
 OPENAI_TEXT_VERBOSITY=low
+NOS_OS_DATA_MODE=supabase
+NEXT_PUBLIC_TEST_BUILD_LABEL=employee-preview
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
 ```
 
-For a lightweight employee test, OpenAI and Supabase can be added first.
-Google OAuth can wait until login is moved from demo users to production auth.
+Google OAuth and Sheets IDs can stay empty for this employee beta.
 
 ## Supabase Reality Check
 
-Supabase project settings and connection testing exist in the app, and
-`supabase/schema.sql` is the intended database schema. The task/project APIs
-still use the local mock repository today. Before employees rely on shared data,
-replace the mock repository in this order:
+Supabase is now supported behind the existing Next.js API routes. The app uses
+the local mock repository when `NOS_OS_DATA_MODE=mock`, and server-side Supabase
+REST calls when `NOS_OS_DATA_MODE=supabase`.
 
-1. `users` and `employees`
-2. `projects`, `project_members`, and `customers`
-3. `tasks` and `task_comments`
-4. `attendance_logs`, `leave_requests`, and `notifications`
-5. Row Level Security and audit logs
+Run `supabase/migrations/20260609_employee_beta.sql` in the Supabase SQL Editor,
+then seed the beta data locally:
 
-Until that migration is done, a deployed preview is useful for UI testing,
-workflow feedback, role review, and AI secretary testing, but not for durable
-multi-employee task data.
+```bash
+npm run supabase:seed
+```
+
+The seed command is idempotent. It uses stable UUIDs and upserts users,
+employees, customers, projects, tasks, comments, goal trees, attendance logs,
+leave requests, and notifications without deleting existing records.
 
 ## GitHub Check
 
@@ -84,3 +85,6 @@ Open `/test` after deploying. It shows:
 
 The `/api/health` endpoint returns only safe booleans and labels. It does not
 return API keys or secret values.
+
+The beta is ready for employee testing when `/api/health` returns
+`employeePreviewReady: true`, `dataMode: "supabase"`, and `blockers: []`.
