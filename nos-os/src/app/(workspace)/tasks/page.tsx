@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Columns3, ListFilter, PlayCircle, Plus, Save, Target, Trash2 } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Columns3, ListFilter, PlayCircle, Plus, Save, Target, Trash2, UserRound } from "lucide-react";
+import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
@@ -78,6 +79,7 @@ export default function TasksPage() {
   const overdueCount = useMemo(() => activeTasks.filter((task) => dayDistance(task.dueDate) < 0).length, [activeTasks]);
   const inProgressCount = useMemo(() => activeTasks.filter((task) => task.status === "in_progress").length, [activeTasks]);
   const totalMinutes = useMemo(() => activeTasks.reduce((sum, task) => sum + task.estimatedMinutes, 0), [activeTasks]);
+  const aiContextPrompt = encodeURIComponent("タスクを増やす・減らす・小タスクに分解する相談をしたい。案件、大タスク、小タスク、担当者ごとに整理して、今日やるものと消してよい候補を提案して。");
 
   function patchTask(id: string, body: Partial<Task>) {
     updateTask.mutate({ id, body });
@@ -157,6 +159,27 @@ export default function TasksPage() {
             <OpsMetric icon={<AlertTriangle className="h-4 w-4" />} label="期限超過" value={overdueCount} tone={overdueCount ? "red" : "green"} />
             <OpsMetric icon={<PlayCircle className="h-4 w-4" />} label="進行中" value={inProgressCount} helper={`${totalMinutes}分`} />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-5">
+        <CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="blue">AI整理</Badge>
+              <span className="text-sm font-semibold">案件、大タスク、小タスク、担当者で相談</span>
+            </div>
+            <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-300">
+              増やす、減らす、分解する候補をAIに聞いてから、人が確認して反映します。
+            </p>
+          </div>
+          <Link
+            href={`/assistant?prompt=${aiContextPrompt}`}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-panel bg-accent px-4 text-sm font-medium text-white shadow-sm transition hover:bg-blue-600 md:w-auto"
+          >
+            <Target className="h-4 w-4" />
+            AIに相談
+          </Link>
         </CardContent>
       </Card>
 
@@ -267,7 +290,7 @@ export default function TasksPage() {
                 {tasks.data.filter((task) => task.status === status).map((task) => (
                   <div key={task.id} className="space-y-2">
                     <TaskCard task={task} project={projectMap.get(task.projectId)} assignee={employeeMap.get(task.primaryAssigneeId)} />
-                    <QuickStatusButtons task={task} onStatus={(nextStatus) => patchTask(task.id, { status: nextStatus })} disabled={updateTask.isPending} />
+                    <TaskActions task={task} onStatus={(nextStatus) => patchTask(task.id, { status: nextStatus })} onDelete={() => deleteTask.mutate(task.id)} disabled={updateTask.isPending || deleteTask.isPending} compact />
                   </div>
                 ))}
               </div>
@@ -287,8 +310,22 @@ export default function TasksPage() {
                 </div>
                 <p className="mt-3 font-semibold">{task.title}</p>
                 <p className="mt-1 text-sm text-slate-500">{projectMap.get(task.projectId)?.name}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                  {employeeMap.get(task.primaryAssigneeId)?.name ? (
+                    <span className="inline-flex items-center gap-1">
+                      <UserRound className="h-3.5 w-3.5" />
+                      {employeeMap.get(task.primaryAssigneeId)?.name}
+                    </span>
+                  ) : null}
+                  {task.sourceBranchTitle ? (
+                    <span className="inline-flex items-center gap-1">
+                      <BriefcaseBusiness className="h-3.5 w-3.5" />
+                      {task.sourceBranchTitle}
+                    </span>
+                  ) : null}
+                </div>
                 <div className="mt-3">
-                  <QuickStatusButtons task={task} onStatus={(nextStatus) => patchTask(task.id, { status: nextStatus })} disabled={updateTask.isPending} />
+                  <TaskActions task={task} onStatus={(nextStatus) => patchTask(task.id, { status: nextStatus })} onDelete={() => deleteTask.mutate(task.id)} disabled={updateTask.isPending || deleteTask.isPending} compact />
                 </div>
               </CardContent>
             </Card>
@@ -342,23 +379,38 @@ function TaskActions({
   onStatus,
   onDelete,
   disabled,
+  compact = false,
 }: {
   task: Task;
   onStatus: (status: TaskStatus) => void;
   onDelete: () => void;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   return (
-    <div className="flex gap-2 lg:flex-col">
-      <Select value={task.status} onChange={(event) => onStatus(event.target.value as TaskStatus)} disabled={disabled}>
-        {statuses.map(([value, label]) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
-      </Select>
+    <div className={cn("flex gap-2", compact ? "flex-wrap" : "lg:flex-col")}>
+      {compact ? null : (
+        <Select value={task.status} onChange={(event) => onStatus(event.target.value as TaskStatus)} disabled={disabled}>
+          {statuses.map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </Select>
+      )}
       <div className="flex gap-2">
         <QuickStatusButtons task={task} onStatus={onStatus} disabled={disabled} compact />
-        <Button aria-label="タスク削除" title="タスク削除" variant="ghost" size="icon" onClick={onDelete} disabled={disabled}>
+        <Button
+          aria-label="タスク削除"
+          title="タスク削除"
+          className="px-3 text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (window.confirm(`「${task.title}」を削除しますか？`)) onDelete();
+          }}
+          disabled={disabled}
+        >
           <Trash2 className="h-4 w-4 text-red-500" />
+          削除
         </Button>
       </div>
     </div>

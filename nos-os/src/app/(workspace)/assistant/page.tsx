@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { BrainCircuit, Loader2, Mic, Send, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AssistantMessage } from "@/components/domain/assistant-message";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/form";
+import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
 import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
-import type { AiSummary, SecretaryReply } from "@/lib/types";
+import type { AiSummary, Employee, Project, SecretaryReply, Task } from "@/lib/types";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
@@ -21,17 +22,53 @@ type SpeechRecognitionCtor = new () => {
   onend: (() => void) | null;
 };
 
-const samplePrompts = ["今日やること", "次に何？", "売上は？", "予定を出して"];
+const samplePrompts = ["今日やる順番", "タスクを分解", "減らせる候補", "担当者別に確認"];
 
 export default function AssistantPage() {
   const recommendations = useScopedQuery<AiSummary[]>(["ai-recommendations"], "/api/ai/recommendations");
+  const tasks = useScopedQuery<Task[]>(["tasks"], "/api/tasks");
+  const projects = useScopedQuery<Project[]>(["projects"], "/api/projects");
+  const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
   const [question, setQuestion] = useState("");
+  const [loadedInitialPrompt, setLoadedInitialPrompt] = useState(false);
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState("今日やるべきことを、期限、優先度、顧客返信待ち、遅延リスクから整理します。");
   const [source, setSource] = useState<SecretaryReply["source"]>("local");
 
-  if (recommendations.isLoading || !recommendations.data) return <LoadingPanel label="AI提案を読み込み中" />;
+  const projectMap = useMemo(() => new Map((projects.data ?? []).map((project) => [project.id, project])), [projects.data]);
+  const employeeMap = useMemo(() => new Map((employees.data ?? []).map((employee) => [employee.id, employee])), [employees.data]);
+  const taskContext = useMemo(
+    () =>
+      (tasks.data ?? [])
+        .slice(0, 25)
+        .map((task) => {
+          const project = projectMap.get(task.projectId);
+          const assignee = employeeMap.get(task.primaryAssigneeId);
+          return [
+            `タスク:${task.title}`,
+            `案件:${project?.name ?? "未設定"}`,
+            task.sourceGoalTreeTitle ? `目標:${task.sourceGoalTreeTitle}` : null,
+            task.sourceBranchTitle ? `大タスク:${task.sourceBranchTitle}` : null,
+            `担当:${assignee?.name ?? "未設定"}`,
+            `状態:${taskStatusLabels[task.status]}`,
+            `優先度:${taskPriorityLabels[task.priority]}`,
+            `期限:${task.dueDate}`,
+            `AI優先度:${task.aiPriorityScore}`,
+          ]
+            .filter(Boolean)
+            .join(" / ");
+        })
+        .join("\n"),
+    [employeeMap, projectMap, tasks.data],
+  );
+
+  useEffect(() => {
+    if (loadedInitialPrompt) return;
+    const prompt = new URLSearchParams(window.location.search).get("prompt");
+    if (prompt) setQuestion(prompt);
+    setLoadedInitialPrompt(true);
+  }, [loadedInitialPrompt]);
 
   async function ask(text = question) {
     const normalized = text.trim();
@@ -43,7 +80,15 @@ export default function AssistantPage() {
         method: "POST",
         body: JSON.stringify({
           message: normalized,
-          context: recommendations.data?.map((item) => `${item.title}: ${item.summary}`).join("\n"),
+          context: [
+            "現在のAI提案:",
+            recommendations.data?.map((item) => `${item.title}: ${item.summary}`).join("\n"),
+            "現在のタスク一覧:",
+            taskContext,
+            "タスクの追加・削除・分解を提案するときは、案件、大タスク、小タスク、担当者、消してよい理由を短く示す。DB操作は提案だけにして、実行したとは言わない。",
+          ]
+            .filter(Boolean)
+            .join("\n"),
         }),
       });
       setAnswer(data.reply);
@@ -56,6 +101,8 @@ export default function AssistantPage() {
       setLoading(false);
     }
   }
+
+  if (recommendations.isLoading || !recommendations.data) return <LoadingPanel label="AI提案を読み込み中" />;
 
   function startVoice() {
     const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
@@ -79,7 +126,7 @@ export default function AssistantPage() {
 
   return (
     <>
-      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、次にやること、売上、予定を聞けます。APIキーはサーバー側で管理します。" />
+      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、タスクの分解、減らせる候補、担当者別の状況を聞けます。" />
 
       <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
         <Card>

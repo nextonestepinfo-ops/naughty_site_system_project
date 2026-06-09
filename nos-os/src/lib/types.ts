@@ -178,6 +178,10 @@ export type Task = {
   title: string;
   description: string;
   projectId: string;
+  sourceGoalTreeId?: string | null;
+  sourceGoalTreeTitle?: string | null;
+  sourceBranchId?: string | null;
+  sourceBranchTitle?: string | null;
   primaryAssigneeId: string;
   assigneeIds: string[];
   dueDate: string;

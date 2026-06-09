@@ -245,7 +245,7 @@ export function calculatePriorityScore(task: Pick<Task, "dueDate" | "priority" |
 }
 
 async function readCore() {
-  const [users, employees, customers, projects, projectMembers, tasks, taskAssignees, taskComments] = await Promise.all([
+  const [users, employees, customers, projects, projectMembers, tasks, taskAssignees, taskComments, goalTrees] = await Promise.all([
     selectRows<UserRow>("users", { order: "created_at.asc" }),
     selectRows<EmployeeRow>("employees", { order: "created_at.asc" }),
     selectRows<CustomerRow>("customers", { order: "created_at.asc" }),
@@ -254,8 +254,9 @@ async function readCore() {
     selectRows<TaskRow>("tasks", { order: "due_date.asc" }),
     selectRows<TaskAssigneeRow>("task_assignees"),
     selectRows<TaskCommentRow>("task_comments"),
+    selectRows<GoalTreeRow>("goal_trees", { order: "created_at.asc" }).catch(() => []),
   ]);
-  return { users, employees, customers, projects, projectMembers, tasks, taskAssignees, taskComments };
+  return { users, employees, customers, projects, projectMembers, tasks, taskAssignees, taskComments, goalTrees };
 }
 
 function taskAssigneesFor(taskId: string, assignees: TaskAssigneeRow[], primaryAssigneeId?: string | null) {
@@ -263,12 +264,31 @@ function taskAssigneesFor(taskId: string, assignees: TaskAssigneeRow[], primaryA
   return ids.length ? ids : [primaryAssigneeId].filter(defined);
 }
 
-function mapTask(row: TaskRow, assignees: TaskAssigneeRow[] = [], comments: TaskCommentRow[] = []): Task {
+function taskGoalContext(taskId: string, goalTrees: GoalTreeRow[] = []): Pick<Task, "sourceGoalTreeId" | "sourceGoalTreeTitle" | "sourceBranchId" | "sourceBranchTitle"> {
+  for (const treeRow of goalTrees) {
+    const tree = mapGoalTree(treeRow);
+    for (const branch of tree.branches) {
+      const materializedTask = branch.tasks.find((task) => task.taskId && dbId(task.taskId) === taskId);
+      if (materializedTask) {
+        return {
+          sourceGoalTreeId: tree.id,
+          sourceGoalTreeTitle: tree.title,
+          sourceBranchId: branch.id,
+          sourceBranchTitle: branch.title,
+        };
+      }
+    }
+  }
+  return {};
+}
+
+function mapTask(row: TaskRow, assignees: TaskAssigneeRow[] = [], comments: TaskCommentRow[] = [], goalTrees: GoalTreeRow[] = []): Task {
   const task: Task = {
     id: row.id,
     title: row.title,
     description: row.body ?? "",
     projectId: row.project_id ?? "",
+    ...taskGoalContext(row.id, goalTrees),
     primaryAssigneeId: row.primary_assignee_id ?? "",
     assigneeIds: taskAssigneesFor(row.id, assignees, row.primary_assignee_id),
     dueDate: row.due_date,
@@ -449,17 +469,17 @@ export async function getUser(userId?: string) {
 }
 
 export async function getEmployee(employeeId?: string) {
-  const { employees, projectMembers, tasks, taskAssignees, taskComments } = await readCore();
+  const { employees, projectMembers, tasks, taskAssignees, taskComments, goalTrees } = await readCore();
   const normalized = dbId(employeeId);
-  const mappedTasks = tasks.map((task) => mapTask(task, taskAssignees, taskComments));
+  const mappedTasks = tasks.map((task) => mapTask(task, taskAssignees, taskComments, goalTrees));
   const row = employees.find((employee) => employee.id === normalized) ?? employees[0];
   return mapEmployee(row, projectMembers, mappedTasks);
 }
 
 export async function getEmployees(role: Role, employeeId?: string) {
-  const { employees, projectMembers, tasks, taskAssignees, taskComments } = await readCore();
+  const { employees, projectMembers, tasks, taskAssignees, taskComments, goalTrees } = await readCore();
   const normalized = dbId(employeeId);
-  const mappedTasks = tasks.map((task) => mapTask(task, taskAssignees, taskComments));
+  const mappedTasks = tasks.map((task) => mapTask(task, taskAssignees, taskComments, goalTrees));
   const scopedRows = isAdmin(role) ? employees : employees.filter((employee) => employee.id === normalized);
   return scopedRows.map((employee) => mapEmployee(employee, projectMembers, mappedTasks));
 }
@@ -476,9 +496,9 @@ export async function updateEmployee(id: string, input: Partial<Employee>) {
   if (input.leaveBalanceDays !== undefined) patch.leave_balance_days = Number(input.leaveBalanceDays);
   if (input.attendanceStatus !== undefined) patch.attendance_status = input.attendanceStatus;
   await patchRows<EmployeeRow>("employees", { id: `eq.${normalized}` }, patch);
-  const { employees, projectMembers, tasks, taskAssignees, taskComments } = await readCore();
+  const { employees, projectMembers, tasks, taskAssignees, taskComments, goalTrees } = await readCore();
   const row = employees.find((employee) => employee.id === normalized);
-  return row ? mapEmployee(row, projectMembers, tasks.map((task) => mapTask(task, taskAssignees, taskComments))) : null;
+  return row ? mapEmployee(row, projectMembers, tasks.map((task) => mapTask(task, taskAssignees, taskComments, goalTrees))) : null;
 }
 
 export async function getCustomers() {
@@ -509,9 +529,9 @@ export async function getProjects(role: Role, employeeId?: string) {
 }
 
 export async function getTasks(role: Role, employeeId: string | undefined, filters: TaskFilter = {}) {
-  const { tasks, taskAssignees, taskComments } = await readCore();
+  const { tasks, taskAssignees, taskComments, goalTrees } = await readCore();
   let result = filterTasksForRole(
-    tasks.map((task) => mapTask(task, taskAssignees, taskComments)),
+    tasks.map((task) => mapTask(task, taskAssignees, taskComments, goalTrees)),
     role,
     employeeId,
   );
@@ -545,9 +565,9 @@ async function writeTaskAssignees(taskId: string, assigneeIds: string[]) {
 }
 
 async function getTaskById(id: string) {
-  const { tasks, taskAssignees, taskComments } = await readCore();
+  const { tasks, taskAssignees, taskComments, goalTrees } = await readCore();
   const row = tasks.find((task) => task.id === id);
-  return row ? mapTask(row, taskAssignees, taskComments) : null;
+  return row ? mapTask(row, taskAssignees, taskComments, goalTrees) : null;
 }
 
 export async function createTask(input: Partial<Task>) {

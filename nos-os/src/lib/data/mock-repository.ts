@@ -153,8 +153,25 @@ export function calculatePriorityScore(task: Pick<Task, "dueDate" | "priority" |
   );
 }
 
+function taskGoalContext(taskId: string): Pick<Task, "sourceGoalTreeId" | "sourceGoalTreeTitle" | "sourceBranchId" | "sourceBranchTitle"> {
+  for (const tree of mutableGoalTrees) {
+    for (const branch of tree.branches) {
+      const materializedTask = branch.tasks.find((task) => task.taskId === taskId);
+      if (materializedTask) {
+        return {
+          sourceGoalTreeId: tree.id,
+          sourceGoalTreeTitle: tree.title,
+          sourceBranchId: branch.id,
+          sourceBranchTitle: branch.title,
+        };
+      }
+    }
+  }
+  return {};
+}
+
 function hydrateTask(task: Task): Task {
-  return { ...task, aiPriorityScore: calculatePriorityScore(task) };
+  return { ...task, ...taskGoalContext(task.id), aiPriorityScore: calculatePriorityScore(task) };
 }
 
 function visibleTasks(role: Role, employeeId?: string) {
