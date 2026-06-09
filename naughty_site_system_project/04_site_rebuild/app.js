@@ -109,10 +109,13 @@ function siteAsset(path, fallback = "") {
   return `assets/${path}`;
 }
 
-function staffChibiIcon(staff) {
-  const known = ["staff_001","staff_002","staff_003","staff_004","staff_005","staff_006","staff_007"];
-  if (known.includes(staff.id)) return siteAsset(`chibi/${staff.id}-chibi.webp?v=chibi-20260609`, heroPhoto(staff));
-  return heroPhoto(staff);
+function versionedAsset(src, version) {
+  if (!src) return src;
+  return src.includes("?") ? `${src}&v=${version}` : `${src}?v=${version}`;
+}
+
+function staffFaceIcon(staff) {
+  return versionedAsset(heroPhoto(staff), "face-20260609");
 }
 
 // vspo-style hero portraits: new full-body cast art in assets/cast/cast-0N.webp
@@ -327,8 +330,8 @@ function renderNow() {
 
   $("#now-grid").innerHTML = shifts.map((shift) => `
     <article class="now-card now-icon-card reveal">
-      <div class="now-chibi">
-        <img src="${staffChibiIcon(shift.staff)}" alt="${shift.staff.displayName}" loading="lazy" decoding="async" />
+      <div class="now-face">
+        <img src="${staffFaceIcon(shift.staff)}" alt="${shift.staff.displayName}" loading="lazy" decoding="async" />
       </div>
       <div class="now-meta">
         ${statusBadge(shift.status)}
@@ -400,7 +403,7 @@ function renderTalentShowcase() {
       aria-label="${candidate.displayName || candidate.romanName || "cast"}"
       aria-selected="${index === activeTalentIndex}"
     >
-      <img src="${staffChibiIcon(candidate)}" alt="" loading="lazy" decoding="async" />
+      <img src="${staffFaceIcon(candidate)}" alt="" loading="lazy" decoding="async" />
       <span>${candidate.romanName || candidate.displayName || ""}</span>
     </button>
   `).join("");
