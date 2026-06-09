@@ -83,6 +83,7 @@ export default function TestReadinessPage() {
             <ConnectionRow icon={KeyRound} label="OpenAI" ok={data.openaiConfigured} />
             <ConnectionRow icon={Database} label="Supabase public key" ok={data.supabasePublicConfigured} />
             <ConnectionRow icon={Database} label="Supabase service role" ok={data.supabaseServiceConfigured} />
+            <ConnectionRow icon={Database} label="Supabase tables" ok={data.supabaseSchemaReady} />
             <ConnectionRow icon={ServerCog} label="Google OAuth" ok={data.googleOAuthConfigured} optional />
             <ConnectionRow icon={ServerCog} label="Google Sheets" ok={data.googleSheetsConfigured} optional />
           </CardContent>

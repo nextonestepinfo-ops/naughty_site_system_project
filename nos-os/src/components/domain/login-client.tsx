@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { KeyRound, LogIn, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { AlertTriangle, KeyRound, LogIn, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import { BrandLockup, nosBrand } from "@/components/domain/brand";
@@ -148,6 +148,16 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
                   </div>
                   <Badge tone={selectedAccount.role === "admin" ? "blue" : "green"}>{roleLabels[selectedAccount.role]}</Badge>
                 </div>
+              </div>
+            ) : null}
+
+            {!accounts.length ? (
+              <div className="mb-4 rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-100">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="h-4 w-4" />
+                  社員一覧を読み込めません
+                </div>
+                <p className="mt-1">Supabaseの本番テーブルまたは社員データの準備が不足しています。管理者は使い方またはテスト画面で状態を確認してください。</p>
               </div>
             ) : null}
 

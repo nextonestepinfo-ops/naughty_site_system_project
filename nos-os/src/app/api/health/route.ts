@@ -3,7 +3,6 @@ import { getDeploymentReadiness } from "@/lib/integrations/deployment-readiness"
 
 export const dynamic = "force-dynamic";
 
-export function GET() {
-  return NextResponse.json({ data: getDeploymentReadiness() });
+export async function GET() {
+  return NextResponse.json({ data: await getDeploymentReadiness() });
 }
-
