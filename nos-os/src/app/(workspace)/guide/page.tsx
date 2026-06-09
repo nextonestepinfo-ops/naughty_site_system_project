@@ -1,12 +1,15 @@
 import {
   ArrowRight,
+  BellRing,
   Bot,
   BriefcaseBusiness,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
+  Home,
   KeyRound,
   MessageSquareText,
+  Mic,
   MousePointerClick,
   Settings,
   ShieldCheck,
@@ -23,22 +26,32 @@ const quickLinks = [
   { href: "/projects", label: "案件", icon: BriefcaseBusiness },
   { href: "/attendance", label: "勤怠", icon: CalendarClock },
   { href: "/assistant", label: "AI秘書", icon: Bot },
+  { href: "/notifications", label: "通知", icon: BellRing },
   { href: "/settings", label: "設定", icon: Settings },
 ];
 
 const dailyFlow = [
   { title: "今日やることを見る", body: "ホームで優先タスク、遅れそうな作業、今日の予定を確認します。" },
-  { title: "タスクを更新する", body: "タスク画面で担当、期限、状態、コメントを更新します。完了したら必ず状態を変えます。" },
-  { title: "案件を確認する", body: "案件画面で顧客、担当、金額、進行状態を確認します。新しい動きがあればメモを残します。" },
+  { title: "AIにタスク整理を頼む", body: "タスク画面のAI整理で、追加、削除、分解、期限変更を相談します。反映前に内容を確認できます。" },
+  { title: "大タスクと小タスクをつなぐ", body: "小タスク作成時は大タスクを選びます。何の案件、どの大タスクの作業かが一覧でも見えます。" },
+  { title: "タスクを更新する", body: "タスク画面で担当、期限、状態、見積時間、コメントを更新します。完了したら必ず状態を変えます。" },
+  { title: "案件を確認する", body: "案件画面で顧客、担当、金額、進行状態を確認します。金額が変わったらその場で直します。" },
   { title: "勤怠を打刻する", body: "出勤、休憩、外出、会議、退勤を勤怠画面から記録します。" },
-  { title: "迷ったらAIに聞く", body: "AI秘書に今日の優先順位、次の一手、営業文面、タスク分解を相談します。" },
 ];
 
 const adminFlow = [
   "浦田・大崎は管理者として全案件、全タスク、社員一覧、顧客情報を確認できます。",
+  "社員が何の案件、どの大タスクを進めているかをタスク一覧で確認できます。",
   "社員の役割を変える時は社員画面で権限を変更します。",
   "本番状態はテスト画面と /api/health で確認します。",
   "フィードバックは画面名、操作、期待した動きの3点で集めます。",
+];
+
+const mobileFlow = [
+  { icon: Home, title: "ホーム画面に追加", body: "スマホの共有メニューからホーム画面へ追加すると、アプリのように開けます。" },
+  { icon: Mic, title: "声で下書き", body: "タスク画面のAI整理で音声入力を使い、追加、削除、分解の案を作れます。" },
+  { icon: CalendarClock, title: "予定へ入れる", body: "通知画面のICSリンクで、まずはカレンダーへ取り込めます。双方向同期は次工程です。" },
+  { icon: BellRing, title: "通知を確認", body: "現時点は画面内通知が中心です。期限超過の自動プッシュ配信は次工程で整えます。" },
 ];
 
 export default function GuidePage() {
@@ -57,7 +70,7 @@ export default function GuidePage() {
         }
       />
 
-      <section className="mb-5 grid gap-3 md:grid-cols-5">
+      <section className="mb-5 grid gap-3 md:grid-cols-6">
         {quickLinks.map((item) => (
           <Link key={item.href} href={item.href} className="rounded-panel border border-border bg-card p-4 transition hover:border-blue-300 hover:bg-blue-50/60 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/10">
             <item.icon className="h-5 w-5 text-accent" />
@@ -127,6 +140,20 @@ export default function GuidePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
+              <Home className="h-4 w-4" />
+              スマホ設定
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {mobileFlow.map((item) => (
+              <GuideLine key={item.title} icon={item.icon} title={item.title} body={item.body} />
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <MessageSquareText className="h-4 w-4" />
               フィードバック
             </CardTitle>
@@ -146,7 +173,8 @@ export default function GuidePage() {
             <StatusItem label="Googleログイン" />
             <StatusItem label="Google Sheets同期" />
             <StatusItem label="Gmail解析" />
-            <StatusItem label="スマホ通知" />
+            <StatusItem label="Googleカレンダー双方向同期" />
+            <StatusItem label="自動プッシュ配信" />
             <p className="text-sm leading-6 text-slate-500 dark:text-slate-300">社員βでは、まずタスク、案件、勤怠、目標ツリー、AI秘書の使い勝手を確認します。</p>
           </CardContent>
         </Card>

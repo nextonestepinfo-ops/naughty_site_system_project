@@ -1,7 +1,10 @@
-const CACHE_NAME = "nos-os-phase1-v2";
+const CACHE_NAME = "nos-os-phase1-v3";
 const APP_SHELL = [
   "/",
   "/login",
+  "/tasks",
+  "/assistant",
+  "/notifications",
   "/manifest.webmanifest",
   "/icons/nos-icon-192.png",
   "/icons/nos-icon-512.png",

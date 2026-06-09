@@ -27,6 +27,7 @@ NOS OS を iOS アプリ化する場合、Siri / Shortcuts / Spotlight 連携は
 - `POST /api/tasks`: タスク作成。
 - `PATCH /api/tasks/[id]`: 状態変更、担当者変更、内容変更。
 - `DELETE /api/tasks/[id]`: タスク削除。
+- `POST /api/tasks/assistant-plan`: 音声/テキストから、作成・更新・削除・分解の実行前プランを返す。
 - `POST /api/ai/secretary`: AI相談。現時点では提案だけ返し、DB操作は実行しない。
 
 ## 安全ルール
@@ -35,6 +36,7 @@ NOS OS を iOS アプリ化する場合、Siri / Shortcuts / Spotlight 連携は
 - 追加、削除、完了などデータが変わる操作は、ユーザー確認後に実行する。
 - iOSアプリ側に Supabase service role key や OpenAI API key を入れない。
 - iOS側はユーザー認証済みAPIを呼び、サーバー側API routeがDBとAIを扱う。
+- Siri / Shortcuts 側も `assistant-plan` で候補を見せ、確定操作だけ `POST/PATCH/DELETE /api/tasks` に流す。
 
 ## 設計メモ
 

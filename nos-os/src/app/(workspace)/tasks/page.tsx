@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Columns3, ListFilter, PlayCircle, Plus, Save, Target, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, CalendarDays, CheckCircle2, Clock3, Columns3, ListFilter, Loader2, Mic, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -12,11 +12,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
 import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
-import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
-import type { Employee, Project, Task, TaskPriority, TaskStatus } from "@/lib/types";
+import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
+import type { Employee, GoalTree, Project, Task, TaskAssistantAction, TaskAssistantPlan, TaskPriority, TaskStatus } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
 type ViewMode = "list" | "kanban" | "calendar";
+type BranchOption = {
+  value: string;
+  label: string;
+  treeId: string;
+  branchId: string;
+  projectId: string | null;
+  assigneeId: string | null;
+};
+
+type SpeechRecognitionCtor = new () => {
+  lang: string;
+  interimResults: boolean;
+  start: () => void;
+  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
+  onend: (() => void) | null;
+};
 
 const priorities = Object.entries(taskPriorityLabels) as Array<[TaskPriority, string]>;
 const statuses = Object.entries(taskStatusLabels) as Array<[TaskStatus, string]>;
@@ -25,6 +41,7 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
   const [view, setView] = useState<ViewMode>("list");
   const [open, setOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     assigneeId: "",
     projectId: "",
@@ -44,6 +61,8 @@ export default function TasksPage() {
   });
   const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
   const projects = useScopedQuery<Project[]>(["projects"], "/api/projects");
+  const goalTrees = useScopedQuery<GoalTree[]>(["goal-trees"], "/api/goal-trees");
+  const assistantPlanPath = useScopedPath("/api/tasks/assistant-plan");
 
   const createTask = useMutation({
     mutationFn: (body: Partial<Task>) => apiFetch<Task>("/api/tasks", { method: "POST", body: JSON.stringify(body) }),
@@ -73,6 +92,20 @@ export default function TasksPage() {
 
   const employeeMap = useMemo(() => new Map((employees.data ?? []).map((employee) => [employee.id, employee])), [employees.data]);
   const projectMap = useMemo(() => new Map((projects.data ?? []).map((project) => [project.id, project])), [projects.data]);
+  const branchOptions = useMemo<BranchOption[]>(
+    () =>
+      (goalTrees.data ?? []).flatMap((tree) =>
+        tree.branches.map((branch) => ({
+          value: `${tree.id}::${branch.id}`,
+          label: `${tree.title} / ${branch.title}`,
+          treeId: tree.id,
+          branchId: branch.id,
+          projectId: branch.projectId,
+          assigneeId: branch.assigneeId,
+        })),
+      ),
+    [goalTrees.data],
+  );
   const activeTasks = useMemo(() => (tasks.data ?? []).filter((task) => task.status !== "done"), [tasks.data]);
   const focusTask = useMemo(() => [...activeTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null, [activeTasks]);
   const todayCount = useMemo(() => activeTasks.filter((task) => dayDistance(task.dueDate) === 0).length, [activeTasks]);
@@ -88,13 +121,17 @@ export default function TasksPage() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const primaryAssigneeId = String(form.get("primaryAssigneeId"));
+    const bigTaskRef = String(form.get("bigTaskRef") ?? "");
+    const selectedBranch = branchOptions.find((option) => option.value === bigTaskRef);
+    const primaryAssigneeId = String(form.get("primaryAssigneeId") || selectedBranch?.assigneeId || "");
     createTask.mutate({
       title: String(form.get("title")),
       description: String(form.get("description")),
-      projectId: String(form.get("projectId")),
+      projectId: selectedBranch?.projectId || String(form.get("projectId")),
       primaryAssigneeId,
       assigneeIds: [primaryAssigneeId],
+      sourceGoalTreeId: selectedBranch?.treeId ?? null,
+      sourceBranchId: selectedBranch?.branchId ?? null,
       dueDate: String(form.get("dueDate")),
       priority: String(form.get("priority")) as TaskPriority,
       status: String(form.get("status")) as TaskStatus,
@@ -183,6 +220,14 @@ export default function TasksPage() {
         </CardContent>
       </Card>
 
+      <TaskVoicePlanner
+        planPath={assistantPlanPath}
+        disabled={createTask.isPending || updateTask.isPending || deleteTask.isPending}
+        onCreate={(body) => createTask.mutate(body)}
+        onUpdate={(taskId, body) => patchTask(taskId, body)}
+        onDelete={(taskId) => deleteTask.mutate(taskId)}
+      />
+
       <Card className="mb-5">
         <CardContent className="grid gap-3 p-4 md:grid-cols-3 xl:grid-cols-6">
           <Select value={filters.assigneeId} onChange={(event) => setFilters((value) => ({ ...value, assigneeId: event.target.value }))}>
@@ -229,6 +274,14 @@ export default function TasksPage() {
           <CardContent className="p-4">
             <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
               <Input name="title" required placeholder="タイトル" />
+              <Select name="bigTaskRef">
+                <option value="">大タスクを選択しない</option>
+                {branchOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
               <Select name="projectId" required>
                 {(projects.data ?? []).map((project) => (
                   <option key={project.id} value={project.id}>{project.name}</option>
@@ -270,9 +323,31 @@ export default function TasksPage() {
       {view === "list" ? (
         <div className="space-y-3">
           {tasks.data.map((task) => (
-            <div key={task.id} className="grid gap-2 lg:grid-cols-[1fr_auto]">
-              <TaskCard task={task} project={projectMap.get(task.projectId)} assignee={employeeMap.get(task.primaryAssigneeId)} />
-              <TaskActions task={task} onStatus={(status) => patchTask(task.id, { status })} onDelete={() => deleteTask.mutate(task.id)} disabled={updateTask.isPending || deleteTask.isPending} />
+            <div key={task.id} className="space-y-2">
+              <div className="grid gap-2 lg:grid-cols-[1fr_auto]">
+                <TaskCard task={task} project={projectMap.get(task.projectId)} assignee={employeeMap.get(task.primaryAssigneeId)} />
+                <TaskActions
+                  task={task}
+                  onStatus={(status) => patchTask(task.id, { status })}
+                  onEdit={() => setEditingTaskId((current) => (current === task.id ? null : task.id))}
+                  onDelete={() => deleteTask.mutate(task.id)}
+                  disabled={updateTask.isPending || deleteTask.isPending}
+                />
+              </div>
+              {editingTaskId === task.id ? (
+                <TaskEditForm
+                  task={task}
+                  projects={projects.data ?? []}
+                  employees={employees.data ?? []}
+                  branchOptions={branchOptions}
+                  disabled={updateTask.isPending}
+                  onCancel={() => setEditingTaskId(null)}
+                  onSave={(body) => {
+                    patchTask(task.id, body);
+                    setEditingTaskId(null);
+                  }}
+                />
+              ) : null}
             </div>
           ))}
         </div>
@@ -336,6 +411,256 @@ export default function TasksPage() {
   );
 }
 
+function TaskVoicePlanner({
+  planPath,
+  onCreate,
+  onUpdate,
+  onDelete,
+  disabled,
+}: {
+  planPath: string;
+  onCreate: (body: Partial<Task>) => void;
+  onUpdate: (taskId: string, body: Partial<Task>) => void;
+  onDelete: (taskId: string) => void;
+  disabled?: boolean;
+}) {
+  const [command, setCommand] = useState("");
+  const [plan, setPlan] = useState<TaskAssistantPlan | null>(null);
+  const [planning, setPlanning] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [appliedIds, setAppliedIds] = useState<string[]>([]);
+
+  async function buildPlan(text = command) {
+    const normalized = text.trim();
+    if (!normalized || planning) return;
+    setPlanning(true);
+    setAppliedIds([]);
+    try {
+      const data = await apiFetch<TaskAssistantPlan>(planPath, {
+        method: "POST",
+        body: JSON.stringify({ message: normalized }),
+      });
+      setPlan(data);
+    } catch {
+      setPlan({
+        summary: "AI整理に失敗しました。少し時間を置いて、もう一度試してください。",
+        source: "local",
+        warnings: ["通信に失敗しました。"],
+        actions: [],
+      });
+    } finally {
+      setPlanning(false);
+    }
+  }
+
+  function startVoice() {
+    const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
+      .SpeechRecognition ?? (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setPlan({ summary: "このブラウザでは音声入力が使えません。スマホのキーボード音声入力でも代用できます。", source: "local", warnings: [], actions: [] });
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ja-JP";
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const text = event.results[0]?.[0]?.transcript ?? "";
+      setCommand(text);
+      void buildPlan(text);
+    };
+    recognition.onend = () => setListening(false);
+    setListening(true);
+    recognition.start();
+  }
+
+  function applyAction(action: TaskAssistantAction) {
+    if (appliedIds.includes(action.id) || disabled) return;
+    if (action.type === "delete") {
+      if (!window.confirm(`「${action.title}」を削除しますか？`)) return;
+      onDelete(action.taskId);
+    } else if (action.type === "update") {
+      onUpdate(action.taskId, action.patch);
+    } else {
+      onCreate({
+        title: action.title,
+        description: action.description,
+        projectId: action.projectId,
+        primaryAssigneeId: action.primaryAssigneeId,
+        assigneeIds: [action.primaryAssigneeId],
+        sourceGoalTreeId: action.sourceGoalTreeId,
+        sourceBranchId: action.sourceBranchId,
+        dueDate: action.dueDate,
+        priority: action.priority,
+        status: "todo",
+        customerWaiting: false,
+        delayRisk: 15,
+        estimatedMinutes: action.estimatedMinutes,
+      });
+    }
+    setAppliedIds((ids) => [...ids, action.id]);
+  }
+
+  return (
+    <Card className="mb-5 overflow-hidden border-blue-200 dark:border-blue-500/30">
+      <CardContent className="p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone="blue">音声AI</Badge>
+          <span className="text-sm font-semibold">話して、候補を確認してから反映</span>
+        </div>
+        <div className="mt-3 grid grid-cols-[1fr_44px_44px] gap-2">
+          <Input
+            value={command}
+            onChange={(event) => setCommand(event.target.value)}
+            placeholder="例: 明日までにLP見積を作るタスクを追加"
+            onKeyDown={(event) => event.key === "Enter" && void buildPlan()}
+          />
+          <Button aria-label="AI整理" title="AI整理" size="icon" disabled={planning || !command.trim()} onClick={() => void buildPlan()}>
+            {planning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          </Button>
+          <Button aria-label="音声入力" title="音声入力" size="icon" variant={listening ? "danger" : "secondary"} onClick={startVoice}>
+            <Mic className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+          {["今日のタスクを分解", "完了済みを減らす", "営業タスクを追加", "この作業を明日に変更"].map((sample) => (
+            <button key={sample} className="rounded-full bg-slate-100 px-2 py-1 dark:bg-white/10 dark:text-slate-200" onClick={() => { setCommand(sample); void buildPlan(sample); }}>
+              {sample}
+            </button>
+          ))}
+        </div>
+
+        {plan ? (
+          <div className="mt-4 space-y-3">
+            <div className="rounded-panel bg-blue-50 p-3 text-sm leading-6 text-blue-900 dark:bg-blue-500/10 dark:text-blue-100">
+              <div className="flex items-center gap-2 font-semibold">
+                <Sparkles className="h-4 w-4" />
+                {plan.summary}
+              </div>
+              {plan.warnings.map((warning) => (
+                <p key={warning} className="mt-1 text-xs">{warning}</p>
+              ))}
+            </div>
+            {plan.actions.map((action) => (
+              <div key={action.id} className="grid gap-3 rounded-panel border border-border p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone={action.type === "delete" ? "red" : action.type === "update" ? "amber" : "green"}>{action.type === "delete" ? "削除" : action.type === "update" ? "更新" : "追加"}</Badge>
+                    <p className="line-clamp-1 font-semibold">{action.title}</p>
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{action.reason}</p>
+                  {action.type === "create" ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      期限 {formatDate(action.dueDate)} / {taskPriorityLabels[action.priority]} / {action.estimatedMinutes}分
+                    </p>
+                  ) : null}
+                  {action.type === "update" && action.patch.status ? (
+                    <p className="mt-1 text-xs text-slate-500">状態: {taskStatusLabels[action.patch.status]}</p>
+                  ) : null}
+                </div>
+                <Button size="sm" variant={action.type === "delete" ? "danger" : "secondary"} disabled={disabled || appliedIds.includes(action.id)} onClick={() => applyAction(action)}>
+                  {appliedIds.includes(action.id) ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                  {appliedIds.includes(action.id) ? "反映済み" : "反映"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TaskEditForm({
+  task,
+  projects,
+  employees,
+  branchOptions,
+  onSave,
+  onCancel,
+  disabled,
+}: {
+  task: Task;
+  projects: Project[];
+  employees: Employee[];
+  branchOptions: BranchOption[];
+  onSave: (body: Partial<Task>) => void;
+  onCancel: () => void;
+  disabled?: boolean;
+}) {
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const bigTaskRef = String(form.get("bigTaskRef") ?? "");
+    const selectedBranch = branchOptions.find((option) => option.value === bigTaskRef);
+    const primaryAssigneeId = String(form.get("primaryAssigneeId"));
+    onSave({
+      title: String(form.get("title")),
+      description: String(form.get("description")),
+      projectId: selectedBranch?.projectId || String(form.get("projectId")),
+      primaryAssigneeId,
+      assigneeIds: [primaryAssigneeId],
+      sourceGoalTreeId: selectedBranch?.treeId ?? null,
+      sourceBranchId: selectedBranch?.branchId ?? null,
+      dueDate: String(form.get("dueDate")),
+      priority: String(form.get("priority")) as TaskPriority,
+      status: String(form.get("status")) as TaskStatus,
+      estimatedMinutes: Number(form.get("estimatedMinutes") || task.estimatedMinutes),
+    });
+  }
+
+  const currentBigTaskRef = task.sourceGoalTreeId && task.sourceBranchId ? `${task.sourceGoalTreeId}::${task.sourceBranchId}` : "";
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
+          <Input name="title" required defaultValue={task.title} placeholder="タイトル" />
+          <Select name="bigTaskRef" defaultValue={currentBigTaskRef}>
+            <option value="">大タスクを選択しない</option>
+            {branchOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
+          <Select name="projectId" required defaultValue={task.projectId}>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>{project.name}</option>
+            ))}
+          </Select>
+          <Select name="primaryAssigneeId" required defaultValue={task.primaryAssigneeId}>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>{employee.name}</option>
+            ))}
+          </Select>
+          <Input name="dueDate" required type="date" defaultValue={task.dueDate.slice(0, 10)} />
+          <Input name="estimatedMinutes" min={5} step={5} type="number" defaultValue={task.estimatedMinutes} placeholder="見積分数" />
+          <Select name="priority" defaultValue={task.priority}>
+            {priorities.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </Select>
+          <Select name="status" defaultValue={task.status}>
+            {statuses.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </Select>
+          <Textarea name="description" className="md:col-span-2" defaultValue={task.description} placeholder="内容" />
+          <div className="flex flex-wrap gap-2 md:col-span-2">
+            <Button disabled={disabled} type="submit">
+              <Save className="h-4 w-4" />
+              編集を保存
+            </Button>
+            <Button type="button" variant="ghost" onClick={onCancel}>
+              キャンセル
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 function dayDistance(value: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -377,12 +702,14 @@ function OpsMetric({
 function TaskActions({
   task,
   onStatus,
+  onEdit,
   onDelete,
   disabled,
   compact = false,
 }: {
   task: Task;
   onStatus: (status: TaskStatus) => void;
+  onEdit?: () => void;
   onDelete: () => void;
   disabled?: boolean;
   compact?: boolean;
@@ -398,6 +725,12 @@ function TaskActions({
       )}
       <div className="flex gap-2">
         <QuickStatusButtons task={task} onStatus={onStatus} disabled={disabled} compact />
+        {onEdit ? (
+          <Button aria-label="タスク編集" title="タスク編集" variant="ghost" size={compact ? "icon" : "sm"} onClick={onEdit} disabled={disabled}>
+            <Pencil className="h-4 w-4" />
+            {compact ? null : "編集"}
+          </Button>
+        ) : null}
         <Button
           aria-label="タスク削除"
           title="タスク削除"

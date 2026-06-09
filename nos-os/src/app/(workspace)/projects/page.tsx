@@ -148,7 +148,18 @@ export default function ProjectsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">金額</p>
-                  <p className="font-medium">{formatCurrency(project.budget)}</p>
+                  <Input
+                    aria-label={`${project.name}の案件金額`}
+                    className="mt-1 h-9"
+                    defaultValue={project.budget}
+                    inputMode="numeric"
+                    type="number"
+                    onBlur={(event) => {
+                      const budget = Number(event.target.value || 0);
+                      if (budget !== project.budget) updateProject.mutate({ id: project.id, body: { budget } });
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-slate-500">{formatCurrency(project.budget)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">更新</p>
@@ -176,4 +187,3 @@ export default function ProjectsPage() {
     </>
   );
 }
-

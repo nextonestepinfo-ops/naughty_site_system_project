@@ -199,6 +199,44 @@ export type Task = {
   updatedAt: string;
 };
 
+export type TaskAssistantAction =
+  | {
+      id: string;
+      type: "create";
+      title: string;
+      description: string;
+      projectId: string;
+      primaryAssigneeId: string;
+      sourceGoalTreeId?: string | null;
+      sourceBranchId?: string | null;
+      dueDate: string;
+      priority: TaskPriority;
+      estimatedMinutes: number;
+      reason: string;
+    }
+  | {
+      id: string;
+      type: "update";
+      taskId: string;
+      title: string;
+      patch: Partial<Pick<Task, "title" | "description" | "projectId" | "primaryAssigneeId" | "sourceGoalTreeId" | "sourceBranchId" | "dueDate" | "priority" | "status" | "estimatedMinutes">>;
+      reason: string;
+    }
+  | {
+      id: string;
+      type: "delete";
+      taskId: string;
+      title: string;
+      reason: string;
+    };
+
+export type TaskAssistantPlan = {
+  summary: string;
+  source: "local" | "openai";
+  warnings: string[];
+  actions: TaskAssistantAction[];
+};
+
 export type TaskComment = {
   id: string;
   taskId: string;

@@ -599,7 +599,11 @@ export async function createTask(input: Partial<Task>) {
     },
   ]);
   await writeTaskAssignees(created.id, assigneeIds);
-  return (await getTaskById(created.id)) ?? mapTask(created);
+  const task = (await getTaskById(created.id)) ?? mapTask(created);
+  if (input.sourceGoalTreeId || input.sourceBranchId) {
+    await syncTaskGoalLink(task, input);
+  }
+  return (await getTaskById(created.id)) ?? task;
 }
 
 export async function updateTask(id: string, input: Partial<Task>) {
@@ -622,12 +626,26 @@ export async function updateTask(id: string, input: Partial<Task>) {
   await patchRows<TaskRow>("tasks", { id: `eq.${normalized}` }, patch);
   if (input.assigneeIds?.length) await writeTaskAssignees(normalized, input.assigneeIds);
   else if (input.primaryAssigneeId !== undefined && typeof patch.primary_assignee_id === "string") await writeTaskAssignees(normalized, [patch.primary_assignee_id]);
+  const task = await getTaskById(normalized);
+  if (!task) return null;
+  const sourceInputChanged = input.sourceGoalTreeId !== undefined || input.sourceBranchId !== undefined;
+  const taskShapeChanged = input.title !== undefined || input.dueDate !== undefined || input.primaryAssigneeId !== undefined || input.projectId !== undefined;
+  if (sourceInputChanged || (taskShapeChanged && task.sourceGoalTreeId && task.sourceBranchId)) {
+    await syncTaskGoalLink(task, {
+      sourceGoalTreeId: sourceInputChanged ? input.sourceGoalTreeId : task.sourceGoalTreeId,
+      sourceBranchId: sourceInputChanged ? input.sourceBranchId : task.sourceBranchId,
+    });
+  }
   return getTaskById(normalized);
 }
 
 export async function deleteTask(id: string) {
   const normalized = dbId(id);
   if (!normalized) return false;
+  const task = await getTaskById(normalized);
+  if (task) {
+    await syncTaskGoalLink(task, { sourceGoalTreeId: null, sourceBranchId: null });
+  }
   await deleteRows("tasks", { id: `eq.${normalized}` });
   return true;
 }
@@ -767,6 +785,54 @@ function mapGoalTree(row: GoalTreeRow): GoalTree {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+async function syncTaskGoalLink(task: Task, input: Pick<Partial<Task>, "sourceGoalTreeId" | "sourceBranchId">) {
+  const targetTreeId = dbId(input.sourceGoalTreeId);
+  const targetBranchId = input.sourceBranchId || undefined;
+  const rows = await selectRows<GoalTreeRow>("goal_trees", { order: "created_at.asc" }).catch(() => []);
+  let previousLink: GoalTreeTask | undefined;
+
+  await Promise.all(
+    rows.map(async (row) => {
+      let changed = false;
+      const tree = mapGoalTree(row);
+      const nextBranches = tree.branches.map((branch) => {
+        const keptTasks = branch.tasks.filter((treeTask) => {
+          if (treeTask.taskId && dbId(treeTask.taskId) === task.id) {
+            previousLink = treeTask;
+            changed = true;
+            return false;
+          }
+          return true;
+        });
+
+        if (targetTreeId && targetBranchId && tree.id === targetTreeId && branch.id === targetBranchId) {
+          changed = true;
+          return {
+            ...branch,
+            projectId: task.projectId || branch.projectId,
+            tasks: [
+              ...keptTasks,
+              {
+                id: previousLink?.id || `tree-task-${newUuid()}`,
+                title: task.title,
+                dueDate: task.dueDate,
+                assigneeId: task.primaryAssigneeId || null,
+                taskId: task.id,
+              },
+            ],
+          };
+        }
+
+        return { ...branch, tasks: keptTasks };
+      });
+
+      if (changed) {
+        await patchRows<GoalTreeRow>("goal_trees", { id: `eq.${row.id}` }, { branches: nextBranches, updated_at: new Date().toISOString() });
+      }
+    }),
+  );
 }
 
 function defaultGoalTitle(scope: GoalTreeScope) {

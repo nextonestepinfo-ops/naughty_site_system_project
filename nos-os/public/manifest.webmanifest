@@ -1,7 +1,7 @@
 {
   "name": "Nos OS",
   "short_name": "Nos OS",
-  "description": "株式会社Nosテック internal business OS",
+  "description": "株式会社NosテックのAI秘書つきタスク管理OS",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -25,13 +25,23 @@
   "shortcuts": [
     {
       "name": "タスク",
-      "short_name": "Tasks",
+      "short_name": "タスク",
       "url": "/tasks"
     },
     {
+      "name": "AI秘書",
+      "short_name": "AI",
+      "url": "/assistant"
+    },
+    {
       "name": "勤怠",
-      "short_name": "Attendance",
+      "short_name": "勤怠",
       "url": "/attendance"
+    },
+    {
+      "name": "通知",
+      "short_name": "通知",
+      "url": "/notifications"
     }
   ]
 }

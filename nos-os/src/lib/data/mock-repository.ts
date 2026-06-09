@@ -174,6 +174,43 @@ function hydrateTask(task: Task): Task {
   return { ...task, ...taskGoalContext(task.id), aiPriorityScore: calculatePriorityScore(task) };
 }
 
+function syncTaskGoalLink(task: Task, input: Pick<Partial<Task>, "sourceGoalTreeId" | "sourceBranchId">) {
+  const targetTreeId = input.sourceGoalTreeId || undefined;
+  const targetBranchId = input.sourceBranchId || undefined;
+  let previousLink: GoalTreeTask | undefined;
+
+  mutableGoalTrees.forEach((tree) => {
+    tree.branches = tree.branches.map((branch) => {
+      const keptTasks = branch.tasks.filter((treeTask) => {
+        if (treeTask.taskId === task.id) {
+          previousLink = treeTask;
+          return false;
+        }
+        return true;
+      });
+
+      if (targetTreeId && targetBranchId && tree.id === targetTreeId && branch.id === targetBranchId) {
+        return {
+          ...branch,
+          projectId: task.projectId || branch.projectId,
+          tasks: [
+            ...keptTasks,
+            {
+              id: previousLink?.id || uid("tree-task"),
+              title: task.title,
+              dueDate: task.dueDate,
+              assigneeId: task.primaryAssigneeId || null,
+              taskId: task.id,
+            },
+          ],
+        };
+      }
+
+      return { ...branch, tasks: keptTasks };
+    });
+  });
+}
+
 function visibleTasks(role: Role, employeeId?: string) {
   const scoped = isAdmin(role) ? mutableTasks : mutableTasks.filter((task) => taskVisibleToEmployee(task, employeeId));
   return scoped.map(hydrateTask);
@@ -500,19 +537,33 @@ export function createTask(input: Partial<Task>) {
     updatedAt: new Date().toISOString(),
   });
   mutableTasks.unshift(task);
-  return task;
+  if (input.sourceGoalTreeId || input.sourceBranchId) {
+    syncTaskGoalLink(task, input);
+  }
+  return hydrateTask(task);
 }
 
 export function updateTask(id: string, input: Partial<Task>) {
   const index = mutableTasks.findIndex((task) => task.id === id);
   if (index < 0) return null;
   mutableTasks[index] = hydrateTask({ ...mutableTasks[index], ...input, updatedAt: new Date().toISOString() });
+  const task = mutableTasks[index];
+  const sourceInputChanged = input.sourceGoalTreeId !== undefined || input.sourceBranchId !== undefined;
+  const taskShapeChanged = input.title !== undefined || input.dueDate !== undefined || input.primaryAssigneeId !== undefined || input.projectId !== undefined;
+  if (sourceInputChanged || (taskShapeChanged && task.sourceGoalTreeId && task.sourceBranchId)) {
+    syncTaskGoalLink(task, {
+      sourceGoalTreeId: sourceInputChanged ? input.sourceGoalTreeId : task.sourceGoalTreeId,
+      sourceBranchId: sourceInputChanged ? input.sourceBranchId : task.sourceBranchId,
+    });
+  }
+  mutableTasks[index] = hydrateTask(mutableTasks[index]);
   return mutableTasks[index];
 }
 
 export function deleteTask(id: string) {
   const index = mutableTasks.findIndex((task) => task.id === id);
   if (index < 0) return false;
+  syncTaskGoalLink(mutableTasks[index], { sourceGoalTreeId: null, sourceBranchId: null });
   mutableTasks.splice(index, 1);
   return true;
 }
