@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { RegisterServiceWorker } from "@/lib/pwa/register-service-worker";
+import { NotificationMonitor } from "@/lib/pwa/notification-monitor";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -23,8 +24,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         {children}
         <RegisterServiceWorker />
+        <NotificationMonitor />
       </QueryClientProvider>
     </ThemeProvider>
   );
 }
-

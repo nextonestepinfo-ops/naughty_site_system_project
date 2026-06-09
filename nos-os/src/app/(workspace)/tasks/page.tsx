@@ -724,6 +724,7 @@ function TaskActions({
   disabled?: boolean;
   compact?: boolean;
 }) {
+  const calendarPath = useScopedPath(`/api/calendar/tasks/${task.id}/ics`);
   return (
     <div className={cn("flex gap-2", compact ? "flex-wrap" : "lg:flex-col")}>
       {compact ? null : (
@@ -735,6 +736,18 @@ function TaskActions({
       )}
       <div className="flex gap-2">
         <QuickStatusButtons task={task} onStatus={onStatus} disabled={disabled} compact />
+        <a
+          aria-label="カレンダー追加"
+          title="カレンダー追加"
+          href={calendarPath}
+          className={cn(
+            "inline-flex items-center justify-center gap-2 rounded-panel bg-transparent font-medium text-foreground transition hover:bg-slate-100 dark:hover:bg-white/10",
+            compact ? "h-10 w-10 p-0" : "h-9 px-3 text-sm",
+          )}
+        >
+          <CalendarDays className="h-4 w-4" />
+          {compact ? null : "予定"}
+        </a>
         {onEdit ? (
           <Button aria-label="タスク編集" title="タスク編集" variant="ghost" size={compact ? "icon" : "sm"} onClick={onEdit} disabled={disabled}>
             <Pencil className="h-4 w-4" />

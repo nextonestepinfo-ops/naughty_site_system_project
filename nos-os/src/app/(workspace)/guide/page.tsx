@@ -51,7 +51,7 @@ const adminFlow = [
 const mobileFlow = [
   { icon: Home, title: "ホーム画面に追加", body: "スマホの共有メニューからホーム画面へ追加すると、アプリのように開けます。" },
   { icon: Mic, title: "声で下書き", body: "タスク画面のAI整理で音声入力を使い、追加、削除、分解の案を作れます。" },
-  { icon: CalendarClock, title: "予定へ入れる", body: "通知画面のICSリンクで、まずはカレンダーへ取り込めます。双方向同期は次工程です。" },
+  { icon: CalendarClock, title: "予定へ入れる", body: "タスク画面の予定ボタン、またはホームのICSリンクからカレンダーへ取り込めます。双方向同期は次工程です。" },
   { icon: BellRing, title: "通知を確認", body: "画面内では本日、明日、期限超過のタスク通知を自動表示します。自動プッシュ配信は次工程です。" },
 ];
 

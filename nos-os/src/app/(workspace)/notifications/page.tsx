@@ -42,7 +42,7 @@ export default function NotificationsPage() {
     <>
       <PageHeader
         title="通知"
-        description="タスク追加、期限前日、期限当日、期限超過、勤怠忘れ、管理者通知を扱います。"
+        description="本日、明日、期限超過のタスクを自動で確認します。通知許可後は、アプリを開いている間にOS通知でも知らせます。"
         actions={
           <Button variant="secondary" onClick={requestPush}>
             <Smartphone className="h-4 w-4" />

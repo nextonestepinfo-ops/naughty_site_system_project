@@ -1,4 +1,4 @@
-const CACHE_NAME = "nos-os-phase1-v3";
+const CACHE_NAME = "nos-os-phase1-v4";
 const APP_SHELL = [
   "/",
   "/login",
@@ -51,6 +51,25 @@ self.addEventListener("push", (event) => {
       body: data.body,
       icon: "/icons/nos-icon-192.png",
       badge: "/icons/nos-icon-192.png",
+      tag: data.tag || data.id,
+      data: { url: data.url || data.targetHref || "/notifications" },
     }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "/notifications", self.location.origin).href;
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        const existing = clients.find((client) => client.url.startsWith(self.location.origin));
+        if (existing) {
+          existing.focus();
+          return existing.navigate(targetUrl);
+        }
+        return self.clients.openWindow(targetUrl);
+      }),
   );
 });
