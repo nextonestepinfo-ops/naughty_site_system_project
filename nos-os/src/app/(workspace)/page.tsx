@@ -47,12 +47,13 @@ export default function DashboardPage() {
   const heroTask = session?.role === "admin" && heroMode === "company" ? companyFocusTask : plan.focusTask;
   const heroGoogleCalendarPath = scopedHref(heroTask ? `/api/calendar/tasks/${heroTask.id}/google` : "/api/calendar/ics", session);
   const nextTask = plan.nextTasks[0];
+  const homeCopy = homeModeCopy();
 
   return (
     <>
       <PageHeader
         title={session?.role === "admin" ? "今日の司令室" : "今日やること"}
-        description="今やる、次にやる、遅れそうなものだけ。"
+        description={homeCopy.description}
         kicker="COMMAND ROOM"
       />
 
@@ -64,7 +65,7 @@ export default function DashboardPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
                   <span className="h-2 w-2 rounded-full bg-[#E08F12]" />
-                  いまの最優先
+                  {homeCopy.badge}
                 </span>
                 <Badge tone={plan.riskLevel === "danger" ? "red" : plan.riskLevel === "watch" ? "amber" : "green"}>
                   {plan.riskLevel === "danger" ? "要対応" : plan.riskLevel === "watch" ? "注意" : "順調"}
@@ -302,6 +303,26 @@ function scopedHref(path: string, session: { role: string; employeeId: string; i
   }
   const query = params.toString();
   return `${path}${query ? `?${query}` : ""}`;
+}
+
+function homeModeCopy() {
+  const hour = new Date().getHours();
+  if (hour < 11) {
+    return {
+      badge: "朝の最優先",
+      description: "今日の段取りを1件に絞って、午前中に動き出します。",
+    };
+  }
+  if (hour >= 18) {
+    return {
+      badge: "夜の締め",
+      description: "完了したことを日報に残し、明日の最初の一手だけ決めます。",
+    };
+  }
+  return {
+    badge: "いまの最優先",
+    description: "今やる、次にやる、遅れそうなものだけ。",
+  };
 }
 
 function CalendarBoard({

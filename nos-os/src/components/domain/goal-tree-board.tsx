@@ -40,6 +40,7 @@ export function GoalTreeBoard({
   const projectsQuery = useScopedQuery<Project[]>(["goal-tree-projects"], "/api/projects");
   const [draftTrees, setDraftTrees] = useState<GoalTree[]>([]);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
+  const [mobileEditorOpen, setMobileEditorOpen] = useState(false);
 
   useEffect(() => {
     if (treesQuery.data) setDraftTrees(treesQuery.data);
@@ -59,6 +60,12 @@ export function GoalTreeBoard({
     () => [...visibleTrees].sort((a, b) => scopeOrder[a.scope] - scopeOrder[b.scope] || a.title.localeCompare(b.title)),
     [visibleTrees],
   );
+  const focusedEmployeeId = focusEmployeeId ?? session?.employeeId;
+  const companyTree = sortedTrees.find((tree) => tree.scope === "company") ?? null;
+  const focusedTrees = sortedTrees.filter((tree) => tree.scope !== "company" && (!focusedEmployeeId || tree.ownerEmployeeId === focusedEmployeeId));
+  const todayBranch = findTodayBranch(focusedTrees, focusedEmployeeId);
+  const untaskedCount = countUntaskedTreeTasks(sortedTrees, focusedEmployeeId);
+  const companyProgress = companyTree ? goalTreeProgress(companyTree, revenue) : null;
 
   function scoped(path: string) {
     const params = new URLSearchParams();
@@ -248,7 +255,7 @@ export function GoalTreeBoard({
 
   if (treesQuery.isLoading) return <Card className="mt-5"><CardContent className="p-4 text-sm text-slate-500">目標ツリーを読み込み中</CardContent></Card>;
 
-  return (
+  const board = (
     <Card className="mt-5" data-testid="goal-tree">
       <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -450,6 +457,98 @@ export function GoalTreeBoard({
       </CardContent>
     </Card>
   );
+
+  if (compact) {
+    return (
+      <>
+        <GoalTreeMobileSummary
+          companyTree={companyTree}
+          companyProgress={companyProgress}
+          todayBranch={todayBranch}
+          untaskedCount={untaskedCount}
+          onEdit={() => setMobileEditorOpen(true)}
+        />
+        <div className="hidden md:block">{board}</div>
+        {mobileEditorOpen ? (
+          <GoalTreeMobileSheet onClose={() => setMobileEditorOpen(false)}>
+            {board}
+          </GoalTreeMobileSheet>
+        ) : null}
+      </>
+    );
+  }
+
+  return board;
+}
+
+function GoalTreeMobileSummary({
+  companyTree,
+  companyProgress,
+  todayBranch,
+  untaskedCount,
+  onEdit,
+}: {
+  companyTree: GoalTree | null;
+  companyProgress: number | null;
+  todayBranch: GoalTreeBranch | null;
+  untaskedCount: number;
+  onEdit: () => void;
+}) {
+  return (
+    <Card className="mt-5 md:hidden" data-testid="goal-tree-mobile-summary">
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <CardTitle className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-accent" />
+          目標ツリー
+        </CardTitle>
+        <Button size="sm" variant="ghost" onClick={onEdit}>
+          編集する
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-300">会社目標</p>
+              <p className="mt-1 truncate font-extrabold text-[#0B1226] dark:text-white">{companyTree?.goal ?? "会社目標は未設定です"}</p>
+            </div>
+            <span className="shrink-0 text-2xl font-extrabold text-[#E08F12]">{companyProgress ?? 0}%</span>
+          </div>
+          <div className="mt-3 h-2 rounded-full bg-white dark:bg-slate-950">
+            <div className="h-2 rounded-full bg-[#E08F12]" style={{ width: `${companyProgress ?? 0}%` }} />
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded-panel bg-indigo-50 p-3 text-indigo-900 dark:bg-indigo-400/15 dark:text-indigo-100">
+            <p className="text-xs font-extrabold opacity-80">自分の今日の枝</p>
+            <p className="mt-1 line-clamp-2 font-extrabold leading-6">{todayBranch?.title ?? "今日の枝は未設定です"}</p>
+          </div>
+          <div className="rounded-panel bg-emerald-50 p-3 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-100">
+            <p className="text-xs font-extrabold opacity-80">未タスク化</p>
+            <p className="mt-1 text-2xl font-extrabold">{untaskedCount}件</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GoalTreeMobileSheet({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#0B1226]/35 px-3 backdrop-blur-sm md:hidden">
+      <div className="safe-bottom w-full max-w-2xl rounded-t-[28px] bg-[#F4F6FA] p-4 shadow-command dark:bg-[#050816]">
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300" />
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-lg font-extrabold text-[#0B1226] dark:text-white">目標ツリーを編集</p>
+          <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-500 shadow-soft dark:bg-white/10 dark:text-slate-100 dark:shadow-none" onClick={onClose} aria-label="閉じる">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="max-h-[72vh] overflow-y-auto pb-2">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 function SalesSnapshot({ tree, revenue }: { tree: GoalTree; revenue: RevenueSummary }) {
@@ -478,6 +577,32 @@ function SalesMini({ label, value, tone = "blue" }: { label: string; value: stri
       <p className="mt-1 text-lg font-bold">{value}</p>
     </div>
   );
+}
+
+function goalTreeProgress(tree: GoalTree, revenue: RevenueSummary) {
+  const salesMetric = tree.metrics.find((metric) => metric.label.includes("売上"));
+  const target = salesMetric?.target ?? revenue.monthTarget;
+  const current = salesMetric?.current ?? revenue.monthBooked;
+  if (!target) return 0;
+  return Math.min(100, Math.max(0, Math.round((current / target) * 100)));
+}
+
+function findTodayBranch(trees: GoalTree[], employeeId?: string | null) {
+  const today = dateInputValue(new Date().toISOString());
+  const branches = trees.flatMap((tree) => tree.branches);
+  return (
+    branches.find((branch) => dateInputValue(branch.dueDate) === today && (!employeeId || branch.assigneeId === employeeId)) ??
+    branches.find((branch) => !employeeId || branch.assigneeId === employeeId) ??
+    null
+  );
+}
+
+function countUntaskedTreeTasks(trees: GoalTree[], employeeId?: string | null) {
+  return trees
+    .flatMap((tree) => tree.branches)
+    .flatMap((branch) => branch.tasks)
+    .filter((task) => !task.taskId && (!employeeId || task.assigneeId === employeeId))
+    .length;
 }
 
 function dateInputValue(value: string) {

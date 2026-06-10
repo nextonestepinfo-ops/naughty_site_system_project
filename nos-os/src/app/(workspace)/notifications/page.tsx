@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowRight, BellRing, CalendarClock, Check, Home, Smartphone } from "lucide-react";
+import { AlertTriangle, ArrowRight, BellRing, CalendarClock, Check, Clock3, Home, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -26,6 +26,8 @@ type PushSubscriptionResult = {
   reason?: string;
 };
 
+type NoticeFilter = "all" | "today" | "deadline" | "unread";
+
 const notificationTypeLabels: Record<AppNotification["type"], string> = {
   task_created: "タスク追加",
   due_tomorrow: "明日期限",
@@ -47,12 +49,27 @@ export default function NotificationsPage() {
   const pushPath = useScopedPath("/api/notifications/push-subscription");
   const [permission, setPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
   const [pushStatus, setPushStatus] = useState("");
+  const [filter, setFilter] = useState<NoticeFilter>("all");
+  const [setupOpen, setSetupOpen] = useState(false);
 
   const markRead = useMutation({
     mutationFn: (id: string) => apiFetch<AppNotification>(`/api/notifications/${id}/read`, { method: "PATCH" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  const makeToday = useMutation({
+    mutationFn: (taskId: string) =>
+      apiFetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ dueDate: todayInputValue(), status: "in_progress" }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 
@@ -102,6 +119,12 @@ export default function NotificationsPage() {
     tomorrow: unread.filter((notice) => notice.type === "due_tomorrow").length,
     unread: unread.length,
   };
+  const filteredNotifications = notifications.data.filter((notice) => {
+    if (filter === "today") return notice.type === "due_today";
+    if (filter === "deadline") return notice.type === "due_today" || notice.type === "due_tomorrow" || notice.type === "overdue";
+    if (filter === "unread") return !notice.readAt;
+    return true;
+  });
 
   return (
     <>
@@ -118,6 +141,26 @@ export default function NotificationsPage() {
       />
       {pushStatus ? <p className="mb-3 rounded-panel bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 dark:bg-indigo-400/15 dark:text-indigo-100">{pushStatus}</p> : null}
 
+      <section className="sticky top-[73px] z-10 -mx-4 mb-4 bg-background/92 px-4 py-3 backdrop-blur lg:top-0">
+        <div className="grid grid-cols-4 gap-2 rounded-[18px] bg-slate-100 p-1 dark:bg-white/10">
+          {([
+            ["all", "すべて"],
+            ["today", "今日"],
+            ["deadline", "期限"],
+            ["unread", "未読"],
+          ] as Array<[NoticeFilter, string]>).map(([value, label]) => (
+            <button
+              key={value}
+              className={cn("h-11 rounded-[14px] text-xs font-extrabold text-slate-500 transition dark:text-slate-200", filter === value && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
+              onClick={() => setFilter(value)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         <NoticeMetric icon={<CalendarClock className="h-4 w-4" />} label="本日期限" value={summary.today} tone={summary.today ? "amber" : "green"} />
         <NoticeMetric icon={<CalendarClock className="h-4 w-4" />} label="明日期限" value={summary.tomorrow} tone={summary.tomorrow ? "blue" : "green"} />
@@ -125,30 +168,46 @@ export default function NotificationsPage() {
         <NoticeMetric icon={<BellRing className="h-4 w-4" />} label="未読" value={summary.unread} tone={summary.unread ? "blue" : "green"} />
       </section>
 
-      <section className="mb-5 grid gap-3 lg:grid-cols-3">
-        <SetupCard
-          icon={<Home className="h-4 w-4" />}
-          title="ホーム画面に追加"
-          body="iPhoneは共有メニューからホーム画面に追加。追加後はアプリのように開けます。"
-          badge="スマホ推奨"
-        />
-        <SetupCard
-          icon={<Smartphone className="h-4 w-4" />}
-          title="通知許可"
-          body={permission === "granted" ? "このブラウザは通知許可済みです。" : "ボタンから通知を許可すると、期限通知の準備ができます。"}
-          badge={permission === "granted" ? "許可済み" : "未許可"}
-          tone={permission === "granted" ? "green" : "amber"}
-        />
-        <SetupCard
-          icon={<CalendarClock className="h-4 w-4" />}
-          title="期限の確認"
-          body="毎朝、期限超過・本日期限・明日期限を確認できます。対象タスクは開くボタンから直接移動できます。"
-          badge="社員テスト"
-        />
-      </section>
+      <Card className="mb-5">
+        <CardContent className="p-3">
+          <button className="flex min-h-11 w-full items-center justify-between gap-3 text-left" onClick={() => setSetupOpen((value) => !value)} type="button">
+            <span>
+              <span className="block font-extrabold text-[#0B1226] dark:text-white">通知設定</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-300">ホーム画面追加・PWA通知・期限確認</span>
+            </span>
+            <Badge tone={permission === "granted" ? "green" : "amber"}>{setupOpen ? "閉じる" : "開く"}</Badge>
+          </button>
+          {setupOpen ? (
+            <div className="mt-3 grid gap-3 lg:grid-cols-3">
+              <SetupCard
+                icon={<Home className="h-4 w-4" />}
+                title="ホーム画面に追加"
+                body="iPhoneは共有メニューからホーム画面に追加。追加後はアプリのように開けます。"
+                badge="スマホ推奨"
+              />
+              <SetupCard
+                icon={<Smartphone className="h-4 w-4" />}
+                title="通知許可"
+                body={permission === "granted" ? "このブラウザは通知許可済みです。" : "ボタンから通知を許可すると、期限通知の準備ができます。"}
+                badge={permission === "granted" ? "許可済み" : "未許可"}
+                tone={permission === "granted" ? "green" : "amber"}
+              />
+              <SetupCard
+                icon={<CalendarClock className="h-4 w-4" />}
+                title="期限の確認"
+                body="毎朝、期限超過・本日期限・明日期限を確認できます。対象タスクは開くボタンから直接移動できます。"
+                badge="社員テスト"
+              />
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <section className="space-y-3">
-        {notifications.data.length ? notifications.data.map((notice) => (
+        {filteredNotifications.length ? filteredNotifications.map((notice) => {
+          const taskId = taskIdFromNotice(notice);
+          const canMakeToday = Boolean(taskId) && (notice.type === "due_today" || notice.type === "due_tomorrow" || notice.type === "overdue");
+          return (
           <Card key={notice.id} className={cn(notice.readAt && "opacity-60")}>
             <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
               <div className={cn("grid h-10 w-10 place-items-center rounded-full", severityClass(notice.severity))}>
@@ -172,6 +231,12 @@ export default function NotificationsPage() {
                     </Button>
                   </Link>
                 ) : null}
+                {canMakeToday ? (
+                  <Button variant="secondary" disabled={makeToday.isPending} onClick={() => taskId && makeToday.mutate(taskId)}>
+                    <Clock3 className="h-4 w-4" />
+                    今日やる
+                  </Button>
+                ) : null}
                 <Button variant="ghost" disabled={Boolean(notice.readAt) || markRead.isPending} onClick={() => markRead.mutate(notice.id)}>
                   <Check className="h-4 w-4" />
                   既読
@@ -179,14 +244,25 @@ export default function NotificationsPage() {
               </div>
             </CardContent>
           </Card>
-        )) : (
+          );
+        }) : (
           <Card>
-            <CardContent className="p-4 text-sm font-medium text-slate-500 dark:text-slate-200">通知はありません。期限が近づくとここに表示されます。</CardContent>
+            <CardContent className="p-4 text-sm font-medium text-slate-500 dark:text-slate-200">この条件の通知はありません。期限が近づくとここに表示されます。</CardContent>
           </Card>
         )}
       </section>
     </>
   );
+}
+
+function taskIdFromNotice(notice: AppNotification) {
+  const href = notice.targetHref ?? "";
+  const match = href.match(/[?&]taskId=([^&]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function NoticeMetric({

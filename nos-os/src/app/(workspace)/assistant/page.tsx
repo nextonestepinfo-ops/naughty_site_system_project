@@ -1,6 +1,7 @@
 "use client";
 
-import { Bot, CheckCircle2, Loader2, Mic, Send, Sparkles } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Bot, CalendarPlus, CheckCircle2, FilePenLine, Loader2, Mic, PauseCircle, Plus, Save, Send, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AssistantMessage } from "@/components/domain/assistant-message";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -10,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/form";
 import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
-import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
-import type { AiSummary, Employee, Project, SecretaryReply, Task } from "@/lib/types";
+import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
+import { useAppStore } from "@/lib/store/app-store";
+import type { AiSummary, Employee, Project, SecretaryReply, SecretarySuggestion, Task, TaskPriority } from "@/lib/types";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
@@ -26,19 +28,26 @@ type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   source?: SecretaryReply["source"];
+  suggestions?: SecretarySuggestion[];
 };
 
 const samplePrompts = ["段取りを作って", "タスクを整理して", "今日の振り返り", "明日の準備"];
 
 export default function AssistantPage() {
+  const queryClient = useQueryClient();
+  const session = useAppStore((state) => state.session);
   const recommendations = useScopedQuery<AiSummary[]>(["ai-recommendations"], "/api/ai/recommendations");
   const tasks = useScopedQuery<Task[]>(["tasks"], "/api/tasks");
   const projects = useScopedQuery<Project[]>(["projects"], "/api/projects");
   const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
+  const reportPath = useScopedPath("/api/reports");
+  const calendarPath = useScopedPath("/api/calendar/ics");
   const [question, setQuestion] = useState("");
   const [loadedInitialPrompt, setLoadedInitialPrompt] = useState(false);
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [applyingSuggestionId, setApplyingSuggestionId] = useState<string | null>(null);
+  const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<string[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
@@ -50,6 +59,19 @@ export default function AssistantPage() {
 
   const projectMap = useMemo(() => new Map((projects.data ?? []).map((project) => [project.id, project])), [projects.data]);
   const employeeMap = useMemo(() => new Map((employees.data ?? []).map((employee) => [employee.id, employee])), [employees.data]);
+  const openTasks = useMemo(() => (tasks.data ?? []).filter((task) => task.status !== "done"), [tasks.data]);
+  const topPriorityTask = useMemo(() => [...openTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null, [openTasks]);
+  const lowPriorityTask = useMemo(() => [...openTasks].sort((a, b) => a.aiPriorityScore - b.aiPriorityScore)[0] ?? null, [openTasks]);
+  const completedTaskLines = useMemo(
+    () =>
+      (tasks.data ?? [])
+        .filter((task) => task.status === "done")
+        .filter((task) => !session?.employeeId || [task.primaryAssigneeId, ...task.assigneeIds].includes(session.employeeId))
+        .filter((task) => dateKey(task.updatedAt) === todayInputValue())
+        .slice(0, 8)
+        .map((task) => task.title),
+    [session?.employeeId, tasks.data],
+  );
   const taskContext = useMemo(
     () =>
       (tasks.data ?? [])
@@ -105,7 +127,7 @@ export default function AssistantPage() {
             .join("\n"),
         }),
       });
-      setMessages((current) => [...current, { id: `assistant-${Date.now()}`, role: "assistant", text: data.reply, source: data.source }]);
+      setMessages((current) => [...current, { id: `assistant-${Date.now()}`, role: "assistant", text: data.reply, source: data.source, suggestions: data.suggestions ?? [] }]);
     } catch {
       setMessages((current) => [
         ...current,
@@ -137,6 +159,89 @@ export default function AssistantPage() {
     recognition.onend = () => setListening(false);
     setListening(true);
     recognition.start();
+  }
+
+  async function applySuggestion(suggestion: SecretarySuggestion) {
+    if (appliedSuggestionIds.includes(suggestion.id) || applyingSuggestionId) return;
+    setApplyingSuggestionId(suggestion.id);
+    try {
+      if (suggestion.type === "task_hold") {
+        const target = lowPriorityTask ?? topPriorityTask;
+        if (!target) throw new Error("保留にできるタスクがありません");
+        await apiFetch<Task>(`/api/tasks/${target.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ priority: "hold" }),
+        });
+      }
+
+      if (suggestion.type === "task_update") {
+        const target = topPriorityTask ?? lowPriorityTask;
+        if (!target) throw new Error("更新できるタスクがありません");
+        await apiFetch<Task>(`/api/tasks/${target.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "in_progress" }),
+        });
+      }
+
+      if (suggestion.type === "task_create") {
+        const assigneeId = session?.employeeId ?? employees.data?.[0]?.id;
+        if (!assigneeId) throw new Error("担当者が見つかりません");
+        await apiFetch<Task>("/api/tasks", {
+          method: "POST",
+          body: JSON.stringify({
+            title: stringPayload(suggestion.payload.title) || suggestion.title,
+            description: suggestion.summary,
+            projectId: null,
+            primaryAssigneeId: assigneeId,
+            assigneeIds: [assigneeId],
+            dueDate: todayInputValue(),
+            priority: "normal" satisfies TaskPriority,
+            status: "todo",
+            estimatedMinutes: 45,
+            customerWaiting: false,
+            delayRisk: 10,
+          }),
+        });
+      }
+
+      if (suggestion.type === "report_draft") {
+        if (!session?.employeeId) throw new Error("ログイン情報が見つかりません");
+        await apiFetch(reportPath, {
+          method: "POST",
+          body: JSON.stringify({
+            employeeId: session.employeeId,
+            period: "daily",
+            reportDate: todayInputValue(),
+            title: "今日の日報",
+            body: "AI秘書が作った下書きです。必要に応じて追記してください。",
+            completed: completedTaskLines,
+            blockers: [],
+            nextActions: topPriorityTask ? [topPriorityTask.title] : [],
+          }),
+        });
+      }
+
+      if (suggestion.type === "calendar_suggest") {
+        window.location.href = calendarPath;
+      }
+
+      setAppliedSuggestionIds((current) => [...current, suggestion.id]);
+      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
+    } catch (error) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: `assistant-apply-error-${Date.now()}`,
+          role: "assistant",
+          text: error instanceof Error ? error.message : "提案の反映に失敗しました。",
+          source: "local",
+        },
+      ]);
+    } finally {
+      setApplyingSuggestionId(null);
+    }
   }
 
   if (recommendations.isLoading || !recommendations.data) return <LoadingPanel label="AI秘書を準備中" />;
@@ -176,6 +281,19 @@ export default function AssistantPage() {
                     ) : null}
                     {message.role === "assistant" ? <AssistantMessage text={message.text} /> : <p className="text-sm leading-6">{message.text}</p>}
                   </div>
+                  {message.role === "assistant" && message.suggestions?.length ? (
+                    <div className="mt-2 grid gap-2">
+                      {message.suggestions.map((suggestion) => (
+                        <SecretarySuggestionCard
+                          key={suggestion.id}
+                          suggestion={suggestion}
+                          applied={appliedSuggestionIds.includes(suggestion.id)}
+                          applying={applyingSuggestionId === suggestion.id}
+                          onApply={() => void applySuggestion(suggestion)}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ))}
               {loading ? (
@@ -242,4 +360,67 @@ export default function AssistantPage() {
       </section>
     </>
   );
+}
+
+function SecretarySuggestionCard({
+  suggestion,
+  applied,
+  applying,
+  onApply,
+}: {
+  suggestion: SecretarySuggestion;
+  applied: boolean;
+  applying: boolean;
+  onApply: () => void;
+}) {
+  const Icon = {
+    task_create: Plus,
+    task_update: Save,
+    task_hold: PauseCircle,
+    report_draft: FilePenLine,
+    calendar_suggest: CalendarPlus,
+  }[suggestion.type];
+  const label = {
+    task_create: "タスク追加",
+    task_update: "タスク更新",
+    task_hold: "保留提案",
+    report_draft: "日報下書き",
+    calendar_suggest: "予定確認",
+  }[suggestion.type];
+  const buttonLabel = suggestion.type === "calendar_suggest" ? "開く" : "反映する";
+  const danger = suggestion.riskLevel === "danger";
+
+  return (
+    <div className="rounded-[20px] border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-3 shadow-soft dark:border-indigo-300/20 dark:from-indigo-400/15 dark:to-white/5 dark:shadow-none">
+      <div className="flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-indigo-600 text-white shadow-sm">
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={danger ? "red" : suggestion.riskLevel === "watch" ? "amber" : "blue"}>{label}</Badge>
+            {applied ? <Badge tone="green">反映済み</Badge> : null}
+          </div>
+          <p className="mt-2 font-extrabold leading-6 text-[#0B1226] dark:text-white">{suggestion.title}</p>
+          <p className="mt-1 text-sm font-medium leading-6 text-slate-600 dark:text-slate-200">{suggestion.summary}</p>
+        </div>
+      </div>
+      <Button className="mt-3 w-full" variant={danger ? "danger" : "ghost"} disabled={applied || applying} onClick={onApply}>
+        {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : applied ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+        {applied ? "反映しました" : buttonLabel}
+      </Button>
+    </div>
+  );
+}
+
+function stringPayload(value: SecretarySuggestion["payload"][string]) {
+  return typeof value === "string" ? value : "";
+}
+
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dateKey(value: string) {
+  return new Date(value).toISOString().slice(0, 10);
 }

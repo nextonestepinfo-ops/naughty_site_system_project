@@ -10,8 +10,11 @@ import {
   CheckCircle2,
   Clock3,
   GitBranch,
+  GripVertical,
   Loader2,
   Mic,
+  MoveDown,
+  MoveUp,
   PauseCircle,
   Plus,
   Save,
@@ -20,7 +23,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -67,12 +70,15 @@ export default function TasksPage() {
   const [taskVoiceListening, setTaskVoiceListening] = useState(false);
   const [plan, setPlan] = useState<TaskAssistantPlan | null>(null);
   const [appliedIds, setAppliedIds] = useState<string[]>([]);
+  const [todayOrder, setTodayOrder] = useState<string[]>([]);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
 
   const tasks = useScopedQuery<Task[]>(["tasks"], "/api/tasks", { sort: "dueDate" });
   const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
   const projects = useScopedQuery<Project[]>(["projects"], "/api/projects");
   const goalTrees = useScopedQuery<GoalTree[]>(["goal-trees"], "/api/goal-trees");
   const assistantPlanPath = useScopedPath("/api/tasks/assistant-plan");
+  const todayOrderKey = useMemo(() => `nos-os-today-task-order-${session?.employeeId ?? "all"}`, [session?.employeeId]);
 
   const employeeMap = useMemo(() => new Map((employees.data ?? []).map((employee) => [employee.id, employee])), [employees.data]);
   const projectMap = useMemo(() => new Map((projects.data ?? []).map((project) => [project.id, project])), [projects.data]);
@@ -133,8 +139,23 @@ export default function TasksPage() {
   }
 
   const activeTasks = useMemo(() => (tasks.data ?? []).filter((task) => task.status !== "done"), [tasks.data]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(todayOrderKey);
+    try {
+      setTodayOrder(raw ? JSON.parse(raw) : []);
+    } catch {
+      setTodayOrder([]);
+    }
+  }, [todayOrderKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(todayOrderKey, JSON.stringify(todayOrder));
+  }, [todayOrder, todayOrderKey]);
+
   const visibleTasks = useMemo(() => {
-    return activeTasks.filter((task) => {
+    const filtered = activeTasks.filter((task) => {
       const distance = dayDistance(task.dueDate);
       if (segment === "today" && distance !== 0) return false;
       if (segment === "week" && (distance < 0 || distance > 7)) return false;
@@ -144,12 +165,17 @@ export default function TasksPage() {
       if (chip === "hold" && task.priority !== "hold") return false;
       return true;
     });
-  }, [activeTasks, chip, segment, session?.employeeId]);
+    return segment === "today" ? applyTodayOrder(filtered, todayOrder) : filtered;
+  }, [activeTasks, chip, segment, session?.employeeId, todayOrder]);
+  const visibleTaskIds = useMemo(() => visibleTasks.map((task) => task.id), [visibleTasks]);
   const personalActiveTasks = useMemo(
     () => (session?.employeeId ? activeTasks.filter((task) => [task.primaryAssigneeId, ...task.assigneeIds].includes(session.employeeId)) : activeTasks),
     [activeTasks, session?.employeeId],
   );
-  const focusTask = useMemo(() => [...personalActiveTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null, [personalActiveTasks]);
+  const focusTask = useMemo(() => {
+    const personalToday = personalActiveTasks.filter((task) => dayDistance(task.dueDate) === 0);
+    return applyTodayOrder(personalToday, todayOrder)[0] ?? [...personalActiveTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null;
+  }, [personalActiveTasks, todayOrder]);
   const stats = useMemo(
     () => ({
       today: activeTasks.filter((task) => dayDistance(task.dueDate) === 0).length,
@@ -159,6 +185,31 @@ export default function TasksPage() {
     }),
     [activeTasks, tasks.data],
   );
+
+  const reorderTodayTasks = useCallback((draggedId: string, targetId: string) => {
+    setTodayOrder((current) => moveTaskId(current, visibleTaskIds, draggedId, targetId));
+  }, [visibleTaskIds]);
+
+  useEffect(() => {
+    if (!draggingTaskId) return;
+    const activeDragId = draggingTaskId;
+    function handlePointerMove(event: PointerEvent) {
+      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-task-row-id]");
+      const targetId = target?.dataset.taskRowId;
+      if (targetId && targetId !== activeDragId) reorderTodayTasks(activeDragId, targetId);
+    }
+    function handlePointerUp() {
+      setDraggingTaskId(null);
+    }
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [draggingTaskId, reorderTodayTasks]);
 
   if (tasks.isLoading || !tasks.data || employees.isLoading || projects.isLoading) return <LoadingPanel label="タスクを準備中" />;
 
@@ -358,6 +409,11 @@ export default function TasksPage() {
             onOpen={() => setSelectedTask(task)}
             onDone={() => patchTask(task.id, { status: "done" })}
             disabled={updateTask.isPending}
+            reorderEnabled={segment === "today" && visibleTasks.length > 1}
+            dragging={draggingTaskId === task.id}
+            onReorderStart={() => setDraggingTaskId(task.id)}
+            onMoveUp={() => setTodayOrder((current) => moveTaskByOffset(current, visibleTaskIds, task.id, -1))}
+            onMoveDown={() => setTodayOrder((current) => moveTaskByOffset(current, visibleTaskIds, task.id, 1))}
           />
         ))}
         {!visibleTasks.length ? (
@@ -494,6 +550,11 @@ function TaskRow({
   onOpen,
   onDone,
   disabled,
+  reorderEnabled = false,
+  dragging = false,
+  onReorderStart,
+  onMoveUp,
+  onMoveDown,
 }: {
   task: Task;
   project?: Project;
@@ -501,11 +562,16 @@ function TaskRow({
   onOpen: () => void;
   onDone: () => void;
   disabled?: boolean;
+  reorderEnabled?: boolean;
+  dragging?: boolean;
+  onReorderStart?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const distance = dayDistance(task.dueDate);
   return (
-    <Card className={cn("overflow-hidden", isTestTask(task) && "bg-amber-50/50 dark:bg-amber-400/10")}>
-      <CardContent className="grid grid-cols-[44px_1fr] gap-3 p-3">
+    <Card data-task-row-id={task.id} className={cn("overflow-hidden transition", dragging && "scale-[0.99] ring-2 ring-[#E08F12]", isTestTask(task) && "bg-amber-50/50 dark:bg-amber-400/10")}>
+      <CardContent className={cn("grid gap-3 p-3", reorderEnabled ? "grid-cols-[44px_1fr_44px]" : "grid-cols-[44px_1fr]")}>
         <button
           className="mt-1 grid h-11 w-11 place-items-center rounded-full border-2 border-slate-200 bg-white text-slate-300 transition hover:border-emerald-400 hover:text-emerald-500 dark:border-white/15 dark:bg-[#050816] dark:text-slate-300"
           onClick={onDone}
@@ -524,6 +590,27 @@ function TaskRow({
           <p className="mt-2 line-clamp-2 break-words text-[15px] font-extrabold leading-6 text-[#0B1226] dark:text-white">{displayTaskTitle(task)}</p>
           <TaskContext task={task} project={project} employee={employee} compact />
         </button>
+        {reorderEnabled ? (
+          <div className="grid gap-1 self-center">
+            <button className="grid h-9 w-11 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-100" type="button" aria-label="上に移動" onClick={onMoveUp}>
+              <MoveUp className="h-4 w-4" />
+            </button>
+            <button
+              className="grid h-11 w-11 touch-none place-items-center rounded-full bg-[#0B1226] text-white shadow-sm dark:bg-[#F4F6FA] dark:text-[#050816]"
+              type="button"
+              aria-label="長押しして並び替え"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                onReorderStart?.();
+              }}
+            >
+              <GripVertical className="h-5 w-5" />
+            </button>
+            <button className="grid h-9 w-11 place-items-center rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-100" type="button" aria-label="下に移動" onClick={onMoveDown}>
+              <MoveDown className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -571,6 +658,7 @@ function TaskSheet({
 }) {
   const icsPath = useScopedPath(`/api/calendar/tasks/${task.id}/ics`);
   const googlePath = useScopedPath(`/api/calendar/tasks/${task.id}/google`);
+  const assistantPath = useScopedPath("/assistant", { prompt: `「${displayTaskTitle(task)}」の進め方を相談したい` });
   return (
     <BottomSheet title="タスク詳細" onClose={onClose}>
       <div className="space-y-4">
@@ -583,6 +671,28 @@ function TaskSheet({
           <h2 className="mt-3 text-xl font-extrabold leading-7 text-[#0B1226] dark:text-white">{displayTaskTitle(task)}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-200">{task.description || "説明はありません。"}</p>
           <TaskContext task={task} project={project} employee={employee} />
+        </div>
+        <div className="rounded-panel bg-slate-50 p-3 ring-1 ring-border dark:bg-white/5 dark:ring-white/10">
+          <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">WORK CONTEXT</p>
+          <InfoRow label="案件" value={project?.name ?? "案件名なし"} />
+          <InfoRow label="大タスク" value={task.sourceBranchTitle ?? "大タスク未設定"} />
+          <InfoRow label="小タスク" value={displayTaskTitle(task)} />
+          <InfoRow label="担当" value={employee?.name ?? "未設定"} />
+          <InfoRow label="期限" value={formatDate(task.dueDate)} />
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Button variant="ghost" onClick={() => onPatch({ priority: task.priority === "hold" ? "normal" : "hold" })} disabled={disabled || task.status === "done"}>
+            <PauseCircle className="h-4 w-4" />
+            {task.priority === "hold" ? "保留を戻す" : "保留"}
+          </Button>
+          <Button variant="ghost" onClick={() => onPatch({ priority: "hold", dueDate: dateOffsetInput(7) })} disabled={disabled || task.status === "done"}>
+            <CalendarDays className="h-4 w-4" />
+            今週から外す
+          </Button>
+          <a href={assistantPath} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-panel bg-indigo-50 px-4 text-sm font-bold text-indigo-700 ring-1 ring-indigo-100 dark:bg-indigo-400/15 dark:text-indigo-100 dark:ring-indigo-300/20">
+            <Bot className="h-4 w-4" />
+            AIに相談
+          </a>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Button onClick={() => onPatch({ status: "in_progress" })} disabled={disabled || task.status === "in_progress"}>
@@ -615,6 +725,15 @@ function TaskSheet({
         </Button>
       </div>
     </BottomSheet>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[72px_1fr] gap-3 border-t border-slate-200 py-2 first:border-t-0 dark:border-white/10">
+      <span className="text-xs font-extrabold text-slate-400">{label}</span>
+      <span className="min-w-0 break-words text-sm font-bold text-[#0B1226] dark:text-white">{value}</span>
+    </div>
   );
 }
 
@@ -688,4 +807,47 @@ function dayDistance(value: string) {
 
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function dateOffsetInput(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function applyTodayOrder(tasks: Task[], order: string[]) {
+  if (!order.length) return tasks;
+  const indexMap = new Map(order.map((id, index) => [id, index]));
+  return [...tasks].sort((a, b) => {
+    const aIndex = indexMap.get(a.id);
+    const bIndex = indexMap.get(b.id);
+    if (aIndex !== undefined && bIndex !== undefined) return aIndex - bIndex;
+    if (aIndex !== undefined) return -1;
+    if (bIndex !== undefined) return 1;
+    return b.aiPriorityScore - a.aiPriorityScore;
+  });
+}
+
+function normalizedOrder(current: string[], visibleIds: string[]) {
+  return [...current.filter((id) => visibleIds.includes(id)), ...visibleIds.filter((id) => !current.includes(id))];
+}
+
+function moveTaskId(current: string[], visibleIds: string[], draggedId: string, targetId: string) {
+  const next = normalizedOrder(current, visibleIds);
+  const from = next.indexOf(draggedId);
+  const to = next.indexOf(targetId);
+  if (from < 0 || to < 0 || from === to) return current;
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+}
+
+function moveTaskByOffset(current: string[], visibleIds: string[], id: string, offset: number) {
+  const next = normalizedOrder(current, visibleIds);
+  const from = next.indexOf(id);
+  const to = Math.max(0, Math.min(next.length - 1, from + offset));
+  if (from < 0 || from === to) return current;
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
 }

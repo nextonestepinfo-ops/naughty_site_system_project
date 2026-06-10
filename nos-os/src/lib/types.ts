@@ -366,6 +366,16 @@ export type SecretaryReply = {
   reply: string;
   source: "local" | "claude" | "openai";
   configured: boolean;
+  suggestions?: SecretarySuggestion[];
+};
+
+export type SecretarySuggestion = {
+  id: string;
+  type: "task_create" | "task_update" | "task_hold" | "report_draft" | "calendar_suggest";
+  title: string;
+  summary: string;
+  payload: Record<string, string | number | boolean | null | undefined>;
+  riskLevel: "safe" | "watch" | "danger";
 };
 
 export type DailyPlan = {

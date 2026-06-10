@@ -52,6 +52,7 @@ export default function ReportsPage() {
   const [form, setForm] = useState<ReportForm>(() => blankForm(initialPeriod));
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [autoCompletedText, setAutoCompletedText] = useState("");
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const targetEmployeeId = session?.role === "admin" ? selectedEmployeeId || undefined : undefined;
   const reports = useScopedQuery<WorkReport[]>(["reports", period, selectedEmployeeId], "/api/reports", { period, targetEmployeeId });
@@ -123,6 +124,10 @@ export default function ReportsPage() {
 
   function submitReport(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    saveCurrentReport();
+  }
+
+  function saveCurrentReport() {
     if (!currentEmployeeId) return;
     saveReport.mutate({
       id: form.id,
@@ -131,7 +136,7 @@ export default function ReportsPage() {
       reportDate: form.reportDate,
       title: form.title,
       body: form.body,
-      completed: splitLines(form.completedText),
+      completed: splitLines(form.completedText || suggestedCompletedText),
       blockers: splitLines(form.blockersText),
       nextActions: splitLines(form.nextActionsText),
     });
@@ -159,8 +164,25 @@ export default function ReportsPage() {
         }
       />
 
+      <QuickReportCard
+        period={period}
+        form={form}
+        completedTaskLines={completedTaskLines}
+        suggestedCompletedText={suggestedCompletedText}
+        saved={Boolean(savedAt)}
+        saving={saveReport.isPending}
+        disabled={!currentEmployeeId}
+        onFormChange={setForm}
+        onImportCompleted={() => {
+          setForm((current) => ({ ...current, completedText: suggestedCompletedText }));
+          setAutoCompletedText(suggestedCompletedText);
+        }}
+        onSave={saveCurrentReport}
+        onDetail={() => setDetailOpen(true)}
+      />
+
       <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-        <Card>
+        <Card className={cn(!detailOpen && "hidden lg:block")}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FilePenLine className="h-4 w-4 text-[#E08F12]" />
@@ -325,6 +347,106 @@ export default function ReportsPage() {
         </div>
       </section>
     </>
+  );
+}
+
+function QuickReportCard({
+  period,
+  form,
+  completedTaskLines,
+  suggestedCompletedText,
+  saved,
+  saving,
+  disabled,
+  onFormChange,
+  onImportCompleted,
+  onSave,
+  onDetail,
+}: {
+  period: WorkReportPeriod;
+  form: ReportForm;
+  completedTaskLines: string[];
+  suggestedCompletedText: string;
+  saved: boolean;
+  saving: boolean;
+  disabled: boolean;
+  onFormChange: React.Dispatch<React.SetStateAction<ReportForm>>;
+  onImportCompleted: () => void;
+  onSave: () => void;
+  onDetail: () => void;
+}) {
+  return (
+    <Card className="mb-5 lg:hidden">
+      <CardContent className="space-y-3 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#E08F12]">QUICK REPORT</p>
+            <h2 className="mt-1 text-xl font-extrabold text-[#0B1226] dark:text-white">1分日報</h2>
+          </div>
+          <Badge tone={period === "weekly" ? "blue" : "amber"}>{periodLabels[period]}</Badge>
+        </div>
+
+        <div className="rounded-panel border border-emerald-200 bg-emerald-50 p-2.5 text-sm font-semibold text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/15 dark:text-emerald-100">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              完了 {completedTaskLines.length}件
+            </span>
+            <button
+              type="button"
+              className="min-h-11 rounded-full bg-white px-3 text-xs font-extrabold text-emerald-800 ring-1 ring-emerald-200 disabled:opacity-60 dark:bg-white/10 dark:text-emerald-100 dark:ring-white/10"
+              disabled={!suggestedCompletedText}
+              onClick={onImportCompleted}
+            >
+              自動入力
+            </button>
+          </div>
+          {completedTaskLines.length ? (
+            <div className="mt-3 space-y-2">
+              {completedTaskLines.slice(0, 3).map((line) => (
+                <p key={line} className="truncate rounded-full bg-white px-3 py-2 text-xs font-extrabold text-emerald-800 ring-1 ring-emerald-100 dark:bg-white/10 dark:text-emerald-100 dark:ring-white/10">
+                  {line}
+                </p>
+              ))}
+              {completedTaskLines.length > 3 ? <p className="text-xs font-extrabold">ほか {completedTaskLines.length - 3}件</p> : null}
+            </div>
+          ) : (
+            <p className="mt-2 text-xs leading-5">今日完了にしたタスクがここに入ります。</p>
+          )}
+        </div>
+
+        <label className="grid gap-1 text-sm font-bold text-slate-600 dark:text-slate-200">
+          今日のメモ
+          <Textarea
+            className="!min-h-[72px]"
+            value={form.body}
+            onChange={(event) => onFormChange((current) => ({ ...current, body: event.target.value }))}
+            placeholder="進んだこと、気づいたこと、共有したいこと"
+          />
+        </label>
+
+        <label className="grid gap-1 text-sm font-bold text-slate-600 dark:text-slate-200">
+          明日の最初の一手
+          <Textarea
+            className="!min-h-[72px]"
+            value={form.nextActionsText}
+            onChange={(event) => onFormChange((current) => ({ ...current, nextActionsText: event.target.value }))}
+            placeholder="明日まず何から始めるか"
+          />
+        </label>
+
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <Button variant="secondary" disabled={saving || disabled} onClick={onSave}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            保存
+          </Button>
+          <Button variant="ghost" onClick={onDetail}>
+            詳しく書く
+          </Button>
+        </div>
+        {saved ? <p className="text-xs font-bold text-emerald-600 dark:text-emerald-300">保存しました</p> : null}
+      </CardContent>
+    </Card>
   );
 }
 
