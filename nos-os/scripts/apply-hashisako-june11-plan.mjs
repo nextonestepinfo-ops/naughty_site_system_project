@@ -4,10 +4,11 @@ import { existsSync, readFileSync } from "fs";
 loadDotEnvLocal();
 
 const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const serviceRoleKey = cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in .env.local or the shell environment.");
+  await applyViaProductionApi();
+  process.exit(0);
 }
 
 const DUE_JUNE_11 = "2026-06-11";
@@ -312,6 +313,11 @@ function normalizeSupabaseUrl(value = "") {
   return value.trim().replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
 }
 
+function cleanEnvValue(value = "") {
+  const cleaned = value.trim().replace(/^["']|["']$/g, "");
+  return cleaned === "undefined" || cleaned === "null" ? "" : cleaned;
+}
+
 function stableUuid(input) {
   const hex = createHash("sha1").update(`nos-os:${input}`).digest("hex").slice(0, 32).split("");
   hex[12] = "5";
@@ -398,4 +404,200 @@ function dayDiff(targetIso) {
   const target = new Date(targetIso);
   target.setHours(0, 0, 0, 0);
   return Math.round((target.getTime() - today.getTime()) / 86400000);
+}
+
+async function applyViaProductionApi() {
+  const baseUrl = process.env.NOS_OS_PRODUCTION_URL || "https://nos-os-silk.vercel.app";
+
+  async function api(path, init = {}) {
+    const url = new URL(path, baseUrl);
+    url.searchParams.set("role", "admin");
+    url.searchParams.set("employeeId", knownIds.urata);
+    const response = await fetch(url, {
+      method: init.method ?? "GET",
+      headers: { "Content-Type": "application/json" },
+      body: init.body ? JSON.stringify(init.body) : undefined,
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`${response.status} ${url.pathname}: ${text}`);
+    if (!text) return null;
+    const payload = JSON.parse(text);
+    return payload.data;
+  }
+
+  const [employees, customers, projects, tasks, goalTrees] = await Promise.all([
+    api("/api/employees"),
+    api("/api/customers"),
+    api("/api/projects"),
+    api("/api/tasks", { method: "GET" }),
+    api("/api/goal-trees"),
+  ]);
+
+  const hashisako = findEmployee(employees, knownIds.hashisako, "橋迫");
+  const urata = findEmployee(employees, knownIds.urata, "浦田");
+  const osaki = findEmployee(employees, knownIds.osaki, "大崎");
+  const customer = customers.find((item) => item.id === knownIds.nosCustomer) ?? customers.find((item) => String(item.company ?? "").includes("NOStechnology") || String(item.company ?? "").includes("NosTechnology"));
+  if (!customer) throw new Error("NOStechnology customer was not found.");
+
+  const testTasks = tasks.filter((task) => typeof task.title === "string" && task.title.includes("【テスト】"));
+  for (const task of testTasks) {
+    await api(`/api/tasks/${task.id}`, { method: "DELETE" });
+  }
+
+  await api(`/api/customers/${customer.id}`, {
+    method: "PATCH",
+    body: {
+      name: "NOStechnology 自社サイト",
+      company: "NOStechnology",
+      email: "info@nostechnology.jp",
+      phone: "",
+      notes: "自社サイト制作と7/20までの売上25万円または5件達成を追う社内案件。",
+      health: "good",
+    },
+  });
+
+  const projectBody = {
+    name: "NOStechnology Webサイト作成",
+    customerId: customer.id,
+    primaryOwnerId: hashisako.id,
+    secondaryOwnerIds: [urata.id, osaki.id],
+    startDate: "2026-06-11",
+    dueDate: GOAL_DUE,
+    budget: 250000,
+    status: "production",
+    notes: "7月20日までに目標売上25万円または5件。1件目としてNOStechnologyのWebサイト作成を進める。",
+  };
+  const existingProject = projects.find((project) => project.id === ids.project || project.name === projectBody.name);
+  const project = existingProject
+    ? await api(`/api/projects/${existingProject.id}`, { method: "PATCH", body: projectBody })
+    : await api("/api/projects", { method: "POST", body: projectBody });
+
+  const existingAfterDelete = await api("/api/tasks");
+  const newTaskInputs = [
+    {
+      key: "images",
+      title: "NOStechnology自社サイトの画像素材を作る",
+      description: "ChatGPTでNOStechnology Webサイト用の画像素材を作る。トップ、サービス紹介、実績・雰囲気に使える候補を整理する。",
+      priority: "urgent",
+      delayRisk: 35,
+      estimatedMinutes: 90,
+      scheduledStart: "2026-06-11T09:00:00+09:00",
+      scheduledEnd: "2026-06-11T10:30:00+09:00",
+    },
+    {
+      key: "wireframe",
+      title: "NOStechnology自社サイトのワイヤーフレーム作成",
+      description: "ClaudeでNOStechnology Webサイトのワイヤーフレームを作成する。コーディングはせず、構成と導線を固める。",
+      priority: "high",
+      delayRisk: 28,
+      estimatedMinutes: 120,
+      scheduledStart: "2026-06-11T10:30:00+09:00",
+      scheduledEnd: "2026-06-11T12:30:00+09:00",
+    },
+    {
+      key: "design",
+      title: "NOStechnology自社サイトのデザイン作成",
+      description: "ClaudeでNOStechnology Webサイトのデザインを作成する。コーディングはしない。画像素材とワイヤーフレームを前提に見た目を固める。",
+      priority: "high",
+      delayRisk: 30,
+      estimatedMinutes: 150,
+      scheduledStart: "2026-06-11T13:30:00+09:00",
+      scheduledEnd: "2026-06-11T16:00:00+09:00",
+    },
+  ];
+
+  const taskMap = {};
+  for (const input of newTaskInputs) {
+    const body = {
+      title: input.title,
+      description: input.description,
+      projectId: project.id,
+      primaryAssigneeId: hashisako.id,
+      assigneeIds: [hashisako.id],
+      dueDate: DUE_JUNE_11,
+      priority: input.priority,
+      status: "todo",
+      attachments: [],
+      customerWaiting: false,
+      delayRisk: input.delayRisk,
+      estimatedMinutes: input.estimatedMinutes,
+      scheduledStart: input.scheduledStart,
+      scheduledEnd: input.scheduledEnd,
+    };
+    const existingTask = existingAfterDelete.find((task) => task.title === input.title);
+    taskMap[input.key] = existingTask ? await api(`/api/tasks/${existingTask.id}`, { method: "PATCH", body }) : await api("/api/tasks", { method: "POST", body });
+  }
+
+  const branchTasksForApi = [
+    { id: "tree-task-nos-site-images", title: "画像素材を作る", dueDate: DUE_JUNE_11, assigneeId: hashisako.id, taskId: taskMap.images.id },
+    { id: "tree-task-nos-site-wireframe", title: "ワイヤーフレーム作成", dueDate: DUE_JUNE_11, assigneeId: hashisako.id, taskId: taskMap.wireframe.id },
+    { id: "tree-task-nos-site-design", title: "デザイン作成", dueDate: DUE_JUNE_11, assigneeId: hashisako.id, taskId: taskMap.design.id },
+  ];
+  const metricsForApi = [
+    { id: "metric-20260720-revenue", label: "売上", current: 0, target: 250000, unit: "円" },
+    { id: "metric-20260720-contracts", label: "受注", current: 0, target: 5, unit: "件" },
+  ];
+
+  const treeBodies = [
+    {
+      matchId: knownIds.companyTree,
+      body: {
+        scope: "company",
+        title: "会社目標",
+        goal: "2026年7月20日までに売上25万円または5件を達成する。",
+        ownerEmployeeId: null,
+        dueDate: GOAL_DUE,
+        metrics: metricsForApi,
+        branches: [{ id: "branch-nos-site", title: "NOStechnology Webサイト作成", dueDate: GOAL_DUE, assigneeId: hashisako.id, projectId: project.id, tasks: branchTasksForApi }],
+      },
+    },
+    {
+      matchId: knownIds.dailyTree,
+      body: {
+        scope: "daily",
+        title: "6月11日の実行",
+        goal: "自社サイト（NOStechnology）の画像、ワイヤー、デザインを進める。",
+        ownerEmployeeId: hashisako.id,
+        dueDate: DUE_JUNE_11,
+        metrics: [{ id: "metric-june11-site-steps", label: "制作準備", current: 0, target: 3, unit: "件" }],
+        branches: [{ id: "branch-june11-nos-site", title: "NOStechnologyサイト制作準備", dueDate: DUE_JUNE_11, assigneeId: hashisako.id, projectId: project.id, tasks: branchTasksForApi }],
+      },
+    },
+    {
+      matchId: knownIds.hashisakoTree,
+      body: {
+        scope: "personal",
+        title: "橋迫 翔太 7/20売上目標",
+        goal: "7月20日までに売上25万円または5件を達成する。1件目としてNOStechnology Webサイト作成を進める。",
+        ownerEmployeeId: hashisako.id,
+        dueDate: GOAL_DUE,
+        metrics: metricsForApi,
+        branches: [{ id: "branch-hashisako-nos-site", title: "NOStechnology Webサイト作成", dueDate: GOAL_DUE, assigneeId: hashisako.id, projectId: project.id, tasks: branchTasksForApi }],
+      },
+    },
+  ];
+
+  for (const tree of treeBodies) {
+    const existingTree = goalTrees.find((item) => item.id === tree.matchId || item.title === tree.body.title);
+    if (existingTree) await api(`/api/goal-trees/${existingTree.id}`, { method: "PATCH", body: tree.body });
+    else await api("/api/goal-trees", { method: "POST", body: tree.body });
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        mode: "production-api",
+        deletedTestTasks: testTasks.length,
+        project: project.name,
+        owner: hashisako.name,
+        dueDate: DUE_JUNE_11,
+        goalDueDate: GOAL_DUE,
+        taskIds: Object.fromEntries(Object.entries(taskMap).map(([key, task]) => [key, task.id])),
+        projectId: project.id,
+      },
+      null,
+      2,
+    ),
+  );
 }
