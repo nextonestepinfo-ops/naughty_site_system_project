@@ -84,7 +84,7 @@ export default function AttendancePage() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="ios-kicker">LIVE CLOCK</p>
-                  <p className="mt-1 text-[54px] font-extrabold leading-none text-[#0B1226]">{formatClock(now)}</p>
+                  <p className="mt-1 text-[54px] font-extrabold leading-none text-[#0B1226] dark:text-white">{formatClock(now)}</p>
                 </div>
                 {targetEmployee ? <StatusPill status={targetEmployee.attendanceStatus} /> : null}
               </div>
@@ -96,11 +96,11 @@ export default function AttendancePage() {
               </Select>
 
               {targetEmployee ? (
-                <div className="flex items-center gap-3 rounded-panel bg-slate-50 p-3">
+                <div className="flex items-center gap-3 rounded-panel bg-slate-50 p-3 dark:bg-white/5">
                   <Avatar label={targetEmployee.avatarUrl || targetEmployee.name.slice(0, 1)} />
                   <div className="min-w-0">
-                    <p className="truncate font-extrabold text-[#0B1226]">{targetEmployee.name}</p>
-                    <p className="truncate text-sm text-slate-500">{targetEmployee.position}</p>
+                    <p className="truncate font-extrabold text-[#0B1226] dark:text-white">{targetEmployee.name}</p>
+                    <p className="truncate text-sm font-medium text-slate-500 dark:text-slate-300">{targetEmployee.position}</p>
                   </div>
                   <Badge className="ml-auto" tone={targetEmployee.attendanceStatus === "working" ? "green" : "slate"}>
                     {attendanceStatusLabels[targetEmployee.attendanceStatus]}
@@ -138,41 +138,41 @@ export default function AttendancePage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-extrabold text-[#0B1226]">今日のタイムライン</p>
-                  <p className="mt-1 text-sm text-slate-500">{targetEmployee?.name ?? "社員"} の記録</p>
+                  <p className="font-extrabold text-[#0B1226] dark:text-white">今日のタイムライン</p>
+                  <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-300">{targetEmployee?.name ?? "社員"} の記録</p>
                 </div>
                 <Badge tone="amber">{todayLogs.length}件</Badge>
               </div>
               <div className="mt-4 space-y-0">
                 {todayLogs.slice(0, 12).map((log, index) => (
                   <div key={log.id} className="relative grid grid-cols-[28px_1fr] gap-3 pb-4">
-                    {index < todayLogs.length - 1 ? <span className="absolute left-[11px] top-6 h-full w-px bg-slate-200" /> : null}
-                    <span className="relative z-10 mt-1 h-6 w-6 rounded-full border-4 border-white bg-[#E08F12] shadow-soft" />
-                    <div className="rounded-panel bg-white p-3 ring-1 ring-border">
+                    {index < todayLogs.length - 1 ? <span className="absolute left-[11px] top-6 h-full w-px bg-slate-200 dark:bg-white/10" /> : null}
+                    <span className="relative z-10 mt-1 h-6 w-6 rounded-full border-4 border-white bg-[#E08F12] shadow-soft dark:border-[#050816]" />
+                    <div className="rounded-panel bg-white p-3 ring-1 ring-border dark:bg-white/5 dark:ring-white/10">
                       <div className="flex items-center justify-between gap-3">
                         <p className="font-bold">{attendanceEventLabels[log.eventType]}</p>
-                        <span className="text-xs font-bold text-slate-500">{new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit" }).format(new Date(log.recordedAt))}</span>
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-300">{new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit" }).format(new Date(log.recordedAt))}</span>
                       </div>
-                      <p className="mt-1 text-xs text-slate-500">{formatDateTime(log.recordedAt)} / {log.source}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-300">{formatDateTime(log.recordedAt)} / {log.source}</p>
                     </div>
                   </div>
                 ))}
-                {!todayLogs.length ? <p className="rounded-panel bg-slate-50 p-4 text-sm text-slate-500">今日の打刻はまだありません。</p> : null}
+                {!todayLogs.length ? <p className="rounded-panel bg-slate-50 p-4 text-sm font-medium text-slate-500 dark:bg-white/5 dark:text-slate-300">今日の打刻はまだありません。</p> : null}
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-4">
-              <p className="font-extrabold text-[#0B1226]">有給・申請状況</p>
+              <p className="font-extrabold text-[#0B1226] dark:text-white">有給・申請状況</p>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {attendance.data.employees.map((employee) => (
-                  <div key={employee.id} className="rounded-panel bg-slate-50 p-3">
+                  <div key={employee.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-bold">{employee.name}</p>
                       <Badge tone="green">{employee.leaveBalanceDays}日</Badge>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">申請中 {attendance.data?.leaveRequests.filter((request) => request.employeeId === employee.id && request.status === "pending").length ?? 0}件</p>
+                    <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-300">申請中 {attendance.data?.leaveRequests.filter((request) => request.employeeId === employee.id && request.status === "pending").length ?? 0}件</p>
                   </div>
                 ))}
               </div>
@@ -187,7 +187,7 @@ export default function AttendancePage() {
 function StatusPill({ status }: { status: Employee["attendanceStatus"] }) {
   const working = status === "working";
   return (
-    <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-extrabold", working ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}>
+    <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-extrabold", working ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-100" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-100")}>
       <span className={cn("h-2 w-2 rounded-full", working ? "bg-emerald-500" : "bg-slate-400")} />
       {attendanceStatusLabels[status]}
     </span>
@@ -198,8 +198,8 @@ function TeamTile({ label, value, tone = "slate" }: { label: string; value: numb
   return (
     <Card>
       <CardContent className="p-3">
-        <p className="text-xs font-bold text-slate-500">{label}</p>
-        <p className={cn("mt-2 text-2xl font-extrabold", tone === "green" ? "text-emerald-600" : "text-[#0B1226]")}>{value}</p>
+        <p className="text-xs font-bold text-slate-500 dark:text-slate-300">{label}</p>
+        <p className={cn("mt-2 text-2xl font-extrabold", tone === "green" ? "text-emerald-600 dark:text-emerald-300" : "text-[#0B1226] dark:text-white")}>{value}</p>
       </CardContent>
     </Card>
   );

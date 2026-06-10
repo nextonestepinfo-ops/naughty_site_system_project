@@ -34,7 +34,7 @@ export function MetricCard({
         <div>
           <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
           <p className="mt-2 text-2xl font-bold">{value}</p>
-          {helper ? <p className="mt-1 text-xs text-slate-500">{helper}</p> : null}
+          {helper ? <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">{helper}</p> : null}
         </div>
         <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-panel", toneClass)}>
           <Icon className="h-5 w-5" />

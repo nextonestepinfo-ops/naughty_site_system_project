@@ -391,7 +391,7 @@ function createAction(
 ): TaskAssistantAction {
   const project = findProject(message, projects);
   const branch = context.branch ?? findBranch(message, branches, project);
-  const projectId = project?.id ?? branch?.projectId ?? context.projectId ?? projects[0]?.id ?? "";
+  const projectId = project?.id ?? branch?.projectId ?? context.projectId ?? null;
   const resolvedProject = findProjectById(projects, projectId);
   const assignee =
     mentionedEmployee(message, employees) ??
@@ -506,7 +506,7 @@ function coerceOpenAIPlan(
 
     if (type === "create") {
       const branch = rawBranch ?? findBranch(message, branches, project);
-      const projectId = project?.id ?? branch?.projectId ?? projects[0]?.id ?? "";
+      const projectId = project?.id ?? branch?.projectId ?? null;
       const resolvedProject = findProjectById(projects, projectId);
       const title = compact(raw.title ?? stripCommand(message) ?? "新しいタスク");
       if (!title) continue;

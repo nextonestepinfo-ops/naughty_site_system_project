@@ -177,7 +177,7 @@ export type Task = {
   id: string;
   title: string;
   description: string;
-  projectId: string;
+  projectId: string | null;
   sourceGoalTreeId?: string | null;
   sourceGoalTreeTitle?: string | null;
   sourceBranchId?: string | null;
@@ -205,7 +205,7 @@ export type TaskAssistantAction =
       type: "create";
       title: string;
       description: string;
-      projectId: string;
+      projectId: string | null;
       projectName?: string;
       primaryAssigneeId: string;
       assigneeName?: string;

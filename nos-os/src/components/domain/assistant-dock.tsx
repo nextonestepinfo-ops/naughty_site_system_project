@@ -83,35 +83,37 @@ export function AssistantDock() {
       </button>
 
       {open ? (
-        <div className="fixed bottom-24 right-5 z-50 hidden max-h-[76vh] w-[420px] flex-col overflow-hidden rounded-panel border border-white/80 bg-white shadow-command lg:flex">
-          <div className="flex shrink-0 items-center gap-3 border-b border-border/70 px-4 py-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+        <div className="fixed bottom-24 right-5 z-50 hidden max-h-[76vh] w-[420px] flex-col overflow-hidden rounded-panel border border-white/80 bg-white shadow-command dark:border-white/10 dark:bg-card dark:shadow-none lg:flex">
+          <div className="flex shrink-0 items-center gap-3 border-b border-border/70 px-4 py-3 dark:border-white/10">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-400/20 dark:text-indigo-100">
               <Bot className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <p className="font-bold text-foreground">AI秘書</p>
-              <p className="text-xs text-slate-500">{source === "openai" ? "OpenAIで応答" : "ローカル応答"}</p>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-300">{source === "openai" ? "OpenAIで応答" : "ローカル応答"}</p>
             </div>
-            <Link href="/settings" className="ml-auto grid h-9 w-9 place-items-center rounded-control text-slate-500 hover:bg-slate-100" title="設定">
+            <Link href="/settings" className="ml-auto grid h-9 w-9 place-items-center rounded-control text-slate-500 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10" title="設定">
               <Settings className="h-4 w-4" />
             </Link>
-            <button className="grid h-9 w-9 place-items-center rounded-control text-slate-500 hover:bg-slate-100" onClick={() => setOpen(false)} aria-label="閉じる">
+            <button className="grid h-9 w-9 place-items-center rounded-control text-slate-500 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10" onClick={() => setOpen(false)} aria-label="閉じる">
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 px-4 py-3">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 px-4 py-3 dark:bg-[#030711]">
             {loading ? (
-              <div className="flex items-center gap-2 rounded-panel bg-white px-3 py-3 text-sm text-slate-500">
+              <div className="flex items-center gap-2 rounded-panel bg-white px-3 py-3 text-sm font-bold text-slate-600 ring-1 ring-slate-100 dark:bg-[#101a36] dark:text-slate-100 dark:ring-white/10">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 整理しています...
               </div>
             ) : (
-              <AssistantMessage text={reply} />
+              <div className="rounded-[20px] bg-white p-3 shadow-soft ring-1 ring-slate-100 dark:bg-[#101a36] dark:shadow-none dark:ring-white/10">
+                <AssistantMessage text={reply} />
+              </div>
             )}
           </div>
 
-          <div className="shrink-0 border-t border-border/70 bg-white p-3">
+          <div className="shrink-0 border-t border-border/70 bg-white p-3 dark:border-white/10 dark:bg-[#050816]">
             <div className="grid grid-cols-[1fr_44px_44px] gap-2">
               <Input
                 value={message}
@@ -130,7 +132,7 @@ export function AssistantDock() {
               {samplePrompts.map((sample) => (
                 <button
                   key={sample}
-                  className="h-8 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-200"
+                  className="h-8 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-200 dark:bg-white/10 dark:text-slate-100 dark:ring-1 dark:ring-white/10"
                   onClick={() => void answer(sample)}
                 >
                   {sample}

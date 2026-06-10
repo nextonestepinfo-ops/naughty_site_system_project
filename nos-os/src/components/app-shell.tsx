@@ -24,6 +24,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AssistantDock } from "@/components/domain/assistant-dock";
 import { BrandMark, BrandText, nosBrand } from "@/components/domain/brand";
+import { ThemeModeControl } from "@/components/domain/theme-mode-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { roleLabels } from "@/lib/data/labels";
@@ -75,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 bg-[#0B1226] px-4 py-5 text-white shadow-command lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 bg-[#050816] px-4 py-5 text-white shadow-command lg:block">
         <Link href="/" className="flex items-center gap-3 rounded-panel bg-white/7 p-3 ring-1 ring-white/10">
           <BrandMark className="h-12 w-12 shrink-0" />
           <div className="min-w-0">
@@ -120,15 +121,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="lg:pl-72">
-        <header className="sticky top-0 z-20 border-b border-white/80 bg-[#F4F6FA]/88 px-4 py-3 backdrop-blur lg:px-8">
+        <header className="sticky top-0 z-20 border-b border-white/80 bg-[#F4F6FA]/88 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-[#030711]/90 lg:px-8">
           <div className="mx-auto flex max-w-7xl items-center gap-3">
             <Link href="/" className="flex min-w-0 items-center gap-2 lg:hidden">
               <BrandMark className="h-10 w-10 shrink-0" />
               <BrandText compact />
             </Link>
             <div className="ml-auto flex items-center gap-2">
-              <Badge tone={session.role === "admin" ? "blue" : "green"}>{roleLabels[session.role]}</Badge>
-              <Link href={`/employees/${session.employeeId}`} className="hidden h-11 items-center gap-2 rounded-panel bg-white px-3 text-sm font-bold shadow-soft sm:flex">
+              <ThemeModeControl compact />
+              <Badge className="hidden sm:inline-flex" tone={session.role === "admin" ? "blue" : "green"}>{roleLabels[session.role]}</Badge>
+              <Link href={`/employees/${session.employeeId}`} className="hidden h-11 items-center gap-2 rounded-panel bg-white px-3 text-sm font-bold shadow-soft dark:bg-white/10 dark:text-white dark:shadow-none sm:flex">
                 <UserRound className="h-4 w-4" />
                 <span className="max-w-32 truncate">{session.name}</span>
               </Link>
@@ -202,7 +204,7 @@ function MobileNavLink({
       href={item.href}
       className={cn(
         "relative flex h-14 flex-col items-center justify-center gap-1 rounded-panel text-[11px] font-bold text-slate-500",
-        active && !isAssistant && "bg-white text-[#0B1226] shadow-soft",
+        active && !isAssistant && "bg-white text-[#0B1226] shadow-soft dark:bg-white/10 dark:text-white dark:shadow-none",
         isAssistant && "-mt-7 h-[72px] text-[#6366F1]",
       )}
       aria-label={item.label}

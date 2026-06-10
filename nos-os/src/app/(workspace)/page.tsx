@@ -57,7 +57,7 @@ export default function DashboardPage() {
       />
 
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="overflow-hidden border-white bg-white">
+        <Card className="overflow-hidden border-white bg-white dark:border-white/10 dark:bg-card">
           <div className="h-2 bg-[#0B1226]" />
           <CardContent className="grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:p-5">
             <div className="min-w-0">
@@ -70,16 +70,16 @@ export default function DashboardPage() {
                   {plan.riskLevel === "danger" ? "要対応" : plan.riskLevel === "watch" ? "注意" : "順調"}
                 </Badge>
                 {session?.role === "admin" ? (
-                  <span className="grid grid-cols-2 rounded-full bg-slate-100 p-1 text-xs font-extrabold text-slate-500">
+                  <span className="grid grid-cols-2 rounded-full bg-slate-100 p-1 text-xs font-extrabold text-slate-500 dark:bg-white/10 dark:text-slate-200">
                     <button
-                      className={cn("h-7 rounded-full px-3", heroMode === "personal" && "bg-white text-[#0B1226] shadow-soft")}
+                      className={cn("h-7 rounded-full px-3", heroMode === "personal" && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
                       onClick={() => setHeroMode("personal")}
                       type="button"
                     >
                       自分
                     </button>
                     <button
-                      className={cn("h-7 rounded-full px-3", heroMode === "company" && "bg-white text-[#0B1226] shadow-soft")}
+                      className={cn("h-7 rounded-full px-3", heroMode === "company" && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
                       onClick={() => setHeroMode("company")}
                       type="button"
                     >
@@ -89,12 +89,12 @@ export default function DashboardPage() {
                 ) : null}
                 <span className="text-xs font-medium text-slate-500">{formatDateTime(plan.generatedAt)} 更新</span>
               </div>
-              <h2 className="mt-3 line-clamp-2 break-words text-[26px] font-extrabold leading-tight text-[#0B1226]">
+              <h2 className="mt-3 line-clamp-2 break-words text-[26px] font-extrabold leading-tight text-[#0B1226] dark:text-white">
                 {heroTask?.title ?? (heroMode === "company" ? "会社全体の確認タスクはありません" : "自分の未完了タスクはありません")}
               </h2>
               {heroTask ? (
                 <p className="mt-2 text-sm font-medium text-slate-500">
-                  {heroMode === "company" ? "会社タスク" : "自分のタスク"} / 案件: {projectMap.get(heroTask.projectId)?.name ?? "未設定"} / 担当: {employeeMap.get(heroTask.primaryAssigneeId)?.name ?? "未設定"}
+                  {heroMode === "company" ? "会社タスク" : "自分のタスク"} / 案件: {heroTask.projectId ? projectMap.get(heroTask.projectId)?.name : "案件なし"} / 担当: {employeeMap.get(heroTask.primaryAssigneeId)?.name ?? "未設定"}
                 </p>
               ) : null}
               <div className="mt-5 flex flex-wrap gap-2">
@@ -168,31 +168,54 @@ export default function DashboardPage() {
       </section>
 
       <Card className="mt-5">
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="min-w-0 space-y-3">
             <div className="flex items-center gap-2">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-50 text-[#E08F12]">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-50 text-[#E08F12] dark:bg-amber-400/15 dark:text-amber-100">
                 <FilePenLine className="h-4 w-4" />
               </span>
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">REPORT</p>
-                <h2 className="text-base font-extrabold text-[#0B1226]">日報・週報を書く</h2>
+                <h2 className="text-base font-extrabold text-[#0B1226] dark:text-white">日報・週報を書く</h2>
               </div>
             </div>
-            <p className="mt-2 text-sm leading-6 text-slate-500">今日やったこと、詰まり、次の一手を残してチームで確認します。</p>
+            <p className="text-sm leading-6 text-slate-500 dark:text-slate-200">
+              完了にしたタスクは日報へ自動で入ります。あとは補足や相談を書くだけです。
+            </p>
+            <div className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-300">今日の自動入力</p>
+              <p className="mt-1 text-2xl font-extrabold text-[#0B1226] dark:text-white">{plan.completedToday.length}件</p>
+              {plan.completedToday.length ? (
+                <div className="mt-2 space-y-1">
+                  {plan.completedToday.slice(0, 2).map((task) => (
+                    <p key={task.id} className="truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{task.title}</p>
+                  ))}
+                  {plan.completedToday.length > 2 ? <p className="text-xs font-bold text-slate-400">+{plan.completedToday.length - 2}件</p> : null}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-300">タスクを完了にすると、ここから日報に入ります。</p>
+              )}
+            </div>
           </div>
-          <Link href="/reports" className="shrink-0">
-            <Button variant="secondary" className="w-full sm:w-auto">
-              <FilePenLine className="h-4 w-4" />
-              開く
-            </Button>
-          </Link>
+          <div className="grid gap-2 sm:grid-cols-2 lg:w-44 lg:grid-cols-1">
+            <Link href="/reports?period=daily">
+              <Button variant="secondary" className="w-full">
+                <FilePenLine className="h-4 w-4" />
+                日報を書く
+              </Button>
+            </Link>
+            <Link href="/reports?period=weekly">
+              <Button variant="ghost" className="w-full">
+                週報を書く
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
 
       <CalendarBoard baseDate={plan.generatedAt} tasks={dashboard.data.weekTasks} schedule={plan.schedule} />
 
-      <GoalTreeBoard revenue={plan.revenue} />
+      <GoalTreeBoard revenue={plan.revenue} focusEmployeeId={session?.employeeId} compact />
 
       <section className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
         <div className="space-y-5">
@@ -205,7 +228,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {priorityTasks.slice(0, 5).map((task) => (
-                <TaskCard key={task.id} task={task} project={projectMap.get(task.projectId)} assignee={employeeMap.get(task.primaryAssigneeId)} />
+                <TaskCard key={task.id} task={task} project={task.projectId ? projectMap.get(task.projectId) : undefined} assignee={employeeMap.get(task.primaryAssigneeId)} />
               ))}
               {priorityTasks.length === 0 ? (
                 <p className="rounded-panel bg-slate-50 p-4 text-sm text-slate-500 dark:bg-white/5">未完了タスクはありません。</p>
@@ -421,9 +444,9 @@ function PriorityRing({ value }: { value: number }) {
   const clamped = Math.max(0, Math.min(100, Math.round(value)));
   return (
     <div className="grid h-24 w-24 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(#E08F12 ${clamped * 3.6}deg, #E9EDF4 0deg)` }}>
-      <div className="grid h-[76px] w-[76px] place-items-center rounded-full bg-white text-center shadow-inner">
+      <div className="grid h-[76px] w-[76px] place-items-center rounded-full bg-white text-center shadow-inner dark:bg-[#050816]">
         <div>
-          <p className="text-2xl font-extrabold leading-none text-[#0B1226]">{clamped}</p>
+          <p className="text-2xl font-extrabold leading-none text-[#0B1226] dark:text-white">{clamped}</p>
           <p className="mt-1 text-[10px] font-bold text-slate-400">PRIORITY</p>
         </div>
       </div>

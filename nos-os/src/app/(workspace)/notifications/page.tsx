@@ -116,7 +116,7 @@ export default function NotificationsPage() {
           </Button>
         }
       />
-      {pushStatus ? <p className="mb-3 rounded-panel bg-indigo-50 px-3 py-2 text-sm text-indigo-800">{pushStatus}</p> : null}
+      {pushStatus ? <p className="mb-3 rounded-panel bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 dark:bg-indigo-400/15 dark:text-indigo-100">{pushStatus}</p> : null}
 
       <section className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         <NoticeMetric icon={<CalendarClock className="h-4 w-4" />} label="本日期限" value={summary.today} tone={summary.today ? "amber" : "green"} />
@@ -156,12 +156,12 @@ export default function NotificationsPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-extrabold text-[#0B1226]">{notice.title}</p>
+                  <p className="font-extrabold text-[#0B1226] dark:text-white">{notice.title}</p>
                   <Badge tone={notice.severity === "danger" ? "red" : notice.severity === "warning" ? "amber" : "blue"}>{notificationTypeLabels[notice.type]}</Badge>
                   {notice.readAt ? <Badge tone="green">既読</Badge> : null}
                 </div>
-                <p className="mt-1 text-sm leading-6 text-slate-500">{notice.body}</p>
-                <p className="mt-1 text-xs text-slate-400">{formatDateTime(notice.createdAt)}</p>
+                <p className="mt-1 text-sm font-medium leading-6 text-slate-500 dark:text-slate-200">{notice.body}</p>
+                <p className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-300">{formatDateTime(notice.createdAt)}</p>
               </div>
               <div className="flex flex-wrap gap-2 sm:justify-end">
                 {notice.targetHref ? (
@@ -181,7 +181,7 @@ export default function NotificationsPage() {
           </Card>
         )) : (
           <Card>
-            <CardContent className="p-4 text-sm text-slate-500">通知はありません。期限が近づくとここに表示されます。</CardContent>
+            <CardContent className="p-4 text-sm font-medium text-slate-500 dark:text-slate-200">通知はありません。期限が近づくとここに表示されます。</CardContent>
           </Card>
         )}
       </section>
@@ -201,10 +201,10 @@ function NoticeMetric({
   tone: "blue" | "green" | "red" | "amber";
 }) {
   const toneClass = {
-    blue: "bg-indigo-50 text-indigo-700",
-    green: "bg-emerald-50 text-emerald-700",
-    red: "bg-red-50 text-red-700",
-    amber: "bg-amber-50 text-amber-700",
+    blue: "bg-indigo-50 text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-100",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-100",
+    red: "bg-red-50 text-red-700 dark:bg-red-400/20 dark:text-red-100",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-400/20 dark:text-amber-100",
   }[tone];
 
   return (
@@ -212,9 +212,9 @@ function NoticeMetric({
       <CardContent className="p-3">
         <div className="flex items-center justify-between gap-3">
           <span className={`grid h-8 w-8 place-items-center rounded-full ${toneClass}`}>{icon}</span>
-          <span className="text-2xl font-extrabold text-[#0B1226]">{value}</span>
+          <span className="text-2xl font-extrabold text-[#0B1226] dark:text-white">{value}</span>
         </div>
-        <p className="mt-2 text-xs font-bold text-slate-500">{label}</p>
+        <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-300">{label}</p>
       </CardContent>
     </Card>
   );
@@ -238,20 +238,20 @@ function SetupCard({
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-700">{icon}</span>
-            <p className="font-extrabold text-[#0B1226]">{title}</p>
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-100">{icon}</span>
+            <p className="font-extrabold text-[#0B1226] dark:text-white">{title}</p>
           </div>
           <Badge tone={tone}>{badge}</Badge>
         </div>
-        <p className="mt-3 text-sm leading-6 text-slate-500">{body}</p>
+        <p className="mt-3 text-sm font-medium leading-6 text-slate-500 dark:text-slate-200">{body}</p>
       </CardContent>
     </Card>
   );
 }
 
 function severityClass(severity: AppNotification["severity"]) {
-  if (severity === "danger") return "bg-red-50 text-red-600";
-  if (severity === "warning") return "bg-amber-50 text-amber-700";
-  if (severity === "success") return "bg-emerald-50 text-emerald-700";
-  return "bg-indigo-50 text-indigo-700";
+  if (severity === "danger") return "bg-red-50 text-red-600 dark:bg-red-400/20 dark:text-red-100";
+  if (severity === "warning") return "bg-amber-50 text-amber-700 dark:bg-amber-400/20 dark:text-amber-100";
+  if (severity === "success") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-100";
+  return "bg-indigo-50 text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-100";
 }

@@ -39,6 +39,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
   const [accounts] = useState(initialAccounts);
   const [employeeId, setEmployeeId] = useState(initialAccounts[0]?.employeeId ?? "");
   const [password, setPassword] = useState("");
+  const [verifiedPassword, setVerifiedPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pendingUser, setPendingUser] = useState<User | null>(null);
@@ -95,6 +96,8 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
         body: JSON.stringify({ employeeId, password: passcode, provider: "email" }),
       });
       if (user.mustChangePassword) {
+        setVerifiedPassword(passcode);
+        setPassword(passcode);
         setPendingUser(user);
         return;
       }
@@ -124,7 +127,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
         method: "POST",
         body: JSON.stringify({
           userId: pendingUser.id,
-          currentPassword: password,
+          currentPassword: verifiedPassword || password,
           newPassword,
         }),
       });
@@ -209,6 +212,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
                 onClick={() => {
                   setEmployeeId(account.employeeId);
                   setPassword("");
+                  setVerifiedPassword("");
                   setPendingUser(null);
                   setError("");
                 }}

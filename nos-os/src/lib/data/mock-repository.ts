@@ -522,7 +522,7 @@ export function createTask(input: Partial<Task>) {
     id: uid("task"),
     title: input.title || "新規タスク",
     description: input.description || "",
-    projectId: input.projectId || mutableProjects[0].id,
+    projectId: input.projectId === undefined ? (mutableProjects[0]?.id ?? null) : input.projectId || null,
     primaryAssigneeId: input.primaryAssigneeId || employees[0].id,
     assigneeIds: input.assigneeIds?.length ? input.assigneeIds : [input.primaryAssigneeId || employees[0].id],
     dueDate: input.dueDate || dateOffset(3),
@@ -712,7 +712,7 @@ function taskToScheduleBlock(task: Task, index: number): ScheduleBlock {
     start,
     end,
     taskId: task.id,
-    projectId: task.projectId,
+    projectId: task.projectId ?? undefined,
     risk: task.aiPriorityScore,
     status: task.status === "done" ? "done" : endTime < nowTime ? "missed" : startTime <= nowTime && endTime >= nowTime ? "active" : "upcoming",
   };

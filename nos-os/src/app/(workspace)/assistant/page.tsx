@@ -55,7 +55,7 @@ export default function AssistantPage() {
       (tasks.data ?? [])
         .slice(0, 25)
         .map((task) => {
-          const project = projectMap.get(task.projectId);
+          const project = task.projectId ? projectMap.get(task.projectId) : null;
           const assignee = employeeMap.get(task.primaryAssigneeId);
           return [
             `タスク:${task.title}`,
@@ -148,20 +148,26 @@ export default function AssistantPage() {
       <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <Card className="min-h-[calc(100vh-230px)] overflow-hidden">
           <CardContent className="flex min-h-[calc(100vh-230px)] flex-col p-0">
-            <div className="flex items-center gap-3 border-b border-border/70 bg-white px-4 py-3">
-              <div className="grid h-11 w-11 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+            <div className="flex items-center gap-3 border-b border-border/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#050816]">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-400/20 dark:text-indigo-100">
                 <Bot className="h-5 w-5" />
               </div>
               <div>
-                <p className="font-extrabold text-[#0B1226]">Nos OS AI Secretary</p>
-                <p className="text-xs text-slate-500">提案型。直接DB変更はしません。</p>
+                <p className="font-extrabold text-[#0B1226] dark:text-white">Nos OS AI Secretary</p>
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-300">提案型。直接DB変更はしません。</p>
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4 dark:bg-[#030711]">
               {messages.map((message) => (
                 <div key={message.id} className={message.role === "user" ? "ml-auto max-w-[82%]" : "mr-auto max-w-[88%]"}>
-                  <div className={message.role === "user" ? "rounded-[22px] bg-[#0B1226] px-4 py-3 text-white" : "rounded-[22px] bg-white px-4 py-3 shadow-soft"}>
+                  <div
+                    className={
+                      message.role === "user"
+                        ? "rounded-[22px] bg-[#0B1226] px-4 py-3 text-white dark:bg-[#172347] dark:ring-1 dark:ring-white/10"
+                        : "rounded-[22px] bg-white px-4 py-3 shadow-soft ring-1 ring-slate-100 dark:bg-[#101a36] dark:shadow-none dark:ring-white/10"
+                    }
+                  >
                     {message.role === "assistant" ? (
                       <div className="mb-2 flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-indigo-500" />
@@ -173,7 +179,7 @@ export default function AssistantPage() {
                 </div>
               ))}
               {loading ? (
-                <div className="mr-auto max-w-[88%] rounded-[22px] bg-white px-4 py-3 text-sm text-slate-500 shadow-soft">
+                <div className="mr-auto max-w-[88%] rounded-[22px] bg-white px-4 py-3 text-sm font-bold text-slate-600 shadow-soft ring-1 ring-slate-100 dark:bg-[#101a36] dark:text-slate-100 dark:shadow-none dark:ring-white/10">
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     整理しています...
@@ -182,10 +188,10 @@ export default function AssistantPage() {
               ) : null}
             </div>
 
-            <div className="border-t border-border/70 bg-white p-3">
+            <div className="border-t border-border/70 bg-white p-3 dark:border-white/10 dark:bg-[#050816]">
               <div className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 {samplePrompts.map((sample) => (
-                  <button key={sample} className="h-9 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-extrabold text-slate-600" onClick={() => void ask(sample)}>
+                  <button key={sample} className="h-9 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-extrabold text-slate-600 dark:bg-white/10 dark:text-slate-100 dark:ring-1 dark:ring-white/10" onClick={() => void ask(sample)}>
                     {sample}
                   </button>
                 ))}
@@ -206,15 +212,15 @@ export default function AssistantPage() {
         <aside className="space-y-4">
           <Card>
             <CardContent className="p-4">
-              <p className="font-extrabold text-[#0B1226]">今日のおすすめ</p>
+              <p className="font-extrabold text-[#0B1226] dark:text-white">今日のおすすめ</p>
               <div className="mt-3 space-y-3">
                 {recommendations.data.slice(0, 4).map((item) => (
-                  <div key={item.id} className="rounded-panel bg-slate-50 p-3">
+                  <div key={item.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-bold leading-6">{item.title}</p>
                       <Badge tone={item.score > 85 ? "red" : "blue"}>{item.score}</Badge>
                     </div>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">{item.summary}</p>
+                    <p className="mt-1 text-sm font-medium leading-6 text-slate-500 dark:text-slate-200">{item.summary}</p>
                   </div>
                 ))}
               </div>
@@ -223,9 +229,9 @@ export default function AssistantPage() {
 
           <Card>
             <CardContent className="space-y-3 p-4 text-sm">
-              <p className="font-extrabold text-[#0B1226]">安全ルール</p>
+              <p className="font-extrabold text-[#0B1226] dark:text-white">安全ルール</p>
               {["AIは直接変更しない", "整理・減らすは保留提案", "削除は明示時のみ", "反映は人が確認"].map((item) => (
-                <div key={item} className="flex items-center gap-2 rounded-panel bg-white p-2 ring-1 ring-border">
+                <div key={item} className="flex items-center gap-2 rounded-panel bg-white p-2 ring-1 ring-border dark:bg-white/5 dark:ring-white/10">
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   <span>{item}</span>
                 </div>

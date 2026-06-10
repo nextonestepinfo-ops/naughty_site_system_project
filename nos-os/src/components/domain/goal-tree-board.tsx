@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, CalendarDays, GitBranch, Plus, Target, Trash2, UserRound, X } from "lucide-react";
+import { Building2, CalendarDays, CheckCircle2, Eye, GitBranch, Plus, Target, Trash2, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,15 @@ const scopeOrder: Record<GoalTreeScope, number> = {
   personal: 2,
 };
 
-export function GoalTreeBoard({ revenue }: { revenue: RevenueSummary }) {
+export function GoalTreeBoard({
+  revenue,
+  focusEmployeeId,
+  compact = false,
+}: {
+  revenue: RevenueSummary;
+  focusEmployeeId?: string;
+  compact?: boolean;
+}) {
   const queryClient = useQueryClient();
   const session = useAppStore((state) => state.session);
   const treesQuery = useScopedQuery<GoalTree[]>(["goal-trees"], "/api/goal-trees");
@@ -40,9 +48,16 @@ export function GoalTreeBoard({ revenue }: { revenue: RevenueSummary }) {
   const employees = useMemo(() => employeesQuery.data ?? [], [employeesQuery.data]);
   const projects = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const employeeMap = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
+  const visibleTrees = useMemo(
+    () =>
+      compact
+        ? draftTrees.filter((tree) => tree.scope === "company" || tree.ownerEmployeeId === (focusEmployeeId ?? session?.employeeId))
+        : draftTrees,
+    [compact, draftTrees, focusEmployeeId, session?.employeeId],
+  );
   const sortedTrees = useMemo(
-    () => [...draftTrees].sort((a, b) => scopeOrder[a.scope] - scopeOrder[b.scope] || a.title.localeCompare(b.title)),
-    [draftTrees],
+    () => [...visibleTrees].sort((a, b) => scopeOrder[a.scope] - scopeOrder[b.scope] || a.title.localeCompare(b.title)),
+    [visibleTrees],
   );
 
   function scoped(path: string) {
@@ -197,7 +212,7 @@ export function GoalTreeBoard({ revenue }: { revenue: RevenueSummary }) {
     if (!assigneeId) return;
     setBusyTaskId(treeTask.id);
     try {
-      const created = await apiFetch<Task>("/api/tasks", {
+      const created = await apiFetch<Task>(scoped("/api/tasks"), {
         method: "POST",
         body: JSON.stringify({
           title: treeTask.title,
@@ -236,10 +251,18 @@ export function GoalTreeBoard({ revenue }: { revenue: RevenueSummary }) {
   return (
     <Card className="mt-5" data-testid="goal-tree">
       <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-accent" />
-          目標ツリー
-        </CardTitle>
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-accent" />
+            目標ツリー
+          </CardTitle>
+          {compact ? (
+            <p className="mt-1 flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-300">
+              <Eye className="h-3.5 w-3.5" />
+              全体 + 自分だけ
+            </p>
+          ) : null}
+        </div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           {session?.role === "admin" ? (
             <Button data-testid="goal-add-company" size="sm" variant="ghost" onClick={() => createTree.mutate("company")}>
@@ -264,7 +287,7 @@ export function GoalTreeBoard({ revenue }: { revenue: RevenueSummary }) {
           const Icon = tree.scope === "company" ? Building2 : tree.scope === "daily" ? CalendarDays : UserRound;
 
           return (
-            <div key={tree.id} className="rounded-panel border border-border p-4" data-goal-id={tree.id} data-testid="goal-card">
+            <div key={tree.id} className="rounded-panel border border-border p-4 dark:border-white/10" data-goal-id={tree.id} data-testid="goal-card">
               <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-panel bg-slate-50 dark:bg-white/10">
@@ -273,7 +296,7 @@ export function GoalTreeBoard({ revenue }: { revenue: RevenueSummary }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={tree.scope === "company" ? "blue" : tree.scope === "daily" ? "red" : "green"}>{scopeLabels[tree.scope]}</Badge>
-                      <span className="text-xs text-slate-500">{owner?.name ?? "会社全体"}</span>
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-300">{owner?.name ?? "会社全体"}</span>
                     </div>
                     <div className="mt-2 grid gap-2 md:grid-cols-[0.55fr_1fr_150px]">
                       <Input className="h-9 font-semibold" value={tree.title} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateLocalTree(tree.id, (item) => ({ ...item, title: event.target.value }))} />
@@ -377,9 +400,25 @@ export function GoalTreeBoard({ revenue }: { revenue: RevenueSummary }) {
                                 <option key={employee.id} value={employee.id}>{employee.name}</option>
                               ))}
                             </Select>
-                            <Button className="w-full" data-testid="tree-task-materialize" size="sm" variant={treeTask.taskId ? "secondary" : "ghost"} disabled={!canEdit || Boolean(treeTask.taskId) || busyTaskId === treeTask.id} onClick={() => materializeTask(tree, branch, treeTask)}>
-                              {treeTask.taskId ? "済" : "タスク化"}
-                            </Button>
+                            {treeTask.taskId ? (
+                              <span
+                                className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-panel bg-emerald-50 px-3 text-sm font-extrabold text-emerald-700 ring-1 ring-emerald-100 dark:bg-emerald-400/15 dark:text-emerald-100 dark:ring-emerald-400/20"
+                                data-testid="tree-task-materialized"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                済み
+                              </span>
+                            ) : canEdit ? (
+                              <Button className="w-full" data-testid="tree-task-materialize" size="sm" variant="ghost" disabled={busyTaskId === treeTask.id} onClick={() => materializeTask(tree, branch, treeTask)}>
+                                <Plus className="h-4 w-4" />
+                                タスク化
+                              </Button>
+                            ) : (
+                              <span className="inline-flex h-11 w-full items-center justify-center gap-1 rounded-panel bg-slate-100 px-3 text-sm font-extrabold text-slate-600 dark:bg-white/5 dark:text-slate-200">
+                                <Eye className="h-4 w-4" />
+                                見るだけ
+                              </span>
+                            )}
                             {canEdit ? (
                               <Button data-testid="task-delete" aria-label="小タスクを削除" title="小タスクを削除" size="icon" variant="ghost" onClick={() => deleteTreeTask(tree.id, branch.id, treeTask.id)}>
                                 <X className="h-4 w-4" />

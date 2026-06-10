@@ -290,7 +290,7 @@ function mapTask(row: TaskRow, assignees: TaskAssigneeRow[] = [], comments: Task
     id: row.id,
     title: row.title,
     description: row.body ?? "",
-    projectId: row.project_id ?? "",
+    projectId: row.project_id ?? null,
     ...taskGoalContext(row.id, goalTrees),
     primaryAssigneeId: row.primary_assignee_id ?? "",
     assigneeIds: taskAssigneesFor(row.id, assignees, row.primary_assignee_id),
@@ -587,7 +587,7 @@ export async function createTask(input: Partial<Task>) {
     {
       title: input.title || "新規タスク",
       body: input.description || "",
-      project_id: dbId(input.projectId) ?? fallback.projectId,
+      project_id: input.projectId === undefined ? fallback.projectId : (dbId(input.projectId) ?? null),
       primary_assignee_id: primaryAssigneeId,
       due_date: toDate(input.dueDate),
       priority: baseTask.priority,
@@ -1086,7 +1086,7 @@ async function ensureTaskDueNotifications(role: Role, userId?: string, employeeI
       .map((assigneeId) => userByEmployee.get(assigneeId))
       .filter((assigneeUserId): assigneeUserId is string => Boolean(assigneeUserId))
       .filter((assigneeUserId) => isAdmin(role) || assigneeUserId === dbId(userId))
-      .map((assigneeUserId) => taskDueNoticeRow(task, assigneeUserId, projectNames.get(task.projectId)))
+      .map((assigneeUserId) => taskDueNoticeRow(task, assigneeUserId, task.projectId ? projectNames.get(task.projectId) : undefined))
       .filter((row): row is NotificationRow => Boolean(row)),
   );
 
@@ -1157,7 +1157,7 @@ function taskToScheduleBlock(task: Task, index: number): ScheduleBlock {
     start,
     end,
     taskId: task.id,
-    projectId: task.projectId,
+    projectId: task.projectId ?? undefined,
     risk: task.aiPriorityScore,
     status: task.status === "done" ? "done" : endTime < nowTime ? "missed" : startTime <= nowTime && endTime >= nowTime ? "active" : "upcoming",
   };

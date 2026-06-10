@@ -11,6 +11,7 @@ import {
   Clock3,
   GitBranch,
   Loader2,
+  Mic,
   PauseCircle,
   Plus,
   Save,
@@ -44,6 +45,14 @@ type BranchOption = {
   assigneeId: string | null;
 };
 
+type SpeechRecognitionCtor = new () => {
+  lang: string;
+  interimResults: boolean;
+  start: () => void;
+  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
+  onend: (() => void) | null;
+};
+
 const priorities = Object.entries(taskPriorityLabels) as Array<[TaskPriority, string]>;
 
 export default function TasksPage() {
@@ -55,6 +64,7 @@ export default function TasksPage() {
   const [adding, setAdding] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [command, setCommand] = useState("");
+  const [taskVoiceListening, setTaskVoiceListening] = useState(false);
   const [plan, setPlan] = useState<TaskAssistantPlan | null>(null);
   const [appliedIds, setAppliedIds] = useState<string[]>([]);
 
@@ -68,17 +78,19 @@ export default function TasksPage() {
   const projectMap = useMemo(() => new Map((projects.data ?? []).map((project) => [project.id, project])), [projects.data]);
   const branchOptions = useMemo<BranchOption[]>(
     () =>
-      (goalTrees.data ?? []).flatMap((tree) =>
-        tree.branches.map((branch) => ({
-          value: `${tree.id}::${branch.id}`,
-          treeId: tree.id,
-          branchId: branch.id,
-          label: `${tree.title} / ${branch.title}`,
-          projectId: branch.projectId,
-          assigneeId: branch.assigneeId,
-        })),
-      ),
-    [goalTrees.data],
+      (goalTrees.data ?? [])
+        .filter((tree) => tree.scope === "company" || tree.ownerEmployeeId === session?.employeeId)
+        .flatMap((tree) =>
+          tree.branches.map((branch) => ({
+            value: `${tree.id}::${branch.id}`,
+            treeId: tree.id,
+            branchId: branch.id,
+            label: `${tree.title} / ${branch.title}`,
+            projectId: branch.projectId,
+            assigneeId: branch.assigneeId,
+          })),
+        ),
+    [goalTrees.data, session?.employeeId],
   );
 
   const createTask = useMutation({
@@ -160,10 +172,11 @@ export default function TasksPage() {
     const branchRef = String(form.get("branchRef") ?? "");
     const branch = branchOptions.find((option) => option.value === branchRef);
     const primaryAssigneeId = String(form.get("primaryAssigneeId") || branch?.assigneeId || session?.employeeId || "");
+    const selectedProjectId = String(form.get("projectId") || "");
     createTask.mutate({
       title: String(form.get("title")),
       description: String(form.get("description") || ""),
-      projectId: branch?.projectId || String(form.get("projectId")),
+      projectId: selectedProjectId || null,
       primaryAssigneeId,
       assigneeIds: [primaryAssigneeId],
       sourceGoalTreeId: branch?.treeId ?? null,
@@ -211,6 +224,31 @@ export default function TasksPage() {
     plan?.actions.filter((action) => action.type !== "delete").forEach(applyAction);
   }
 
+  function startTaskVoice() {
+    const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
+      .SpeechRecognition ?? (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setPlan({
+        summary: "このブラウザでは音声入力が使えません。スマホのキーボード音声入力かChromeで試してください。",
+        source: "local",
+        warnings: ["音声入力に未対応です。"],
+        actions: [],
+      });
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ja-JP";
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const text = event.results[0]?.[0]?.transcript ?? "";
+      setCommand(text);
+      if (text.trim()) buildPlan.mutate(text);
+    };
+    recognition.onend = () => setTaskVoiceListening(false);
+    setTaskVoiceListening(true);
+    recognition.start();
+  }
+
   return (
     <>
       <PageHeader
@@ -236,11 +274,11 @@ export default function TasksPage() {
               </span>
               {focusTask ? <Badge tone={priorityTone(focusTask.priority)}>{taskPriorityLabels[focusTask.priority]}</Badge> : null}
             </div>
-            <h2 className="mt-3 line-clamp-2 text-2xl font-extrabold leading-tight text-[#0B1226]">
+            <h2 className="mt-3 line-clamp-2 text-2xl font-extrabold leading-tight text-[#0B1226] dark:text-white">
               {focusTask ? displayTaskTitle(focusTask) : "未完了タスクはありません"}
             </h2>
             {focusTask ? (
-              <TaskContext task={focusTask} project={projectMap.get(focusTask.projectId)} employee={employeeMap.get(focusTask.primaryAssigneeId)} />
+              <TaskContext task={focusTask} project={focusTask.projectId ? projectMap.get(focusTask.projectId) : undefined} employee={employeeMap.get(focusTask.primaryAssigneeId)} />
             ) : null}
             <div className="mt-4 flex flex-wrap gap-2">
               {focusTask ? (
@@ -272,7 +310,7 @@ export default function TasksPage() {
 
       <Card className="mb-5">
         <CardContent className="space-y-3 p-3">
-          <div className="grid grid-cols-3 rounded-[18px] bg-slate-100 p-1">
+          <div className="grid grid-cols-3 rounded-[18px] bg-slate-100 p-1 dark:bg-white/10">
             {([
               ["today", "今日"],
               ["week", "今週"],
@@ -280,7 +318,7 @@ export default function TasksPage() {
             ] as Array<[Segment, string]>).map(([value, label]) => (
               <button
                 key={value}
-                className={cn("h-10 rounded-[14px] text-sm font-extrabold text-slate-500 transition", segment === value && "bg-white text-[#0B1226] shadow-soft")}
+                className={cn("h-10 rounded-[14px] text-sm font-extrabold text-slate-500 transition dark:text-slate-200", segment === value && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
                 onClick={() => setSegment(value)}
               >
                 {label}
@@ -299,7 +337,7 @@ export default function TasksPage() {
                 key={value}
                 className={cn(
                   "h-9 shrink-0 rounded-full px-3 text-xs font-extrabold transition",
-                  chip === value ? "bg-[#0B1226] text-white" : "bg-white text-slate-600 ring-1 ring-border",
+                  chip === value ? "bg-[#0B1226] text-white dark:bg-[#F4F6FA] dark:text-[#050816]" : "bg-white text-slate-600 ring-1 ring-border dark:bg-white/5 dark:text-slate-200 dark:ring-white/10",
                 )}
                 onClick={() => setChip(value)}
               >
@@ -315,7 +353,7 @@ export default function TasksPage() {
           <TaskRow
             key={task.id}
             task={task}
-            project={projectMap.get(task.projectId)}
+            project={task.projectId ? projectMap.get(task.projectId) : undefined}
             employee={employeeMap.get(task.primaryAssigneeId)}
             onOpen={() => setSelectedTask(task)}
             onDone={() => patchTask(task.id, { status: "done" })}
@@ -340,7 +378,7 @@ export default function TasksPage() {
       {selectedTask ? (
         <TaskSheet
           task={selectedTask}
-          project={projectMap.get(selectedTask.projectId)}
+          project={selectedTask.projectId ? projectMap.get(selectedTask.projectId) : undefined}
           employee={employeeMap.get(selectedTask.primaryAssigneeId)}
           onClose={() => setSelectedTask(null)}
           onPatch={(body) => patchTask(selectedTask.id, body)}
@@ -363,7 +401,8 @@ export default function TasksPage() {
                 </option>
               ))}
             </Select>
-            <Select name="projectId" required>
+            <Select name="projectId" defaultValue="">
+              <option value="">案件名を入力しない</option>
               {(projects.data ?? []).map((project) => (
                 <option key={project.id} value={project.id}>{project.name}</option>
               ))}
@@ -394,20 +433,23 @@ export default function TasksPage() {
       {assistantOpen ? (
         <BottomSheet title="AIにタスクを整理してもらう" onClose={() => setAssistantOpen(false)}>
           <div className="space-y-4">
-            <div className="rounded-panel bg-indigo-50 p-3 text-sm leading-6 text-indigo-900">
-              AIは直接変更しません。提案を確認してから1件ずつ反映します。「減らして」は削除ではなく保留提案にします。
+            <div className="rounded-panel bg-indigo-50 p-3 text-sm font-semibold leading-6 text-indigo-900 dark:bg-indigo-400/15 dark:text-indigo-100">
+              声でもOK。AIは提案だけ作ります。「減らして」は保留にします。
             </div>
-            <div className="grid grid-cols-[1fr_48px] gap-2">
+            <div className="grid grid-cols-[1fr_48px_48px] gap-2">
               <Input value={command} onChange={(event) => setCommand(event.target.value)} placeholder="例: 今日のタスクを整理して" />
               <Button size="icon" disabled={buildPlan.isPending || !command.trim()} onClick={() => buildPlan.mutate(command)}>
                 {buildPlan.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+              <Button size="icon" variant={taskVoiceListening ? "danger" : "ghost"} aria-label="音声入力" title="音声入力" onClick={startTaskVoice}>
+                <Mic className="h-4 w-4" />
               </Button>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
               {["今日のタスクを整理して", "優先度が低いものを保留にして", "この作業を小タスクに分けて", "明日の準備を作って"].map((sample) => (
                 <button
                   key={sample}
-                  className="h-8 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600"
+                  className="h-8 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-slate-100"
                   onClick={() => {
                     setCommand(sample);
                     buildPlan.mutate(sample);
@@ -420,12 +462,12 @@ export default function TasksPage() {
 
             {plan ? (
               <div className="space-y-3">
-                <div className="rounded-panel bg-white p-3 ring-1 ring-border">
+                <div className="rounded-panel bg-white p-3 ring-1 ring-border dark:bg-white/5 dark:ring-white/10">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-bold text-[#0B1226]">整理提案</p>
+                    <p className="font-bold text-[#0B1226] dark:text-white">整理提案</p>
                     <Badge tone={plan.source === "openai" ? "blue" : "slate"}>{plan.source === "openai" ? "OpenAI" : "Local"}</Badge>
                   </div>
-                  <p className="mt-2 text-sm text-slate-500">提案数: {plan.actions.length}件。削除は個別確認が必要です。</p>
+                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-200">提案数: {plan.actions.length}件。削除は個別確認が必要です。</p>
                   {plan.actions.some((action) => action.type !== "delete") ? (
                     <Button className="mt-3" size="sm" variant="ghost" onClick={applySafeActions}>
                       <CheckCircle2 className="h-4 w-4" />
@@ -462,10 +504,10 @@ function TaskRow({
 }) {
   const distance = dayDistance(task.dueDate);
   return (
-    <Card className={cn("overflow-hidden", isTestTask(task) && "bg-amber-50/50")}>
+    <Card className={cn("overflow-hidden", isTestTask(task) && "bg-amber-50/50 dark:bg-amber-400/10")}>
       <CardContent className="grid grid-cols-[44px_1fr] gap-3 p-3">
         <button
-          className="mt-1 grid h-11 w-11 place-items-center rounded-full border-2 border-slate-200 bg-white text-slate-300 transition hover:border-emerald-400 hover:text-emerald-500"
+          className="mt-1 grid h-11 w-11 place-items-center rounded-full border-2 border-slate-200 bg-white text-slate-300 transition hover:border-emerald-400 hover:text-emerald-500 dark:border-white/15 dark:bg-[#050816] dark:text-slate-300"
           onClick={onDone}
           disabled={disabled}
           aria-label="完了"
@@ -479,7 +521,7 @@ function TaskRow({
             <Badge tone={statusTone(task.status)}>{taskStatusLabels[task.status]}</Badge>
             <Badge tone={distance < 0 ? "red" : distance === 0 ? "amber" : "slate"}>{distance < 0 ? "超過" : distance === 0 ? "今日" : formatDate(task.dueDate)}</Badge>
           </div>
-          <p className="mt-2 line-clamp-2 break-words text-[15px] font-extrabold leading-6 text-[#0B1226]">{displayTaskTitle(task)}</p>
+          <p className="mt-2 line-clamp-2 break-words text-[15px] font-extrabold leading-6 text-[#0B1226] dark:text-white">{displayTaskTitle(task)}</p>
           <TaskContext task={task} project={project} employee={employee} compact />
         </button>
       </CardContent>
@@ -490,7 +532,11 @@ function TaskRow({
 function TaskContext({ task, project, employee, compact = false }: { task: Task; project?: Project; employee?: Employee; compact?: boolean }) {
   return (
     <div className={cn("mt-3 flex flex-wrap gap-1.5 text-xs text-slate-500", compact && "mt-2")}>
-      {project ? <ContextPill icon={<BriefcaseBusiness className="h-3.5 w-3.5" />} label={`案件: ${project.name}`} /> : null}
+      {project ? (
+        <ContextPill icon={<BriefcaseBusiness className="h-3.5 w-3.5" />} label={`案件: ${project.name}`} />
+      ) : (
+        <ContextPill icon={<BriefcaseBusiness className="h-3.5 w-3.5" />} label="案件なし" />
+      )}
       {task.sourceBranchTitle ? <ContextPill icon={<GitBranch className="h-3.5 w-3.5" />} label={`大タスク: ${task.sourceBranchTitle}`} ai /> : null}
       {employee ? <ContextPill icon={<UserRound className="h-3.5 w-3.5" />} label={`担当: ${employee.name}`} /> : null}
     </div>
@@ -499,7 +545,7 @@ function TaskContext({ task, project, employee, compact = false }: { task: Task;
 
 function ContextPill({ icon, label, ai = false }: { icon: React.ReactNode; label: string; ai?: boolean }) {
   return (
-    <span className={cn("inline-flex min-w-0 max-w-full items-center gap-1 rounded-full px-2 py-1", ai ? "bg-indigo-50 text-indigo-700" : "bg-slate-100 text-slate-600")}>
+    <span className={cn("inline-flex min-w-0 max-w-full items-center gap-1 rounded-full px-2 py-1", ai ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-100" : "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-100")}>
       <span className="shrink-0">{icon}</span>
       <span className="truncate">{label}</span>
     </span>
@@ -534,8 +580,8 @@ function TaskSheet({
             <Badge tone={statusTone(task.status)}>{taskStatusLabels[task.status]}</Badge>
             <Badge tone="slate">{formatDate(task.dueDate)}</Badge>
           </div>
-          <h2 className="mt-3 text-xl font-extrabold leading-7 text-[#0B1226]">{displayTaskTitle(task)}</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{task.description || "説明はありません。"}</p>
+          <h2 className="mt-3 text-xl font-extrabold leading-7 text-[#0B1226] dark:text-white">{displayTaskTitle(task)}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-200">{task.description || "説明はありません。"}</p>
           <TaskContext task={task} project={project} employee={employee} />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -554,11 +600,11 @@ function TaskSheet({
             <CheckCircle2 className="h-4 w-4" />
             完了
           </Button>
-          <a href={icsPath} className="inline-flex h-11 items-center justify-center gap-2 rounded-panel bg-slate-100 text-sm font-bold text-[#0B1226]">
+          <a href={icsPath} className="inline-flex h-11 items-center justify-center gap-2 rounded-panel bg-slate-100 text-sm font-bold text-[#0B1226] dark:bg-white/10 dark:text-white">
             <CalendarDays className="h-4 w-4" />
             ICS
           </a>
-          <a href={googlePath} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center gap-2 rounded-panel bg-slate-100 text-sm font-bold text-[#0B1226]">
+          <a href={googlePath} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center gap-2 rounded-panel bg-slate-100 text-sm font-bold text-[#0B1226] dark:bg-white/10 dark:text-white">
             <CalendarPlus className="h-4 w-4" />
             Google
           </a>
@@ -576,12 +622,12 @@ function AssistantActionCard({ action, applied, onApply }: { action: TaskAssista
   const tone = action.type === "delete" ? "red" : action.type === "update" ? "amber" : "green";
   const label = action.type === "delete" ? "削除" : action.type === "update" && action.patch.priority === "hold" ? "保留" : action.type === "update" ? "更新" : "追加";
   return (
-    <div className="rounded-panel bg-white p-3 ring-1 ring-border">
+    <div className="rounded-panel bg-white p-3 ring-1 ring-border dark:bg-white/5 dark:ring-white/10">
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={tone}>{label}</Badge>
-        <p className="min-w-0 flex-1 truncate font-bold text-[#0B1226]">{action.title}</p>
+        <p className="min-w-0 flex-1 truncate font-bold text-[#0B1226] dark:text-white">{action.title}</p>
       </div>
-      <p className="mt-2 text-sm leading-6 text-slate-500">{action.reason || "AIからの整理提案です。"}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-200">{action.reason || "AIからの整理提案です。"}</p>
       <Button className="mt-3 w-full" variant={action.type === "delete" ? "danger" : "ghost"} onClick={onApply} disabled={applied}>
         {applied ? <CheckCircle2 className="h-4 w-4" /> : <Save className="h-4 w-4" />}
         {applied ? "反映済み" : "反映する"}
@@ -593,11 +639,11 @@ function AssistantActionCard({ action, applied, onApply }: { action: TaskAssista
 function BottomSheet({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#0B1226]/35 px-3 backdrop-blur-sm">
-      <div className="safe-bottom w-full max-w-2xl rounded-t-[28px] bg-[#F4F6FA] p-4 shadow-command">
+      <div className="safe-bottom w-full max-w-2xl rounded-t-[28px] bg-[#F4F6FA] p-4 shadow-command dark:bg-[#050816]">
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300" />
         <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-lg font-extrabold text-[#0B1226]">{title}</p>
-          <button className="grid h-10 w-10 place-items-center rounded-full bg-white text-slate-500 shadow-soft" onClick={onClose} aria-label="閉じる">
+          <p className="text-lg font-extrabold text-[#0B1226] dark:text-white">{title}</p>
+          <button className="grid h-10 w-10 place-items-center rounded-full bg-white text-slate-500 shadow-soft dark:bg-white/10 dark:text-slate-100 dark:shadow-none" onClick={onClose} aria-label="閉じる">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -612,7 +658,7 @@ function StatTile({ label, value, danger = false }: { label: string; value: numb
     <Card>
       <CardContent className="p-3">
         <p className="text-xs font-bold text-slate-500">{label}</p>
-        <p className={cn("mt-2 text-2xl font-extrabold", danger ? "text-red-600" : "text-[#0B1226]")}>{value}</p>
+        <p className={cn("mt-2 text-2xl font-extrabold", danger ? "text-red-600 dark:text-red-300" : "text-[#0B1226] dark:text-white")}>{value}</p>
       </CardContent>
     </Card>
   );

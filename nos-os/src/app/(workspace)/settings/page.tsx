@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandMark, nosBrand } from "@/components/domain/brand";
 import { PageHeader } from "@/components/domain/page-header";
+import { ThemeModeControl } from "@/components/domain/theme-mode-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +43,7 @@ import { cn } from "@/lib/utils";
 export default function SettingsPage() {
   const session = useAppStore((state) => state.session);
   const setSession = useAppStore((state) => state.setSession);
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, theme } = useTheme();
   const [integrationSettings, setIntegrationSettings] = useState<ClientIntegrationSettings>(clientIntegrationDefaults);
   const [readiness, setReadiness] = useState<DeploymentReadiness | null>(null);
   const [readinessStatus, setReadinessStatus] = useState("確認中...");
@@ -56,6 +57,12 @@ export default function SettingsPage() {
 
   const openAiReady = Boolean(readiness?.openaiConfigured);
   const supabaseReady = Boolean(readiness?.supabasePublicConfigured);
+  const themeStatus =
+    theme === "system"
+      ? `端末に合わせる（${resolvedTheme === "dark" ? "ダーク" : "ライト"}）`
+      : resolvedTheme === "dark"
+        ? "ダーク"
+        : "ライト";
 
   useEffect(() => {
     const settings = getClientIntegrationSettings();
@@ -195,8 +202,8 @@ export default function SettingsPage() {
         <StatusTile
           icon={Palette}
           title="表示"
-          status={resolvedTheme === "dark" ? "ダーク" : "ライト"}
-          body="文字と入力欄の見やすさを優先した画面です。"
+          status={themeStatus}
+          body="ライト、ダーク、端末に合わせるを選べます。ダーク時も文字の読みやすさを優先します。"
           tone="blue"
         />
       </section>
@@ -290,11 +297,11 @@ export default function SettingsPage() {
                 表示
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-wrap items-center gap-2">
-              <Button variant="secondary" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
-                {resolvedTheme === "dark" ? "ライトにする" : "ダークにする"}
-              </Button>
-              <Badge tone="blue">{resolvedTheme === "dark" ? "ダークモード" : "ライトモード"}</Badge>
+            <CardContent className="space-y-3">
+              <ThemeModeControl />
+              <div className="rounded-panel bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 dark:bg-white/5 dark:text-slate-200">
+                現在: {themeStatus}
+              </div>
             </CardContent>
           </Card>
         </div>
