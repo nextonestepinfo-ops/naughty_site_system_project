@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarCheck, CalendarDays, CalendarPlus, Check, CheckCircle2, Clock3, Download, Mic, Sparkles, Users } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CalendarDays, CalendarPlus, Check, CheckCircle2, Clock3, Download, FilePenLine, Mic, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
 import { GoalTreeBoard } from "@/components/domain/goal-tree-board";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -145,6 +145,29 @@ export default function DashboardPage() {
           tone="green"
         />
       </section>
+
+      <Card className="mt-5">
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-50 text-[#E08F12]">
+                <FilePenLine className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">REPORT</p>
+                <h2 className="text-base font-extrabold text-[#0B1226]">日報・週報を書く</h2>
+              </div>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-500">今日やったこと、詰まり、次の一手を残してチームで確認します。</p>
+          </div>
+          <Link href="/reports" className="shrink-0">
+            <Button variant="secondary" className="w-full sm:w-auto">
+              <FilePenLine className="h-4 w-4" />
+              開く
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       <CalendarBoard baseDate={plan.generatedAt} tasks={dashboard.data.weekTasks} schedule={plan.schedule} />
 

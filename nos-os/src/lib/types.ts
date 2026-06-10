@@ -322,6 +322,25 @@ export type ActivityLog = {
   createdAt: string;
 };
 
+export type WorkReportPeriod = "daily" | "weekly";
+
+export type WorkReport = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  authorUserId: string;
+  period: WorkReportPeriod;
+  reportDate: string;
+  weekStart?: string;
+  title: string;
+  body: string;
+  completed: string[];
+  blockers: string[];
+  nextActions: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ScheduleBlock = {
   id: string;
   title: string;

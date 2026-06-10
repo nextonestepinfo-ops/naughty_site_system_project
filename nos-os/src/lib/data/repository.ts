@@ -1,7 +1,21 @@
 import * as mock from "@/lib/data/mock-repository";
 import * as supabase from "@/lib/data/supabase-repository";
 import { isSupabaseDataMode } from "@/lib/data/supabase-rest";
-import type { ActivityLog, AttendanceEvent, AttendanceLog, Customer, Employee, GoalTree, Project, Role, Task, TaskFilter, User } from "@/lib/types";
+import type {
+  ActivityLog,
+  AttendanceEvent,
+  AttendanceLog,
+  Customer,
+  Employee,
+  GoalTree,
+  Project,
+  Role,
+  Task,
+  TaskFilter,
+  User,
+  WorkReport,
+  WorkReportPeriod,
+} from "@/lib/types";
 
 function repo() {
   return isSupabaseDataMode() ? supabase : mock;
@@ -141,6 +155,22 @@ export async function getActivityLogs() {
 
 export async function addActivityLog(log: Omit<ActivityLog, "id" | "createdAt">) {
   return repo().addActivityLog(log);
+}
+
+export async function getWorkReports(
+  role: Role,
+  employeeId?: string,
+  filters: { period?: WorkReportPeriod; targetEmployeeId?: string } = {},
+) {
+  return repo().getWorkReports(role, employeeId, filters);
+}
+
+export async function saveWorkReport(input: Partial<WorkReport> & { authorUserId?: string }, role: Role, employeeId?: string) {
+  return repo().saveWorkReport(input, role, employeeId);
+}
+
+export async function deleteWorkReport(id: string, role: Role, employeeId?: string) {
+  return repo().deleteWorkReport(id, role, employeeId);
 }
 
 export async function getLookupData() {

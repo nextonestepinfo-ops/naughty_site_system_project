@@ -49,6 +49,8 @@ import type {
   TaskPriority,
   TaskStatus,
   User,
+  WorkReport,
+  WorkReportPeriod,
 } from "@/lib/types";
 
 const mutableProjects = projects;
@@ -855,6 +857,126 @@ export function addActivityLog(log: Omit<ActivityLog, "id" | "createdAt">) {
   const entry: ActivityLog = { ...log, id: uid("act"), createdAt: new Date().toISOString() };
   mutableActivity.unshift(entry);
   return entry;
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+function reportDateValue(value?: string) {
+  return (value ? new Date(value) : new Date()).toISOString().slice(0, 10);
+}
+
+function weekStartValue(value?: string) {
+  const date = value ? new Date(value) : new Date();
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + mondayOffset);
+  return date.toISOString().slice(0, 10);
+}
+
+function reportFromActivity(log: ActivityLog): WorkReport | null {
+  if (log.entityType !== "work_report") return null;
+  const metadata = log.metadata ?? {};
+  const employeeId = typeof metadata.employeeId === "string" ? metadata.employeeId : log.entityId;
+  if (!employeeId) return null;
+  const employee = betaEmployees().find((item) => item.id === employeeId);
+  const period: WorkReportPeriod = metadata.period === "weekly" ? "weekly" : "daily";
+  const reportDate = reportDateValue(typeof metadata.reportDate === "string" ? metadata.reportDate : log.createdAt);
+  return {
+    id: log.id,
+    employeeId,
+    employeeName: typeof metadata.employeeName === "string" ? metadata.employeeName : (employee?.name ?? "未設定"),
+    authorUserId: log.actorUserId,
+    period,
+    reportDate,
+    weekStart: typeof metadata.weekStart === "string" ? metadata.weekStart : weekStartValue(reportDate),
+    title: typeof metadata.title === "string" ? metadata.title : period === "weekly" ? "週報" : "日報",
+    body: typeof metadata.body === "string" ? metadata.body : "",
+    completed: stringArray(metadata.completed),
+    blockers: stringArray(metadata.blockers),
+    nextActions: stringArray(metadata.nextActions),
+    createdAt: log.createdAt,
+    updatedAt: typeof metadata.updatedAt === "string" ? metadata.updatedAt : log.createdAt,
+  };
+}
+
+function reportMetadata(input: Partial<WorkReport>, employee: Employee, period: WorkReportPeriod, createdAt?: string) {
+  const reportDate = reportDateValue(input.reportDate);
+  return {
+    employeeId: employee.id,
+    employeeName: employee.name,
+    period,
+    reportDate,
+    weekStart: input.weekStart || weekStartValue(reportDate),
+    title: input.title || (period === "weekly" ? "週報" : "日報"),
+    body: input.body || "",
+    completed: input.completed ?? [],
+    blockers: input.blockers ?? [],
+    nextActions: input.nextActions ?? [],
+    updatedAt: new Date().toISOString(),
+    createdAt,
+  };
+}
+
+export function getWorkReports(
+  role: Role,
+  employeeId?: string,
+  filters: { period?: WorkReportPeriod; targetEmployeeId?: string } = {},
+) {
+  const targetEmployeeId = isAdmin(role) ? filters.targetEmployeeId : employeeId;
+  return mutableActivity
+    .map(reportFromActivity)
+    .filter((report): report is WorkReport => Boolean(report))
+    .filter((report) => (isAdmin(role) ? true : report.employeeId === employeeId))
+    .filter((report) => (targetEmployeeId ? report.employeeId === targetEmployeeId : true))
+    .filter((report) => (filters.period ? report.period === filters.period : true))
+    .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime() || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export function saveWorkReport(input: Partial<WorkReport> & { authorUserId?: string }, role: Role, employeeId?: string) {
+  const targetEmployeeId = isAdmin(role) ? input.employeeId || employeeId : employeeId;
+  if (!targetEmployeeId || (!isAdmin(role) && targetEmployeeId !== employeeId)) return null;
+  const employee = betaEmployees().find((item) => item.id === targetEmployeeId);
+  if (!employee) return null;
+  const authorUserId = input.authorUserId || getUserByEmployee(targetEmployeeId)?.id || "";
+  const period: WorkReportPeriod = input.period === "weekly" ? "weekly" : "daily";
+  const metadata = reportMetadata(input, employee, period, input.createdAt);
+
+  if (input.id) {
+    const index = mutableActivity.findIndex((item) => item.id === input.id && item.entityType === "work_report");
+    if (index >= 0) {
+      const current = mutableActivity[index];
+      const currentReport = reportFromActivity(current);
+      if (!currentReport || (!isAdmin(role) && currentReport.employeeId !== employeeId)) return null;
+      mutableActivity[index] = {
+        ...current,
+        actorUserId: authorUserId,
+        action: "work_report.upserted",
+        entityId: employee.id,
+        metadata: { ...metadata, createdAt: currentReport.createdAt },
+      };
+      return reportFromActivity(mutableActivity[index]);
+    }
+  }
+
+  const entry = addActivityLog({
+    actorUserId: authorUserId,
+    action: "work_report.upserted",
+    entityType: "work_report",
+    entityId: employee.id,
+    metadata,
+  });
+  return reportFromActivity(entry);
+}
+
+export function deleteWorkReport(id: string, role: Role, employeeId?: string) {
+  const index = mutableActivity.findIndex((item) => item.id === id && item.entityType === "work_report");
+  if (index < 0) return false;
+  const currentReport = reportFromActivity(mutableActivity[index]);
+  if (!currentReport || (!isAdmin(role) && currentReport.employeeId !== employeeId)) return false;
+  mutableActivity.splice(index, 1);
+  return true;
 }
 
 export function getLookupData() {

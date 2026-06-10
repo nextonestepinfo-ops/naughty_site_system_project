@@ -31,6 +31,8 @@ import type {
   User,
   LoginAccount,
   Notification as AppNotification,
+  WorkReport,
+  WorkReportPeriod,
 } from "@/lib/types";
 
 type UserRow = {
@@ -1356,6 +1358,134 @@ export async function addActivityLog(log: Omit<ActivityLog, "id" | "createdAt">)
     },
   ]);
   return mapActivityLog(row);
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+function reportDateValue(value?: string) {
+  return (value ? new Date(value) : new Date()).toISOString().slice(0, 10);
+}
+
+function weekStartValue(value?: string) {
+  const date = value ? new Date(value) : new Date();
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + mondayOffset);
+  return date.toISOString().slice(0, 10);
+}
+
+function reportFromActivity(row: ActivityLogRow, employees: EmployeeRow[] = []): WorkReport | null {
+  if (row.entity_type !== "work_report") return null;
+  const metadata = row.metadata ?? {};
+  const employeeId = typeof metadata.employeeId === "string" ? metadata.employeeId : (row.entity_id ?? "");
+  if (!employeeId) return null;
+  const employee = employees.find((item) => item.id === employeeId);
+  const period: WorkReportPeriod = metadata.period === "weekly" ? "weekly" : "daily";
+  const reportDate = reportDateValue(typeof metadata.reportDate === "string" ? metadata.reportDate : row.created_at);
+  return {
+    id: row.id,
+    employeeId,
+    employeeName: typeof metadata.employeeName === "string" ? metadata.employeeName : (employee?.name ?? "未設定"),
+    authorUserId: row.actor_user_id ?? "",
+    period,
+    reportDate,
+    weekStart: typeof metadata.weekStart === "string" ? metadata.weekStart : weekStartValue(reportDate),
+    title: typeof metadata.title === "string" ? metadata.title : period === "weekly" ? "週報" : "日報",
+    body: typeof metadata.body === "string" ? metadata.body : "",
+    completed: stringArray(metadata.completed),
+    blockers: stringArray(metadata.blockers),
+    nextActions: stringArray(metadata.nextActions),
+    createdAt: row.created_at,
+    updatedAt: typeof metadata.updatedAt === "string" ? metadata.updatedAt : row.created_at,
+  };
+}
+
+function reportMetadata(input: Partial<WorkReport>, employee: EmployeeRow, period: WorkReportPeriod, createdAt?: string) {
+  const reportDate = reportDateValue(input.reportDate);
+  return {
+    employeeId: employee.id,
+    employeeName: employee.name,
+    period,
+    reportDate,
+    weekStart: input.weekStart || weekStartValue(reportDate),
+    title: input.title || (period === "weekly" ? "週報" : "日報"),
+    body: input.body || "",
+    completed: input.completed ?? [],
+    blockers: input.blockers ?? [],
+    nextActions: input.nextActions ?? [],
+    updatedAt: new Date().toISOString(),
+    createdAt,
+  };
+}
+
+export async function getWorkReports(
+  role: Role,
+  employeeId?: string,
+  filters: { period?: WorkReportPeriod; targetEmployeeId?: string } = {},
+) {
+  const { employees } = await readCore();
+  const rows = await selectRows<ActivityLogRow>("activity_logs", { entity_type: "eq.work_report", order: "created_at.desc" }).catch(() => []);
+  const targetEmployeeId = dbId(isAdmin(role) ? filters.targetEmployeeId : employeeId);
+  return rows
+    .map((row) => reportFromActivity(row, employees))
+    .filter((report): report is WorkReport => Boolean(report))
+    .filter((report) => (isAdmin(role) ? true : report.employeeId === dbId(employeeId)))
+    .filter((report) => (targetEmployeeId ? report.employeeId === targetEmployeeId : true))
+    .filter((report) => (filters.period ? report.period === filters.period : true))
+    .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime() || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export async function saveWorkReport(input: Partial<WorkReport> & { authorUserId?: string }, role: Role, employeeId?: string) {
+  const { users, employees } = await readCore();
+  const targetEmployeeId = dbId(isAdmin(role) ? input.employeeId || employeeId : employeeId);
+  if (!targetEmployeeId || (!isAdmin(role) && targetEmployeeId !== dbId(employeeId))) return null;
+  const employee = employees.find((item) => item.id === targetEmployeeId);
+  if (!employee) return null;
+  const authorUserId = dbId(input.authorUserId) ?? users.find((user) => user.id === employee.user_id)?.id ?? null;
+  const period: WorkReportPeriod = input.period === "weekly" ? "weekly" : "daily";
+
+  if (input.id) {
+    const normalized = dbId(input.id);
+    if (!normalized) return null;
+    const current = await selectOne<ActivityLogRow>("activity_logs", { id: `eq.${normalized}`, entity_type: "eq.work_report" });
+    const currentReport = current ? reportFromActivity(current, employees) : null;
+    if (!current || !currentReport || (!isAdmin(role) && currentReport.employeeId !== dbId(employeeId))) return null;
+    const [updated] = await patchRows<ActivityLogRow>(
+      "activity_logs",
+      { id: `eq.${normalized}` },
+      {
+        actor_user_id: authorUserId,
+        action: "work_report.upserted",
+        entity_id: targetEmployeeId,
+        metadata: reportMetadata(input, employee, period, current.created_at),
+      },
+    );
+    return reportFromActivity(updated, employees);
+  }
+
+  const [row] = await insertRows<ActivityLogRow>("activity_logs", [
+    {
+      actor_user_id: authorUserId,
+      action: "work_report.upserted",
+      entity_type: "work_report",
+      entity_id: targetEmployeeId,
+      metadata: reportMetadata(input, employee, period),
+    },
+  ]);
+  return reportFromActivity(row, employees);
+}
+
+export async function deleteWorkReport(id: string, role: Role, employeeId?: string) {
+  const normalized = dbId(id);
+  if (!normalized) return false;
+  const { employees } = await readCore();
+  const current = await selectOne<ActivityLogRow>("activity_logs", { id: `eq.${normalized}`, entity_type: "eq.work_report" });
+  const currentReport = current ? reportFromActivity(current, employees) : null;
+  if (!current || !currentReport || (!isAdmin(role) && currentReport.employeeId !== dbId(employeeId))) return false;
+  await deleteRows<ActivityLogRow>("activity_logs", { id: `eq.${normalized}` });
+  return true;
 }
 
 export async function getLookupData() {
