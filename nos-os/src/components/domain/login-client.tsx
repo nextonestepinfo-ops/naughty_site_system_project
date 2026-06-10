@@ -187,20 +187,20 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#0B1226] px-3 py-4 text-white sm:px-4 sm:py-8">
+    <main className="min-h-screen overflow-x-hidden bg-[#F4F6FA] px-3 py-4 text-[#0B1226] dark:bg-[#01040D] dark:text-white sm:px-4 sm:py-8">
       <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl flex-col justify-center gap-5 lg:min-h-[calc(100vh-4rem)]">
         <header className="flex items-center gap-3">
             <BrandMark className="h-14 w-14 shrink-0" />
             <div>
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-slate-400">NOS OS V2</p>
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">NOS OS V2</p>
               <h1 className="mt-1 text-3xl font-extrabold leading-tight sm:text-5xl">{nosBrand.appName}</h1>
             </div>
         </header>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-center lg:gap-10">
         <section className="order-2 lg:order-1">
-          <p className="max-w-xl text-lg font-bold leading-8 text-slate-100">チームの今日を、ひとつの画面に。</p>
-          <p className="mt-2 max-w-xl text-sm leading-7 text-slate-300">前回の社員を自動で選びます。開いたら数字を入れるだけで解除できます。</p>
+          <p className="max-w-xl text-lg font-bold leading-8 text-slate-800 dark:text-slate-100">チームの今日を、ひとつの画面に。</p>
+          <p className="mt-2 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">前回の社員を自動で選びます。開いたら数字を入れるだけで解除できます。</p>
 
           <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3">
             {accounts.map((account, index) => (
@@ -221,21 +221,21 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
           </div>
         </section>
 
-        <Card className="order-1 border-white/80 bg-white text-[#0B1226] shadow-command lg:order-2">
+        <Card className="order-1 border-white bg-white text-[#0B1226] shadow-command dark:border-[#26324D] dark:bg-[#071022] dark:text-slate-50 lg:order-2">
           <CardContent className="p-5">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
                 <p className="ios-kicker">UNLOCK</p>
                 <p className="mt-1 text-2xl font-extrabold">ロック解除</p>
               </div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
+              <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700 dark:bg-[#F7C878] dark:text-[#2A1702]">
                 <Sparkles className="h-4 w-4" />
                 すぐ使う
               </span>
             </div>
 
             {!accounts.length ? (
-              <div className="mb-4 rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
+              <div className="mb-4 rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/15 dark:text-amber-100">
                 <div className="flex items-center gap-2 font-semibold">
                   <AlertTriangle className="h-4 w-4" />
                   社員一覧を読み込めません
@@ -245,14 +245,14 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
             ) : null}
 
             {selectedAccount ? (
-              <div className="mb-5 rounded-panel bg-slate-50 p-3">
+              <div className="mb-5 rounded-panel border border-slate-200 bg-slate-50 p-3 dark:border-[#26324D] dark:bg-[#0B1428]">
                 <div className="flex items-center gap-3">
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#0B1226] text-sm font-extrabold text-white">
                     {selectedAccount.name.slice(0, 1)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-extrabold">{selectedAccount.name}</p>
-                    <p className="truncate text-xs text-slate-500">{roleLabels[selectedAccount.role]}</p>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-300">{roleLabels[selectedAccount.role]}</p>
                   </div>
                 </div>
               </div>
@@ -266,32 +266,32 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
             ) : null}
 
             <form onSubmit={submit} className="space-y-4">
-              <div className={cn("flex justify-center gap-3 rounded-panel bg-slate-50 p-4", error && "animate-pulse ring-2 ring-red-200")}>
+              <div className={cn("flex justify-center gap-3 rounded-panel border border-slate-200 bg-slate-50 p-4 dark:border-[#26324D] dark:bg-[#0B1428]", error && "animate-pulse ring-2 ring-red-200 dark:ring-red-400/40")}>
                 {Array.from({ length: 4 }).map((_, index) => (
-                  <span key={index} className={cn("h-4 w-4 rounded-full border-2", password.length > index ? "border-[#0B1226] bg-[#0B1226]" : "border-slate-300 bg-white")} />
+                  <span key={index} className={cn("h-4 w-4 rounded-full border-2", password.length > index ? "border-[#0B1226] bg-[#0B1226] dark:border-[#F7C878] dark:bg-[#F7C878]" : "border-slate-300 bg-white dark:border-slate-300 dark:bg-slate-50")} />
                 ))}
               </div>
 
               {!pendingUser ? (
                 <div className="grid grid-cols-3 gap-2">
                   {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((value) => (
-                    <button key={value} type="button" className="spring h-14 rounded-full bg-slate-100 text-xl font-extrabold hover:bg-slate-200" onClick={() => pressKey(value)}>
+                    <button key={value} type="button" className="spring h-14 rounded-full bg-slate-100 text-xl font-extrabold text-[#0B1226] hover:bg-slate-200 dark:bg-[#17213A] dark:text-slate-50 dark:ring-1 dark:ring-white/10 dark:hover:bg-[#22304F]" onClick={() => pressKey(value)}>
                       {value}
                     </button>
                   ))}
-                  <button type="button" className="spring h-14 rounded-full bg-slate-100 font-bold hover:bg-slate-200" onClick={() => setPassword("")}>
+                  <button type="button" className="spring h-14 rounded-full bg-slate-100 font-bold text-[#0B1226] hover:bg-slate-200 dark:bg-[#17213A] dark:text-slate-50 dark:ring-1 dark:ring-white/10 dark:hover:bg-[#22304F]" onClick={() => setPassword("")}>
                     Clear
                   </button>
-                  <button type="button" className="spring h-14 rounded-full bg-slate-100 text-xl font-extrabold hover:bg-slate-200" onClick={() => pressKey("0")}>
+                  <button type="button" className="spring h-14 rounded-full bg-slate-100 text-xl font-extrabold text-[#0B1226] hover:bg-slate-200 dark:bg-[#17213A] dark:text-slate-50 dark:ring-1 dark:ring-white/10 dark:hover:bg-[#22304F]" onClick={() => pressKey("0")}>
                     0
                   </button>
-                  <button type="button" className="spring grid h-14 place-items-center rounded-full bg-slate-100 hover:bg-slate-200" onClick={() => setPassword((current) => current.slice(0, -1))}>
+                  <button type="button" className="spring grid h-14 place-items-center rounded-full bg-slate-100 text-[#0B1226] hover:bg-slate-200 dark:bg-[#17213A] dark:text-slate-50 dark:ring-1 dark:ring-white/10 dark:hover:bg-[#22304F]" onClick={() => setPassword((current) => current.slice(0, -1))}>
                     <Delete className="h-5 w-5" />
                   </button>
                 </div>
               ) : (
-                <div className="space-y-3 rounded-panel border border-indigo-100 bg-indigo-50 p-3">
-                  <div className="flex items-center gap-2 text-sm font-extrabold text-indigo-800">
+                <div className="space-y-3 rounded-panel border border-indigo-100 bg-indigo-50 p-3 dark:border-indigo-300/25 dark:bg-indigo-400/15">
+                  <div className="flex items-center gap-2 text-sm font-extrabold text-indigo-800 dark:text-indigo-100">
                     <KeyRound className="h-4 w-4" />
                     初回パスワード設定
                   </div>
@@ -300,14 +300,14 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
                 </div>
               )}
 
-              {error ? <p className="rounded-panel bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p> : null}
+              {error ? <p className="rounded-panel bg-red-50 px-3 py-2 text-sm font-bold text-red-700 dark:bg-red-500/15 dark:text-red-100 dark:ring-1 dark:ring-red-400/25">{error}</p> : null}
 
               {!pendingUser ? (
                 <button
                   type="button"
                   className={cn(
                     "flex w-full items-center justify-between gap-3 rounded-panel border px-3 py-3 text-left text-sm font-bold transition",
-                    rememberDevice ? "border-indigo-200 bg-indigo-50 text-indigo-800" : "border-border bg-slate-50 text-slate-500",
+                    rememberDevice ? "border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-300/30 dark:bg-indigo-400/15 dark:text-indigo-100" : "border-border bg-slate-50 text-slate-500 dark:border-[#26324D] dark:bg-[#0B1428] dark:text-slate-300",
                   )}
                   onClick={() => setRememberDevice((current) => !current)}
                 >
@@ -331,24 +331,24 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
               </Button>
             ) : null}
 
-            <details className="group mt-4 rounded-panel border border-border bg-slate-50 text-sm text-slate-600">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 font-extrabold text-[#0B1226] [&::-webkit-details-marker]:hidden">
+            <details className="group mt-4 rounded-panel border border-border bg-slate-50 text-sm text-slate-600 dark:border-[#26324D] dark:bg-[#0B1428] dark:text-slate-200">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 font-extrabold text-[#0B1226] dark:text-slate-50 [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-2">
-                  <CircleHelp className="h-4 w-4 text-indigo-600" />
+                  <CircleHelp className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />
                   初めて使う方はこちら
                 </span>
                 <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
               </summary>
               <div className="space-y-3 border-t border-border px-3 pb-3 pt-3 leading-6">
                 <div className="flex gap-2">
-                  <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                  <p>初回だけ <span className="font-extrabold text-[#0B1226]">0000</span> を入れます。その後、自分のパスワードを設定します。</p>
+                  <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />
+                  <p>初回だけ <span className="font-extrabold text-[#0B1226] dark:text-white">0000</span> を入れます。その後、自分のパスワードを設定します。</p>
                 </div>
                 <div className="flex gap-2">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />
                   <p>対応端末では、次回から端末認証で解除できます。未対応の場合は数字だけで解除できます。</p>
                 </div>
-                <Link href="/guide" className="inline-flex min-h-10 items-center gap-2 rounded-panel bg-white px-3 py-2 font-extrabold text-indigo-700 ring-1 ring-border">
+                <Link href="/guide" className="inline-flex min-h-10 items-center gap-2 rounded-panel bg-white px-3 py-2 font-extrabold text-indigo-700 ring-1 ring-border dark:bg-[#101A36] dark:text-indigo-100 dark:ring-indigo-300/20">
                   <BookOpenCheck className="h-4 w-4" />
                   使い方を確認する
                 </Link>
@@ -377,7 +377,9 @@ function MemberButton({
     <button
       className={cn(
         "min-h-[86px] rounded-panel border p-3 text-left transition",
-        active ? "border-[#E08F12] bg-white text-[#0B1226]" : "border-white/10 bg-white/7 text-white hover:bg-white/10",
+        active
+          ? "border-[#E08F12] bg-white text-[#0B1226] shadow-soft dark:border-[#F0A93C] dark:bg-[#101A36] dark:text-white dark:ring-1 dark:ring-[#F0A93C]/25"
+          : "border-slate-200 bg-white/70 text-slate-700 hover:bg-white dark:border-white/10 dark:bg-white/7 dark:text-slate-100 dark:hover:bg-white/10",
       )}
       onClick={onClick}
       type="button"

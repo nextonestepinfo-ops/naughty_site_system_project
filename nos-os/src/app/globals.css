@@ -13,18 +13,28 @@
   --success: 160 84% 39%;
   --danger: 0 84% 60%;
   --iris: 239 84% 67%;
+  --surface-strong: 0 0% 100%;
+  --surface-soft: 220 32% 96%;
+  --surface-control: 220 26% 93%;
+  --surface-control-hover: 220 24% 89%;
+  --text-muted: 220 13% 43%;
 }
 
 .dark {
-  --background: 226 65% 3%;
+  --background: 226 68% 2%;
   --foreground: 210 40% 98%;
-  --card: 224 48% 7%;
-  --muted: 224 36% 12%;
-  --border: 222 28% 18%;
+  --card: 224 52% 8%;
+  --muted: 224 38% 13%;
+  --border: 222 30% 22%;
   --primary: 210 40% 98%;
   --accent: 38 88% 56%;
   --success: 160 84% 39%;
   --danger: 0 84% 60%;
+  --surface-strong: 224 45% 10%;
+  --surface-soft: 224 42% 13%;
+  --surface-control: 222 34% 17%;
+  --surface-control-hover: 222 32% 22%;
+  --text-muted: 215 24% 78%;
 }
 
 * {
@@ -57,9 +67,9 @@ body {
 
 html.dark body {
   background:
-    radial-gradient(circle at top left, rgba(224, 143, 18, 0.11), transparent 24rem),
-    radial-gradient(circle at top right, rgba(99, 102, 241, 0.12), transparent 26rem),
-    linear-gradient(180deg, #020617 0%, #050816 48%, #030711 100%);
+    radial-gradient(circle at top left, rgba(224, 143, 18, 0.08), transparent 24rem),
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.09), transparent 26rem),
+    linear-gradient(180deg, #01040d 0%, #030711 48%, #020510 100%);
 }
 
 button,
@@ -128,8 +138,12 @@ textarea {
 }
 
 .dark .frosted-tabbar {
-  background: rgba(3, 7, 17, 0.9);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(3, 7, 17, 0.94);
+  border-color: rgba(210, 217, 230, 0.16);
+}
+
+.dark :where(.text-\[\#0B1226\]) {
+  color: #f8fafc;
 }
 
 .dark :where(.text-slate-400) {
@@ -145,11 +159,15 @@ textarea {
 }
 
 .dark :where(.bg-slate-50) {
-  background-color: rgba(15, 23, 42, 0.76);
+  background-color: hsl(var(--surface-soft));
 }
 
 .dark :where(.bg-slate-100) {
-  background-color: rgba(30, 41, 59, 0.86);
+  background-color: hsl(var(--surface-control));
+}
+
+.dark :where(.hover\:bg-slate-200:hover) {
+  background-color: hsl(var(--surface-control-hover));
 }
 
 @media (prefers-reduced-motion: reduce) {
