@@ -299,9 +299,9 @@ export function GoalTreeBoard({
                       <span className="text-xs font-bold text-slate-500 dark:text-slate-300">{owner?.name ?? "会社全体"}</span>
                     </div>
                     <div className="mt-2 grid gap-2 md:grid-cols-[0.55fr_1fr_150px]">
-                      <Input className="h-9 font-semibold" value={tree.title} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateLocalTree(tree.id, (item) => ({ ...item, title: event.target.value }))} />
-                      <Input className="h-9 font-bold" value={tree.goal} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateLocalTree(tree.id, (item) => ({ ...item, goal: event.target.value }))} />
-                      <Input className="h-9" type="date" value={dateInputValue(tree.dueDate)} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateLocalTree(tree.id, (item) => ({ ...item, dueDate: isoFromDateInput(event.target.value, item.dueDate) }))} />
+                      <Input className="h-11 font-semibold" value={tree.title} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateLocalTree(tree.id, (item) => ({ ...item, title: event.target.value }))} />
+                      <Input className="h-11 font-bold" value={tree.goal} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateLocalTree(tree.id, (item) => ({ ...item, goal: event.target.value }))} />
+                      <Input className="h-11" type="date" value={dateInputValue(tree.dueDate)} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateLocalTree(tree.id, (item) => ({ ...item, dueDate: isoFromDateInput(event.target.value, item.dueDate) }))} />
                     </div>
                     {session?.role === "admin" && tree.scope !== "company" ? (
                       <Select className="mt-2 max-w-xs" value={tree.ownerEmployeeId ?? ""} onBlur={() => persistTree(tree.id)} onChange={(event) => updateLocalTree(tree.id, (item) => ({ ...item, ownerEmployeeId: event.target.value || null }))}>
@@ -328,10 +328,10 @@ export function GoalTreeBoard({
                     return (
                       <div key={metric.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
                         <div className="grid gap-2 sm:grid-cols-[1fr_90px_90px_70px_auto]">
-                          <Input className="h-9" value={metric.label} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateMetric(tree.id, metric.id, { label: event.target.value })} />
-                          <Input className="h-9" inputMode="numeric" type="number" value={metric.current} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateMetric(tree.id, metric.id, { current: Number(event.target.value) })} />
-                          <Input className="h-9" inputMode="numeric" type="number" value={metric.target} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateMetric(tree.id, metric.id, { target: Number(event.target.value) })} />
-                          <Input className="h-9" value={metric.unit} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateMetric(tree.id, metric.id, { unit: event.target.value })} />
+                          <Input className="h-11" value={metric.label} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateMetric(tree.id, metric.id, { label: event.target.value })} />
+                          <Input className="h-11" inputMode="numeric" type="number" value={metric.current} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateMetric(tree.id, metric.id, { current: Number(event.target.value) })} />
+                          <Input className="h-11" inputMode="numeric" type="number" value={metric.target} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateMetric(tree.id, metric.id, { target: Number(event.target.value) })} />
+                          <Input className="h-11" value={metric.unit} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateMetric(tree.id, metric.id, { unit: event.target.value })} />
                           {canEdit ? (
                             <Button data-testid="metric-delete" aria-label="数値を削除" title="数値を削除" size="icon" variant="ghost" onClick={() => deleteMetric(tree.id, metric.id)}>
                               <X className="h-4 w-4" />
@@ -365,14 +365,14 @@ export function GoalTreeBoard({
                       <div className="grid gap-2 md:grid-cols-[1fr_130px]">
                         <div className="flex min-w-0 items-center gap-2">
                           <GitBranch className="h-4 w-4 shrink-0 text-slate-400" />
-                          <Input className="h-9 font-semibold" value={branch.title} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateBranch(tree.id, branch.id, { title: event.target.value })} />
+                          <Input className="h-11 font-semibold" value={branch.title} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateBranch(tree.id, branch.id, { title: event.target.value })} />
                           {canEdit ? (
                             <Button data-testid="branch-delete" aria-label="枝を削除" title="枝を削除" size="icon" variant="ghost" onClick={() => deleteBranch(tree.id, branch.id)}>
                               <X className="h-4 w-4" />
                             </Button>
                           ) : null}
                         </div>
-                        <Input className="h-9" type="date" value={dateInputValue(branch.dueDate)} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateBranch(tree.id, branch.id, { dueDate: isoFromDateInput(event.target.value, branch.dueDate) })} />
+                        <Input className="h-11" type="date" value={dateInputValue(branch.dueDate)} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateBranch(tree.id, branch.id, { dueDate: isoFromDateInput(event.target.value, branch.dueDate) })} />
                       </div>
                       <div className="mt-2 grid gap-2 md:grid-cols-2">
                         <Select value={branch.assigneeId ?? ""} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateBranch(tree.id, branch.id, { assigneeId: event.target.value || null })}>
@@ -392,8 +392,8 @@ export function GoalTreeBoard({
                       <div className="mt-3 grid gap-2">
                         {branch.tasks.map((treeTask) => (
                           <div key={treeTask.id} className="grid grid-cols-[1fr_auto] gap-2 rounded-panel bg-white p-2 dark:bg-slate-950 md:grid-cols-[1fr_130px_150px_auto_auto]">
-                            <Input className="col-span-2 h-9 md:col-span-1" value={treeTask.title} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateTreeTask(tree.id, branch.id, treeTask.id, { title: event.target.value })} />
-                            <Input className="h-9" type="date" value={dateInputValue(treeTask.dueDate)} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateTreeTask(tree.id, branch.id, treeTask.id, { dueDate: isoFromDateInput(event.target.value, treeTask.dueDate) })} />
+                            <Input className="col-span-2 h-11 md:col-span-1" value={treeTask.title} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateTreeTask(tree.id, branch.id, treeTask.id, { title: event.target.value })} />
+                            <Input className="h-11" type="date" value={dateInputValue(treeTask.dueDate)} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateTreeTask(tree.id, branch.id, treeTask.id, { dueDate: isoFromDateInput(event.target.value, treeTask.dueDate) })} />
                             <Select className="col-span-2 md:col-span-1" value={treeTask.assigneeId ?? ""} disabled={!canEdit} onBlur={() => persistTree(tree.id)} onChange={(event) => updateTreeTask(tree.id, branch.id, treeTask.id, { assigneeId: event.target.value || null })}>
                               <option value="">担当なし</option>
                               {employees.map((employee) => (

@@ -72,14 +72,14 @@ export default function DashboardPage() {
                 {session?.role === "admin" ? (
                   <span className="grid grid-cols-2 rounded-full bg-slate-100 p-1 text-xs font-extrabold text-slate-500 dark:bg-white/10 dark:text-slate-200">
                     <button
-                      className={cn("h-7 rounded-full px-3", heroMode === "personal" && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
+                      className={cn("h-11 rounded-full px-4", heroMode === "personal" && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
                       onClick={() => setHeroMode("personal")}
                       type="button"
                     >
                       自分
                     </button>
                     <button
-                      className={cn("h-7 rounded-full px-3", heroMode === "company" && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
+                      className={cn("h-11 rounded-full px-4", heroMode === "company" && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
                       onClick={() => setHeroMode("company")}
                       type="button"
                     >
@@ -222,7 +222,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>次にやること</CardTitle>
-              <Link href="/tasks" className="text-sm font-medium text-accent">
+              <Link href="/tasks" className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-bold text-accent">
                 一覧
               </Link>
             </CardHeader>
@@ -239,7 +239,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>担当案件</CardTitle>
-              <Link href="/projects" className="text-sm font-medium text-accent">
+              <Link href="/projects" className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-bold text-accent">
                 一覧
               </Link>
             </CardHeader>
@@ -322,12 +322,37 @@ function CalendarBoard({
           <CalendarDays className="h-4 w-4 text-accent" />
           カレンダー
         </CardTitle>
-        <a href="/tasks" className="text-sm font-medium text-accent">
+        <a href="/tasks" className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-bold text-accent">
           一覧
         </a>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto pb-1">
+        <div className="grid min-w-0 gap-2 sm:hidden">
+          {days.map((day) => (
+            <div key={day.key} className={cn("min-w-0 overflow-hidden rounded-panel border border-border p-3", day.isToday ? "bg-blue-50 dark:bg-blue-500/10" : "bg-slate-50 dark:bg-white/5")}>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">{day.label}</p>
+                  <p className="text-lg font-bold">{day.date}</p>
+                </div>
+                {day.isToday ? <Badge tone="blue">今日</Badge> : null}
+              </div>
+              <div className="mt-3 grid gap-2">
+                {day.items.slice(0, 2).map((item) => (
+                  <a key={item.id} href="/tasks" className={cn("flex min-h-11 min-w-0 items-center justify-between gap-3 overflow-hidden rounded-panel px-3 py-2 text-xs font-medium leading-5", item.tone)}>
+                    <span className="min-w-0">
+                      <span className="block truncate">{item.title}</span>
+                      <span className="text-[11px] opacity-80">{item.time}</span>
+                    </span>
+                  </a>
+                ))}
+                {day.items.length > 2 ? <p className="text-xs font-bold text-slate-500 dark:text-slate-300">+{day.items.length - 2}件</p> : null}
+                {day.items.length === 0 ? <p className="rounded-panel bg-white px-3 py-3 text-center text-xs font-bold text-slate-400 dark:bg-white/5 dark:text-slate-300">空き</p> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto pb-1 sm:block">
           <div className="grid min-w-[760px] grid-cols-7 gap-2">
             {days.map((day) => (
               <div key={day.key} className={cn("min-h-44 rounded-panel border border-border p-3", day.isToday ? "bg-blue-50 dark:bg-blue-500/10" : "bg-slate-50 dark:bg-white/5")}>

@@ -123,9 +123,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-72">
         <header className="sticky top-0 z-20 border-b border-white/80 bg-[#F4F6FA]/88 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-[#030711]/90 lg:px-8">
           <div className="mx-auto flex max-w-7xl items-center gap-3">
-            <Link href="/" className="flex min-w-0 items-center gap-2 lg:hidden">
-              <BrandMark className="h-10 w-10 shrink-0" />
-              <BrandText compact />
+            <Link href="/" className="flex h-11 min-w-0 items-center gap-2 lg:hidden">
+              <BrandMark className="h-11 w-11 shrink-0" />
+              <span className="truncate text-sm font-extrabold min-[430px]:hidden">{nosBrand.appName}</span>
+              <span className="hidden min-[430px]:block">
+                <BrandText compact />
+              </span>
             </Link>
             <div className="ml-auto flex items-center gap-2">
               <ThemeModeControl compact />

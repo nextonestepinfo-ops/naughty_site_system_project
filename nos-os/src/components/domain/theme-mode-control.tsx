@@ -38,7 +38,7 @@ export function ThemeModeControl({
     <div
       className={cn(
         "inline-grid grid-cols-3 rounded-full border border-border bg-slate-100 p-1 text-xs font-extrabold text-slate-600 shadow-inner dark:border-white/10 dark:bg-white/10 dark:text-slate-200",
-        compact ? "h-10 min-w-[112px]" : "w-full gap-1 sm:w-auto",
+        compact ? "min-h-[52px] min-w-[140px]" : "w-full gap-1 sm:w-auto",
         className,
       )}
       role="radiogroup"
@@ -57,7 +57,7 @@ export function ThemeModeControl({
             title={choice.label}
             onClick={() => setTheme(choice.value)}
             className={cn(
-              "spring inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full px-2 transition",
+              "spring inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full px-2 transition",
               active
                 ? "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]"
                 : "text-slate-600 hover:bg-white/70 hover:text-[#0B1226] dark:text-slate-200 dark:hover:bg-white/10 dark:hover:text-white",

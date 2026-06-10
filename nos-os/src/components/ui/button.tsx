@@ -16,7 +16,7 @@ const variants = {
 const sizes = {
   sm: "h-9 px-3 text-sm",
   md: "h-11 px-4 text-sm",
-  icon: "h-10 w-10 p-0",
+  icon: "h-11 w-11 shrink-0 p-0",
 };
 
 export function Button({ className, variant = "primary", size = "md", ...props }: ButtonProps) {

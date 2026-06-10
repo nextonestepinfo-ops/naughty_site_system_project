@@ -284,7 +284,7 @@ export default function SettingsPage() {
               <GuideStep done={openAiReady} label="VercelにOPENAI_API_KEYを入れる" />
               <GuideStep done={supabaseReady} label="Supabaseを接続する" />
               <GuideStep done={Boolean(readiness?.googleOAuthConfigured)} label="Googleログインを本番用にする" />
-              <Link href="/test" className="block rounded-panel bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-200">
+              <Link href="/test" className="inline-flex min-h-11 items-center rounded-panel bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-200">
                 テストステータスを見る
               </Link>
             </CardContent>
@@ -390,7 +390,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
             {["api.md", "ai-provider-setup.md", "supabase-setup.md", "employee-test-deployment.md", "pwa-push-setup.md", "ios-voice-integration-roadmap.md"].map((file) => (
-              <Link key={file} href="#" className="rounded-panel bg-slate-50 px-3 py-2 text-accent dark:bg-white/5">
+              <Link key={file} href="#" className="inline-flex min-h-11 items-center rounded-panel bg-slate-50 px-3 py-2 text-accent dark:bg-white/5">
                 docs/{file}
               </Link>
             ))}

@@ -146,8 +146,8 @@ export default function AssistantPage() {
       <PageHeader title="AI秘書" description="段取り、整理、振り返りを相談できます。実行は必ず人が確認してから反映します。" kicker="ASSISTANT" />
 
       <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
-        <Card className="min-h-[calc(100vh-230px)] overflow-hidden">
-          <CardContent className="flex min-h-[calc(100vh-230px)] flex-col p-0">
+        <Card className="min-h-[calc(100svh-320px)] overflow-hidden sm:min-h-[calc(100vh-230px)]">
+          <CardContent className="flex min-h-[calc(100svh-320px)] flex-col p-0 sm:min-h-[calc(100vh-230px)]">
             <div className="flex items-center gap-3 border-b border-border/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#050816]">
               <div className="grid h-11 w-11 place-items-center rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-400/20 dark:text-indigo-100">
                 <Bot className="h-5 w-5" />
@@ -189,9 +189,9 @@ export default function AssistantPage() {
             </div>
 
             <div className="border-t border-border/70 bg-white p-3 dark:border-white/10 dark:bg-[#050816]">
-              <div className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:overflow-x-auto sm:pb-1 sm:scrollbar-none">
                 {samplePrompts.map((sample) => (
-                  <button key={sample} className="h-9 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-extrabold text-slate-600 dark:bg-white/10 dark:text-slate-100 dark:ring-1 dark:ring-white/10" onClick={() => void ask(sample)}>
+                  <button key={sample} className="h-11 min-w-0 rounded-full bg-slate-100 px-3 text-xs font-extrabold text-slate-600 dark:bg-white/10 dark:text-slate-100 dark:ring-1 dark:ring-white/10 sm:shrink-0" onClick={() => void ask(sample)}>
                     {sample}
                   </button>
                 ))}

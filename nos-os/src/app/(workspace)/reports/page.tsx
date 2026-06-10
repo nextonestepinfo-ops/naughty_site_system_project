@@ -172,7 +172,7 @@ export default function ReportsPage() {
               {(["daily", "weekly"] as WorkReportPeriod[]).map((item) => (
                 <button
                   key={item}
-                  className={cn("h-10 rounded-[14px] text-sm font-extrabold text-slate-500 transition dark:text-slate-200", period === item && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
+                  className={cn("h-11 rounded-[14px] text-sm font-extrabold text-slate-500 transition dark:text-slate-200", period === item && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
                   onClick={() => switchPeriod(item)}
                   type="button"
                 >
@@ -224,7 +224,7 @@ export default function ReportsPage() {
                     </span>
                     <button
                       type="button"
-                      className="rounded-full bg-white px-3 py-1 text-xs font-extrabold text-emerald-800 ring-1 ring-emerald-200 disabled:opacity-50 dark:bg-white/10 dark:text-emerald-100 dark:ring-white/10"
+                      className="inline-flex min-h-11 items-center rounded-full bg-white px-3 py-2 text-xs font-extrabold text-emerald-800 ring-1 ring-emerald-200 disabled:opacity-70 dark:bg-white/10 dark:text-emerald-100 dark:ring-white/10"
                       disabled={!suggestedCompletedText}
                       onClick={() => {
                         setForm((current) => ({ ...current, completedText: suggestedCompletedText }));

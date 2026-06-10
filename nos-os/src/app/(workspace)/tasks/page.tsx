@@ -318,14 +318,14 @@ export default function TasksPage() {
             ] as Array<[Segment, string]>).map(([value, label]) => (
               <button
                 key={value}
-                className={cn("h-10 rounded-[14px] text-sm font-extrabold text-slate-500 transition dark:text-slate-200", segment === value && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
+                className={cn("h-11 rounded-[14px] text-sm font-extrabold text-slate-500 transition dark:text-slate-200", segment === value && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
                 onClick={() => setSegment(value)}
               >
                 {label}
               </button>
             ))}
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex flex-wrap gap-2">
             {([
               ["all", "全部"],
               ["mine", "自分の担当"],
@@ -336,7 +336,7 @@ export default function TasksPage() {
               <button
                 key={value}
                 className={cn(
-                  "h-9 shrink-0 rounded-full px-3 text-xs font-extrabold transition",
+                  "h-11 shrink-0 rounded-full px-3 text-xs font-extrabold transition",
                   chip === value ? "bg-[#0B1226] text-white dark:bg-[#F4F6FA] dark:text-[#050816]" : "bg-white text-slate-600 ring-1 ring-border dark:bg-white/5 dark:text-slate-200 dark:ring-white/10",
                 )}
                 onClick={() => setChip(value)}
@@ -445,11 +445,11 @@ export default function TasksPage() {
                 <Mic className="h-4 w-4" />
               </Button>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:overflow-x-auto sm:pb-1 sm:scrollbar-none">
               {["今日のタスクを整理して", "優先度が低いものを保留にして", "この作業を小タスクに分けて", "明日の準備を作って"].map((sample) => (
                 <button
                   key={sample}
-                  className="h-8 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-slate-100"
+                  className="h-11 min-w-0 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-slate-100 sm:shrink-0"
                   onClick={() => {
                     setCommand(sample);
                     buildPlan.mutate(sample);
@@ -643,7 +643,7 @@ function BottomSheet({ title, children, onClose }: { title: string; children: Re
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-300" />
         <div className="mb-4 flex items-center justify-between gap-3">
           <p className="text-lg font-extrabold text-[#0B1226] dark:text-white">{title}</p>
-          <button className="grid h-10 w-10 place-items-center rounded-full bg-white text-slate-500 shadow-soft dark:bg-white/10 dark:text-slate-100 dark:shadow-none" onClick={onClose} aria-label="閉じる">
+          <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-slate-500 shadow-soft dark:bg-white/10 dark:text-slate-100 dark:shadow-none" onClick={onClose} aria-label="閉じる">
             <X className="h-4 w-4" />
           </button>
         </div>
