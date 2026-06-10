@@ -3,14 +3,6 @@ import { existsSync, readFileSync } from "fs";
 
 loadDotEnvLocal();
 
-const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
-const serviceRoleKey = cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-if (!supabaseUrl || !serviceRoleKey) {
-  await applyViaProductionApi();
-  process.exit(0);
-}
-
 const DUE_JUNE_11 = "2026-06-11";
 const GOAL_DUE = "2026-07-20";
 
@@ -36,6 +28,14 @@ const ids = {
     admin: stableUuid("notice-admin-nos-site-june11"),
   },
 };
+
+const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const serviceRoleKey = cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+if (!supabaseUrl || !serviceRoleKey) {
+  await applyViaProductionApi();
+  process.exit(0);
+}
 
 const [employees, users, existingTasks] = await Promise.all([
   selectRows("employees", { order: "created_at.asc" }),
