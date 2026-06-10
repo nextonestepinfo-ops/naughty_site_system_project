@@ -1,19 +1,26 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, BookOpenCheck, ChevronDown, CircleHelp, KeyRound, LogIn, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, ChevronDown, CircleHelp, Delete, KeyRound, LogIn, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
-import { BrandLockup, BrandMark, nosBrand } from "@/components/domain/brand";
+import { BrandMark, nosBrand } from "@/components/domain/brand";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input, Select } from "@/components/ui/form";
+import { Input } from "@/components/ui/form";
 import { roleLabels } from "@/lib/data/labels";
 import { apiFetch } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
+import { cn } from "@/lib/utils";
 import type { LoginAccount, User } from "@/lib/types";
+
+const avatarStyles = [
+  "from-[#0B1226] to-[#243353]",
+  "from-[#16203B] to-[#46587E]",
+  "from-[#E08F12] to-[#F0A93C]",
+  "from-[#6366F1] to-[#8B5CF6]",
+];
 
 export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount[] }) {
   const router = useRouter();
@@ -37,6 +44,10 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
       setError("社員を選択してください。");
       return;
     }
+    if (!password) {
+      setError("パスコードを入力してください。");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -52,7 +63,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
       setSession(user);
       router.replace("/");
     } catch {
-      setError("パスワードを確認してください。初めての方は下の案内を見てください。");
+      setError("パスコードを確認してください。初回は 0000 です。");
     } finally {
       setLoading(false);
     }
@@ -98,117 +109,128 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
     void login();
   }
 
+  function pressKey(value: string) {
+    if (pendingUser || loading) return;
+    setError("");
+    setPassword((current) => (current + value).slice(0, 8));
+  }
+
   return (
-    <main className="min-h-screen bg-background px-3 py-4 sm:px-4 sm:py-8">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-5xl flex-col justify-center gap-4 sm:gap-6 lg:min-h-[calc(100vh-4rem)] lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center lg:gap-8">
-        <section className="text-center lg:text-left">
-          <BrandLockup className="hidden max-w-xl lg:block" />
-          <BrandMark className="mx-auto h-14 w-14 lg:hidden" />
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-500/15 dark:text-blue-200 sm:text-sm lg:mt-5">
-            <Sparkles className="h-4 w-4" />
-            社員β
+    <main className="min-h-screen overflow-x-hidden bg-[#0B1226] px-3 py-4 text-white sm:px-4 sm:py-8">
+      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl flex-col justify-center gap-5 lg:min-h-[calc(100vh-4rem)] lg:grid lg:grid-cols-[minmax(0,1fr)_430px] lg:items-center lg:gap-10">
+        <section>
+          <div className="flex items-center gap-3">
+            <BrandMark className="h-14 w-14 shrink-0" />
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-slate-400">NOS OS V2</p>
+              <h1 className="mt-1 text-3xl font-extrabold leading-tight sm:text-5xl">{nosBrand.appName}</h1>
+            </div>
           </div>
-          <h1 className="mt-3 text-3xl font-bold leading-tight tracking-normal sm:text-4xl lg:mt-5 lg:text-5xl">{nosBrand.appName}</h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base lg:mx-0 lg:mt-4 lg:max-w-xl lg:leading-8">
-            社員を選んで、今日やることへすぐ入ります。
-          </p>
-          <div className="mt-8 hidden gap-3 lg:grid lg:grid-cols-3">
-            {[
-              ["選ぶだけ", "メールアドレス入力なし"],
-              ["毎日使う", "タスク、案件、勤怠を確認"],
-              ["社内β", "使いながら改善"],
-            ].map(([title, body]) => (
-              <div key={title} className="rounded-panel border border-border bg-card p-4">
-                <p className="font-semibold">{title}</p>
-                <p className="mt-1 text-sm text-slate-500">{body}</p>
-              </div>
+          <p className="mt-4 max-w-xl text-lg font-bold leading-8 text-slate-100">チームの今日を、ひとつの画面に。</p>
+          <p className="mt-2 max-w-xl text-sm leading-7 text-slate-300">社員を選んでパスコードで入ります。初回は 0000 を入力し、自分のパスワードに変更します。</p>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            {accounts.map((account, index) => (
+              <button
+                key={account.employeeId}
+                className={cn(
+                  "rounded-panel border p-3 text-left transition",
+                  account.employeeId === employeeId ? "border-[#E08F12] bg-white text-[#0B1226]" : "border-white/10 bg-white/7 text-white hover:bg-white/10",
+                )}
+                onClick={() => {
+                  setEmployeeId(account.employeeId);
+                  setPassword("");
+                  setPendingUser(null);
+                  setError("");
+                }}
+                type="button"
+              >
+                <div className={cn("grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br text-sm font-extrabold text-white", avatarStyles[index % avatarStyles.length])}>
+                  {account.name.slice(0, 1)}
+                </div>
+                <p className="mt-3 truncate font-extrabold">{account.name}</p>
+                <p className={cn("mt-1 truncate text-xs", account.employeeId === employeeId ? "text-slate-500" : "text-slate-300")}>{account.position}</p>
+                <Badge className="mt-2" tone={account.role === "admin" ? "blue" : "green"}>{roleLabels[account.role]}</Badge>
+              </button>
             ))}
           </div>
         </section>
 
-        <Card className="shadow-soft">
-          <CardContent className="p-4 sm:p-5">
-            <div className="mb-4 flex items-center gap-3 sm:mb-5">
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-panel bg-blue-50 sm:h-16 sm:w-16">
-                <Image src="/assistant/nos-secretary-bot.png" alt="Nos OS AI secretary bot" fill className="object-cover object-center" sizes="64px" />
+        <Card className="border-white/80 bg-white text-[#0B1226] shadow-command">
+          <CardContent className="p-5">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <p className="ios-kicker">LOGIN</p>
+                <p className="mt-1 text-2xl font-extrabold">パスコード</p>
               </div>
-              <div className="min-w-0">
-                <p className="text-lg font-bold leading-tight">ログイン</p>
-                <p className="truncate text-sm text-slate-500">社員テスト版</p>
-              </div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
+                <Sparkles className="h-4 w-4" />
+                社員β
+              </span>
             </div>
 
-            {selectedAccount ? (
-              <div className="mb-3 rounded-panel border border-border bg-slate-50 p-3 dark:bg-white/5 sm:mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-panel bg-blue-600 text-sm font-bold text-white sm:h-11 sm:w-11">
-                    {selectedAccount.avatarUrl || selectedAccount.name.slice(0, 1)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{selectedAccount.name}</p>
-                    <p className="truncate text-xs text-slate-500">
-                      {selectedAccount.department} / {selectedAccount.position}
-                    </p>
-                  </div>
-                  <Badge tone={selectedAccount.role === "admin" ? "blue" : "green"}>{roleLabels[selectedAccount.role]}</Badge>
-                </div>
-              </div>
-            ) : null}
-
             {!accounts.length ? (
-              <div className="mb-4 rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-100">
+              <div className="mb-4 rounded-panel border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
                 <div className="flex items-center gap-2 font-semibold">
                   <AlertTriangle className="h-4 w-4" />
                   社員一覧を読み込めません
                 </div>
-                <p className="mt-1">Supabaseの本番テーブルまたは社員データの準備が不足しています。管理者は使い方またはテスト画面で状態を確認してください。</p>
+                <p className="mt-1">Supabaseの本番テーブルまたは社員データの準備が不足しています。テスト画面で状態を確認してください。</p>
               </div>
             ) : null}
 
-            <form onSubmit={submit} className="space-y-3">
-              <Select
-                aria-label="社員"
-                disabled={Boolean(pendingUser) || loading || !accounts.length}
-                value={employeeId}
-                onChange={(event) => {
-                  setEmployeeId(event.target.value);
-                  setPassword("");
-                  setPendingUser(null);
-                  setNewPassword("");
-                  setConfirmPassword("");
-                  setError("");
-                }}
-              >
-                {accounts.map((account) => (
-                  <option key={account.employeeId} value={account.employeeId}>
-                    {account.name} / {roleLabels[account.role]}
-                  </option>
+            {selectedAccount ? (
+              <div className="mb-5 rounded-panel bg-slate-50 p-3">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#0B1226] text-sm font-extrabold text-white">
+                    {selectedAccount.name.slice(0, 1)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-extrabold">{selectedAccount.name}</p>
+                    <p className="truncate text-xs text-slate-500">{selectedAccount.department} / {selectedAccount.position}</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <form onSubmit={submit} className="space-y-4">
+              <div className={cn("flex justify-center gap-3 rounded-panel bg-slate-50 p-4", error && "animate-pulse ring-2 ring-red-200")}>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <span key={index} className={cn("h-4 w-4 rounded-full border-2", password.length > index ? "border-[#0B1226] bg-[#0B1226]" : "border-slate-300 bg-white")} />
                 ))}
-              </Select>
+              </div>
 
-              <Input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="パスワード"
-                type="password"
-                autoComplete="current-password"
-                disabled={Boolean(pendingUser)}
-              />
-
-              {pendingUser ? (
-                <div className="space-y-3 rounded-panel border border-blue-200 bg-blue-50 p-3 dark:border-blue-500/30 dark:bg-blue-500/15">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-blue-800 dark:text-blue-100">
+              {!pendingUser ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((value) => (
+                    <button key={value} type="button" className="spring h-14 rounded-full bg-slate-100 text-xl font-extrabold hover:bg-slate-200" onClick={() => pressKey(value)}>
+                      {value}
+                    </button>
+                  ))}
+                  <button type="button" className="spring h-14 rounded-full bg-slate-100 font-bold hover:bg-slate-200" onClick={() => setPassword("")}>
+                    Clear
+                  </button>
+                  <button type="button" className="spring h-14 rounded-full bg-slate-100 text-xl font-extrabold hover:bg-slate-200" onClick={() => pressKey("0")}>
+                    0
+                  </button>
+                  <button type="button" className="spring grid h-14 place-items-center rounded-full bg-slate-100 hover:bg-slate-200" onClick={() => setPassword((current) => current.slice(0, -1))}>
+                    <Delete className="h-5 w-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-panel border border-indigo-100 bg-indigo-50 p-3">
+                  <div className="flex items-center gap-2 text-sm font-extrabold text-indigo-800">
                     <KeyRound className="h-4 w-4" />
                     初回パスワード設定
                   </div>
                   <Input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} placeholder="新しいパスワード" type="password" autoComplete="new-password" />
                   <Input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="新しいパスワードをもう一度" type="password" autoComplete="new-password" />
                 </div>
-              ) : null}
+              )}
 
-              {error ? <p className="rounded-panel bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:bg-red-500/15 dark:text-red-100">{error}</p> : null}
+              {error ? <p className="rounded-panel bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p> : null}
 
-              <Button className="h-12 w-full text-base sm:h-11 sm:text-sm" disabled={loading || !accounts.length} type="submit">
+              <Button className="h-12 w-full text-base" disabled={loading || !accounts.length} type="submit" variant="secondary">
                 {pendingUser ? <KeyRound className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
                 {pendingUser ? "パスワードを設定して入る" : "ログイン"}
               </Button>
@@ -220,29 +242,24 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
               </Button>
             ) : null}
 
-            <details className="group mt-4 rounded-panel border border-border bg-slate-50 text-sm text-slate-600 dark:bg-white/5 dark:text-slate-300">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+            <details className="group mt-4 rounded-panel border border-border bg-slate-50 text-sm text-slate-600">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 font-extrabold text-[#0B1226] [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-2">
-                  <CircleHelp className="h-4 w-4 text-blue-600" />
+                  <CircleHelp className="h-4 w-4 text-indigo-600" />
                   初めて使う方はこちら
                 </span>
                 <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
               </summary>
               <div className="space-y-3 border-t border-border px-3 pb-3 pt-3 leading-6">
                 <div className="flex gap-2">
-                  <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                  <p>
-                    初回だけパスワード欄に <span className="font-semibold text-foreground">0000</span> を入れます。その後、自分のパスワードを設定して入ります。
-                  </p>
+                  <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                  <p>初回だけ <span className="font-extrabold text-[#0B1226]">0000</span> を入れます。その後、自分のパスワードを設定します。</p>
                 </div>
                 <div className="flex gap-2">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
                   <p>社員一覧はサーバーから読み込みます。パスワードは画面に表示しません。</p>
                 </div>
-                <Link
-                  href="/guide"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-panel bg-white px-3 py-2 font-semibold text-blue-700 ring-1 ring-border transition hover:bg-blue-50 dark:bg-white/10 dark:text-blue-100 dark:hover:bg-white/15"
-                >
+                <Link href="/guide" className="inline-flex min-h-10 items-center gap-2 rounded-panel bg-white px-3 py-2 font-extrabold text-indigo-700 ring-1 ring-border">
                   <BookOpenCheck className="h-4 w-4" />
                   使い方を確認する
                 </Link>

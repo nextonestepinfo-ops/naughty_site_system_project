@@ -1,14 +1,13 @@
 "use client";
 
-import Image from "next/image";
-import { BrainCircuit, Loader2, Mic, Send, Sparkles } from "lucide-react";
+import { Bot, CheckCircle2, Loader2, Mic, Send, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AssistantMessage } from "@/components/domain/assistant-message";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/form";
 import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
 import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
@@ -22,7 +21,14 @@ type SpeechRecognitionCtor = new () => {
   onend: (() => void) | null;
 };
 
-const samplePrompts = ["今日やる順番", "タスクを分解", "減らせる候補", "担当者別に確認"];
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  source?: SecretaryReply["source"];
+};
+
+const samplePrompts = ["段取りを作って", "タスクを整理して", "今日の振り返り", "明日の準備"];
 
 export default function AssistantPage() {
   const recommendations = useScopedQuery<AiSummary[]>(["ai-recommendations"], "/api/ai/recommendations");
@@ -33,8 +39,14 @@ export default function AssistantPage() {
   const [loadedInitialPrompt, setLoadedInitialPrompt] = useState(false);
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState("今日やるべきことを、期限、優先度、顧客返信待ち、遅延リスクから整理します。");
-  const [source, setSource] = useState<SecretaryReply["source"]>("local");
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      text: "今日やること、タスク整理、段取り相談を手伝います。変更は必ず提案として出すので、確認してから反映してください。",
+      source: "local",
+    },
+  ]);
 
   const projectMap = useMemo(() => new Map((projects.data ?? []).map((project) => [project.id, project])), [projects.data]);
   const employeeMap = useMemo(() => new Map((employees.data ?? []).map((employee) => [employee.id, employee])), [employees.data]);
@@ -48,13 +60,12 @@ export default function AssistantPage() {
           return [
             `タスク:${task.title}`,
             `案件:${project?.name ?? "未設定"}`,
-            task.sourceGoalTreeTitle ? `目標:${task.sourceGoalTreeTitle}` : null,
             task.sourceBranchTitle ? `大タスク:${task.sourceBranchTitle}` : null,
             `担当:${assignee?.name ?? "未設定"}`,
             `状態:${taskStatusLabels[task.status]}`,
             `優先度:${taskPriorityLabels[task.priority]}`,
             `期限:${task.dueDate}`,
-            `AI優先度:${task.aiPriorityScore}`,
+            `AIスコア:${task.aiPriorityScore}`,
           ]
             .filter(Boolean)
             .join(" / ");
@@ -74,6 +85,9 @@ export default function AssistantPage() {
     const normalized = text.trim();
     if (!normalized || loading) return;
 
+    const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: "user", text: normalized };
+    setMessages((current) => [...current, userMessage]);
+    setQuestion("");
     setLoading(true);
     try {
       const data = await apiFetch<SecretaryReply>("/api/ai/secretary", {
@@ -85,30 +99,31 @@ export default function AssistantPage() {
             recommendations.data?.map((item) => `${item.title}: ${item.summary}`).join("\n"),
             "現在のタスク一覧:",
             taskContext,
-            "タスクの追加・削除・分解を提案するときは、案件、大タスク、小タスク、担当者、消してよい理由を短く示す。DB操作は提案だけにして、実行したとは言わない。",
+            "タスクの追加、削除、整理は直接実行せず、必ず提案として返してください。減らす相談は削除ではなく保留提案を優先してください。",
           ]
             .filter(Boolean)
             .join("\n"),
         }),
       });
-      setAnswer(data.reply);
-      setSource(data.source);
-      setQuestion("");
+      setMessages((current) => [...current, { id: `assistant-${Date.now()}`, role: "assistant", text: data.reply, source: data.source }]);
     } catch {
-      setAnswer("通信に失敗しました。少し時間を置いて、もう一度試してください。");
-      setSource("local");
+      setMessages((current) => [
+        ...current,
+        { id: `assistant-error-${Date.now()}`, role: "assistant", text: "通信に失敗しました。少し時間を置いてもう一度試してください。", source: "local" },
+      ]);
     } finally {
       setLoading(false);
     }
   }
 
-  if (recommendations.isLoading || !recommendations.data) return <LoadingPanel label="AI提案を読み込み中" />;
-
   function startVoice() {
     const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
       .SpeechRecognition ?? (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setAnswer("このブラウザでは音声入力が使えません。Chromeかスマホのキーボード音声入力で試してください。");
+      setMessages((current) => [
+        ...current,
+        { id: `assistant-voice-${Date.now()}`, role: "assistant", text: "このブラウザでは音声入力が使えません。スマホのキーボード音声入力かChromeで試してください。", source: "local" },
+      ]);
       return;
     }
     const recognition = new SpeechRecognition();
@@ -124,103 +139,101 @@ export default function AssistantPage() {
     recognition.start();
   }
 
+  if (recommendations.isLoading || !recommendations.data) return <LoadingPanel label="AI秘書を準備中" />;
+
   return (
     <>
-      <PageHeader title="AI Assistant" description="Nos秘書に、今日やること、タスクの分解、減らせる候補、担当者別の状況を聞けます。" />
+      <PageHeader title="AI秘書" description="段取り、整理、振り返りを相談できます。実行は必ず人が確認してから反映します。" kicker="ASSISTANT" />
 
-      <section className="grid gap-5 xl:grid-cols-[1fr_0.8fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-accent" />
-              今日やるべきこと
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {recommendations.data.map((item) => (
-              <div key={item.id} className="rounded-panel border border-border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{item.title}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-300">{item.summary}</p>
-                  </div>
-                  <Badge tone={item.score > 85 ? "red" : "blue"}>{item.score}</Badge>
-                </div>
+      <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
+        <Card className="min-h-[calc(100vh-230px)] overflow-hidden">
+          <CardContent className="flex min-h-[calc(100vh-230px)] flex-col p-0">
+            <div className="flex items-center gap-3 border-b border-border/70 bg-white px-4 py-3">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+                <Bot className="h-5 w-5" />
               </div>
-            ))}
+              <div>
+                <p className="font-extrabold text-[#0B1226]">Nos OS AI Secretary</p>
+                <p className="text-xs text-slate-500">提案型。直接DB変更はしません。</p>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4">
+              {messages.map((message) => (
+                <div key={message.id} className={message.role === "user" ? "ml-auto max-w-[82%]" : "mr-auto max-w-[88%]"}>
+                  <div className={message.role === "user" ? "rounded-[22px] bg-[#0B1226] px-4 py-3 text-white" : "rounded-[22px] bg-white px-4 py-3 shadow-soft"}>
+                    {message.role === "assistant" ? (
+                      <div className="mb-2 flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-indigo-500" />
+                        <Badge tone={message.source === "openai" ? "blue" : "slate"}>{message.source === "openai" ? "OpenAI" : "Local"}</Badge>
+                      </div>
+                    ) : null}
+                    {message.role === "assistant" ? <AssistantMessage text={message.text} /> : <p className="text-sm leading-6">{message.text}</p>}
+                  </div>
+                </div>
+              ))}
+              {loading ? (
+                <div className="mr-auto max-w-[88%] rounded-[22px] bg-white px-4 py-3 text-sm text-slate-500 shadow-soft">
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    整理しています...
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="border-t border-border/70 bg-white p-3">
+              <div className="mb-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {samplePrompts.map((sample) => (
+                  <button key={sample} className="h-9 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-extrabold text-slate-600" onClick={() => void ask(sample)}>
+                    {sample}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-[1fr_48px_48px] gap-2">
+                <Input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="例: 今日のタスクを整理して" onKeyDown={(event) => event.key === "Enter" && void ask()} />
+                <Button aria-label="送信" title="送信" size="icon" disabled={loading || !question.trim()} onClick={() => void ask()}>
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                </Button>
+                <Button aria-label="音声入力" title="音声入力" size="icon" variant={listening ? "danger" : "ghost"} onClick={startVoice}>
+                  <Mic className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <div className="space-y-5">
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <div className="grid gap-3 p-4 sm:grid-cols-[120px_1fr]">
-                <div className="relative h-32 overflow-hidden rounded-panel bg-blue-50 sm:h-36">
-                  <Image src="/assistant/nos-secretary-bot.png" alt="Nos OS AI secretary bot" fill className="object-cover object-center" sizes="120px" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold">Nos秘書</p>
-                    <Badge tone={source === "openai" ? "blue" : "slate"}>{source === "openai" ? "OpenAI" : "Local"}</Badge>
+        <aside className="space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <p className="font-extrabold text-[#0B1226]">今日のおすすめ</p>
+              <div className="mt-3 space-y-3">
+                {recommendations.data.slice(0, 4).map((item) => (
+                  <div key={item.id} className="rounded-panel bg-slate-50 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-bold leading-6">{item.title}</p>
+                      <Badge tone={item.score > 85 ? "red" : "blue"}>{item.score}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">{item.summary}</p>
                   </div>
-                  <div className="mt-3 max-h-96 overflow-y-auto rounded-panel border border-border bg-slate-50 p-3 dark:bg-white/5">
-                    {loading ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-300">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        整理しています...
-                      </div>
-                    ) : (
-                      <AssistantMessage text={answer} />
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="border-t border-border p-4">
-                <div className="grid grid-cols-[1fr_44px_44px] gap-2">
-                  <Input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="例: 次に何をやる？" onKeyDown={(event) => event.key === "Enter" && void ask()} />
-                  <Button aria-label="送信" title="送信" size="icon" disabled={loading || !question.trim()} onClick={() => void ask()}>
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
-                  <Button aria-label="音声入力" title="音声入力" size="icon" variant={listening ? "danger" : "secondary"} onClick={startVoice}>
-                    <Mic className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                  {samplePrompts.map((sample) => (
-                    <button key={sample} className="rounded-full bg-slate-100 px-2 py-1 dark:bg-white/10 dark:text-slate-200" onClick={() => void ask(sample)}>
-                      {sample}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BrainCircuit className="h-4 w-4" />
-                スコア設計
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <Score label="期限" value="40%" />
-              <Score label="優先度" value="30%" />
-              <Score label="顧客返信待ち" value="20%" />
-              <Score label="遅延リスク" value="10%" />
+            <CardContent className="space-y-3 p-4 text-sm">
+              <p className="font-extrabold text-[#0B1226]">安全ルール</p>
+              {["AIは直接変更しない", "整理・減らすは保留提案", "削除は明示時のみ", "反映は人が確認"].map((item) => (
+                <div key={item} className="flex items-center gap-2 rounded-panel bg-white p-2 ring-1 ring-border">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <span>{item}</span>
+                </div>
+              ))}
             </CardContent>
           </Card>
-        </div>
+        </aside>
       </section>
     </>
-  );
-}
-
-function Score({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-panel bg-slate-50 px-3 py-2 dark:bg-white/5">
-      <span>{label}</span>
-      <span className="font-semibold">{value}</span>
-    </div>
   );
 }

@@ -1,9 +1,7 @@
 "use client";
 
-import Image from "next/image";
+import { Bot, Loader2, Mic, Send, Settings, X } from "lucide-react";
 import Link from "next/link";
-import { Loader2, Mic, Send, Settings, X } from "lucide-react";
-import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AssistantMessage } from "@/components/domain/assistant-message";
 import { Button } from "@/components/ui/button";
@@ -19,17 +17,15 @@ type SpeechRecognitionCtor = new () => {
   onend: (() => void) | null;
 };
 
-const samplePrompts = ["今日やること", "次に何？", "売上は？", "予定を出して"];
+const samplePrompts = ["今日やること", "次に何をやる？", "タスクを整理", "明日の準備"];
 
 export function AssistantDock() {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [reply, setReply] = useState("こんにちは。今日やること、次にやること、売上、予定の確認を手伝います。");
+  const [reply, setReply] = useState("こんにちは。今日やること、次にやること、タスク整理を一緒に確認します。");
   const [source, setSource] = useState<SecretaryReply["source"]>("local");
-  const hideLauncherOnMobile = pathname.startsWith("/tasks");
 
   async function answer(text: string) {
     const normalized = text.trim();
@@ -59,7 +55,7 @@ export function AssistantDock() {
     const SpeechRecognition = (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor; SpeechRecognition?: SpeechRecognitionCtor })
       .SpeechRecognition ?? (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setReply("このブラウザでは音声入力が使えません。スマホのキーボード音声入力か、Chromeで試してください。");
+      setReply("このブラウザでは音声入力が使えません。スマホのキーボード音声入力かChromeで試してください。");
       return;
     }
     const recognition = new SpeechRecognition();
@@ -78,35 +74,35 @@ export function AssistantDock() {
   return (
     <>
       <button
-        className={`fixed bottom-36 right-3 z-40 h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-soft transition hover:scale-105 dark:bg-slate-950 sm:bottom-32 sm:flex sm:h-16 sm:w-16 lg:bottom-6 lg:right-4 ${hideLauncherOnMobile ? "hidden" : "flex"}`}
+        className="fixed bottom-6 right-5 z-40 hidden h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] text-white shadow-[0_18px_34px_rgba(99,102,241,0.3)] ring-[3px] ring-white transition hover:scale-105 lg:flex"
         onClick={() => setOpen(true)}
         aria-label="AI秘書を開く"
         title="AI秘書を開く"
       >
-        <Image src="/assistant/nos-secretary-bot.png" alt="Nos OS AI secretary bot" fill className="object-cover object-center" sizes="64px" />
+        <Bot className="h-6 w-6" />
       </button>
 
       {open ? (
-        <div className="fixed inset-x-3 bottom-28 z-50 flex max-h-[76vh] flex-col overflow-hidden rounded-panel border border-border bg-white shadow-soft dark:bg-slate-950 sm:left-auto sm:right-4 sm:w-[420px] lg:bottom-24">
-          <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-panel bg-blue-50">
-              <Image src="/assistant/nos-secretary-bot.png" alt="Nos OS AI secretary bot" fill className="object-cover object-center" sizes="48px" />
+        <div className="fixed bottom-24 right-5 z-50 hidden max-h-[76vh] w-[420px] flex-col overflow-hidden rounded-panel border border-white/80 bg-white shadow-command lg:flex">
+          <div className="flex shrink-0 items-center gap-3 border-b border-border/70 px-4 py-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-indigo-50 text-indigo-600">
+              <Bot className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-foreground">Nos秘書</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{source === "openai" ? "OpenAI接続" : "ローカル返答"}</p>
+              <p className="font-bold text-foreground">AI秘書</p>
+              <p className="text-xs text-slate-500">{source === "openai" ? "OpenAIで応答" : "ローカル応答"}</p>
             </div>
-            <Link href="/settings" className="ml-auto grid h-9 w-9 place-items-center rounded-panel text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" title="設定">
+            <Link href="/settings" className="ml-auto grid h-9 w-9 place-items-center rounded-control text-slate-500 hover:bg-slate-100" title="設定">
               <Settings className="h-4 w-4" />
             </Link>
-            <button className="grid h-9 w-9 place-items-center rounded-panel text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10" onClick={() => setOpen(false)} aria-label="閉じる">
+            <button className="grid h-9 w-9 place-items-center rounded-control text-slate-500 hover:bg-slate-100" onClick={() => setOpen(false)} aria-label="閉じる">
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/70 px-4 py-3">
             {loading ? (
-              <div className="flex items-center gap-2 rounded-panel bg-slate-50 px-3 py-3 text-sm text-slate-500 dark:bg-white/10 dark:text-slate-300">
+              <div className="flex items-center gap-2 rounded-panel bg-white px-3 py-3 text-sm text-slate-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 整理しています...
               </div>
@@ -115,7 +111,7 @@ export function AssistantDock() {
             )}
           </div>
 
-          <div className="shrink-0 border-t border-border bg-white p-3 dark:bg-slate-950">
+          <div className="shrink-0 border-t border-border/70 bg-white p-3">
             <div className="grid grid-cols-[1fr_44px_44px] gap-2">
               <Input
                 value={message}
@@ -126,7 +122,7 @@ export function AssistantDock() {
               <Button size="icon" title="送信" aria-label="送信" disabled={loading || !message.trim()} onClick={() => void answer(message)}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
-              <Button size="icon" variant={listening ? "danger" : "secondary"} title="音声入力" aria-label="音声入力" onClick={startVoice}>
+              <Button size="icon" variant={listening ? "danger" : "ghost"} title="音声入力" aria-label="音声入力" onClick={startVoice}>
                 <Mic className="h-4 w-4" />
               </Button>
             </div>
@@ -134,7 +130,7 @@ export function AssistantDock() {
               {samplePrompts.map((sample) => (
                 <button
                   key={sample}
-                  className="h-8 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
+                  className="h-8 shrink-0 rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-200"
                   onClick={() => void answer(sample)}
                 >
                   {sample}

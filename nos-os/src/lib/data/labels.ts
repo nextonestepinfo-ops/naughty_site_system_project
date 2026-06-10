@@ -9,7 +9,7 @@ import type {
 
 export const roleLabels: Record<Role, string> = {
   admin: "管理者",
-  employee: "一般社員",
+  employee: "社員",
   sales: "営業",
 };
 
@@ -21,7 +21,7 @@ export const projectStatusLabels: Record<ProjectStatus, string> = {
   customer_review: "顧客確認中",
   revision: "修正対応",
   final_review: "最終確認",
-  delivered: "納品",
+  delivered: "納品済み",
   maintenance: "保守運用",
   completed: "完了",
 };
@@ -42,21 +42,21 @@ export const taskStatusLabels: Record<TaskStatus, string> = {
 };
 
 export const attendanceStatusLabels: Record<AttendanceStatus, string> = {
-  working: "出勤",
-  break: "休憩",
-  out: "外出",
-  meeting: "会議",
+  working: "勤務中",
+  break: "休憩中",
+  out: "外出中",
+  meeting: "打合せ中",
   off: "退勤",
   absent: "欠勤",
 };
 
 export const attendanceEventLabels: Record<AttendanceEvent, string> = {
   clock_in: "出勤",
-  break_start: "休憩開始",
-  break_end: "休憩終了",
+  break_start: "休憩入り",
+  break_end: "休憩戻り",
   out: "外出",
-  return: "戻り",
-  meeting: "会議",
+  return: "帰社",
+  meeting: "打合せ",
   clock_out: "退勤",
   absent: "欠勤",
 };

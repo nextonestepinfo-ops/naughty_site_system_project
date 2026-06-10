@@ -3,11 +3,11 @@ import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 export const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function Card({ className, ...props }, ref) {
-  return <div ref={ref} className={cn("rounded-panel border border-border bg-card shadow-soft", className)} {...props} />;
+  return <div ref={ref} className={cn("rounded-panel border border-white/80 bg-card shadow-soft", className)} {...props} />;
 });
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("border-b border-border px-4 py-3", className)} {...props} />;
+  return <div className={cn("border-b border-border/70 px-4 py-3", className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {

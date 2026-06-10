@@ -22,10 +22,12 @@ const config: Config = {
         danger: "hsl(var(--danger))",
       },
       boxShadow: {
-        soft: "0 16px 45px rgba(15, 23, 42, 0.08)",
+        soft: "0 1px 2px rgba(11, 18, 38, 0.05), 0 8px 24px -10px rgba(11, 18, 38, 0.12)",
+        command: "0 18px 45px -24px rgba(11, 18, 38, 0.38)",
       },
       borderRadius: {
-        panel: "8px",
+        panel: "20px",
+        control: "16px",
       },
     },
   },

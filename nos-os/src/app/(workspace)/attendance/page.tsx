@@ -1,20 +1,20 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Coffee, DoorOpen, LogIn, LogOut, MapPin, QrCode, RefreshCcw, Users } from "lucide-react";
-import { useState } from "react";
+import { Coffee, DoorOpen, LogIn, LogOut, MapPin, RefreshCcw, UserX, Users } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Avatar } from "@/components/domain/avatar";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/form";
 import { attendanceEventLabels, attendanceStatusLabels } from "@/lib/data/labels";
 import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import type { AttendanceEvent, AttendanceLog, Employee, LeaveRequest } from "@/lib/types";
-import { formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 
 type AttendancePayload = {
   employees: Employee[];
@@ -22,14 +22,15 @@ type AttendancePayload = {
   leaveRequests: LeaveRequest[];
 };
 
-const actions: Array<{ event: AttendanceEvent; label: string; icon: typeof LogIn }> = [
-  { event: "clock_in", label: "出勤", icon: LogIn },
-  { event: "clock_out", label: "退勤", icon: LogOut },
-  { event: "break_start", label: "休憩開始", icon: Coffee },
-  { event: "break_end", label: "休憩終了", icon: RefreshCcw },
+const actions: Array<{ event: AttendanceEvent; label: string; icon: typeof LogIn; primary?: boolean; danger?: boolean }> = [
+  { event: "clock_in", label: "出勤", icon: LogIn, primary: true },
+  { event: "clock_out", label: "退勤", icon: LogOut, primary: true, danger: true },
+  { event: "break_start", label: "休憩入り", icon: Coffee },
+  { event: "break_end", label: "休憩戻り", icon: RefreshCcw },
   { event: "out", label: "外出", icon: DoorOpen },
-  { event: "return", label: "戻り", icon: MapPin },
-  { event: "meeting", label: "会議", icon: Users },
+  { event: "return", label: "帰社", icon: MapPin },
+  { event: "meeting", label: "打合せ", icon: Users },
+  { event: "absent", label: "欠勤", icon: UserX, danger: true },
 ];
 
 export default function AttendancePage() {
@@ -37,6 +38,12 @@ export default function AttendancePage() {
   const session = useAppStore((state) => state.session);
   const attendance = useScopedQuery<AttendancePayload>(["attendance"], "/api/attendance");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(session?.employeeId ?? "");
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const clock = useMutation({
     mutationFn: (eventType: AttendanceEvent) =>
@@ -54,21 +61,34 @@ export default function AttendancePage() {
     },
   });
 
-  if (attendance.isLoading || !attendance.data) return <LoadingPanel label="勤怠を読み込み中" />;
+  if (attendance.isLoading || !attendance.data) return <LoadingPanel label="勤怠を準備中" />;
 
   const targetEmployee = attendance.data.employees.find((employee) => employee.id === (selectedEmployeeId || session?.employeeId)) ?? attendance.data.employees[0];
+  const todayLogs = attendance.data.logs.filter((log) => isToday(log.recordedAt) && (!targetEmployee || log.employeeId === targetEmployee.id));
+  const teamStatus = {
+    working: attendance.data.employees.filter((employee) => employee.attendanceStatus === "working").length,
+    break: attendance.data.employees.filter((employee) => employee.attendanceStatus === "break").length,
+    out: attendance.data.employees.filter((employee) => employee.attendanceStatus === "out" || employee.attendanceStatus === "meeting").length,
+    off: attendance.data.employees.filter((employee) => employee.attendanceStatus === "off" || employee.attendanceStatus === "absent").length,
+  };
 
   return (
     <>
-      <PageHeader title="勤怠管理" description="Google Sheets連携を前提に、Phase1ではローカル打刻とQR打刻導線を実装しています。" />
+      <PageHeader title="勤怠" description="出勤、退勤、休憩、外出をスマホからすぐ記録します。" kicker="ATTENDANCE" />
 
-      <section className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
+      <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>打刻</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <Card className="overflow-hidden">
+            <div className="h-2 bg-[#0B1226]" />
+            <CardContent className="space-y-4 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="ios-kicker">LIVE CLOCK</p>
+                  <p className="mt-1 text-[54px] font-extrabold leading-none text-[#0B1226]">{formatClock(now)}</p>
+                </div>
+                {targetEmployee ? <StatusPill status={targetEmployee.attendanceStatus} /> : null}
+              </div>
+
               <Select value={selectedEmployeeId || targetEmployee?.id} onChange={(event) => setSelectedEmployeeId(event.target.value)}>
                 {attendance.data.employees.map((employee) => (
                   <option key={employee.id} value={employee.id}>{employee.name}</option>
@@ -76,21 +96,27 @@ export default function AttendancePage() {
               </Select>
 
               {targetEmployee ? (
-                <div className="flex items-center gap-3 rounded-panel bg-slate-50 p-3 dark:bg-white/5">
-                  <Avatar label={targetEmployee.avatarUrl} />
-                  <div>
-                    <p className="font-semibold">{targetEmployee.name}</p>
-                    <p className="text-sm text-slate-500">{targetEmployee.position}</p>
+                <div className="flex items-center gap-3 rounded-panel bg-slate-50 p-3">
+                  <Avatar label={targetEmployee.avatarUrl || targetEmployee.name.slice(0, 1)} />
+                  <div className="min-w-0">
+                    <p className="truncate font-extrabold text-[#0B1226]">{targetEmployee.name}</p>
+                    <p className="truncate text-sm text-slate-500">{targetEmployee.position}</p>
                   </div>
-                  <Badge className="ml-auto" tone={targetEmployee.attendanceStatus === "working" ? "green" : "blue"}>
+                  <Badge className="ml-auto" tone={targetEmployee.attendanceStatus === "working" ? "green" : "slate"}>
                     {attendanceStatusLabels[targetEmployee.attendanceStatus]}
                   </Badge>
                 </div>
               ) : null}
 
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2">
                 {actions.map((action) => (
-                  <Button key={action.event} variant={action.event === "clock_out" ? "danger" : "primary"} onClick={() => clock.mutate(action.event)} disabled={clock.isPending}>
+                  <Button
+                    key={action.event}
+                    className={cn(action.primary && "h-14 text-base")}
+                    variant={action.danger ? "danger" : action.primary ? "secondary" : "ghost"}
+                    onClick={() => clock.mutate(action.event)}
+                    disabled={clock.isPending}
+                  >
                     <action.icon className="h-4 w-4" />
                     {action.label}
                   </Button>
@@ -99,59 +125,57 @@ export default function AttendancePage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-4 w-4" />
-                QRコード打刻
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="mx-auto grid aspect-square max-w-56 grid-cols-5 gap-1 rounded-panel border border-border bg-white p-4">
-                {Array.from({ length: 25 }).map((_, index) => (
-                  <span key={index} className={(index + Math.floor(index / 5)) % 3 === 0 ? "rounded-sm bg-slate-950" : "rounded-sm bg-slate-100"} />
-                ))}
-              </div>
-              <p className="mt-3 text-center text-sm text-slate-500">Phase2で実QR読み取りと打刻URLを接続します。</p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-2 gap-3">
+            <TeamTile label="勤務中" value={teamStatus.working} tone="green" />
+            <TeamTile label="休憩" value={teamStatus.break} />
+            <TeamTile label="外出/打合せ" value={teamStatus.out} />
+            <TeamTile label="退勤/欠勤" value={teamStatus.off} />
+          </div>
         </div>
 
         <div className="space-y-5">
           <Card>
-            <CardHeader>
-              <CardTitle>社員別勤務履歴</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {attendance.data.logs.slice(0, 12).map((log) => {
-                const employee = attendance.data?.employees.find((item) => item.id === log.employeeId);
-                return (
-                  <div key={log.id} className="flex items-center justify-between gap-3 rounded-panel border border-border p-3 text-sm">
-                    <div>
-                      <p className="font-medium">{employee?.name ?? "社員"}</p>
-                      <p className="mt-1 text-slate-500">{attendanceEventLabels[log.eventType]} / {log.source}</p>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-extrabold text-[#0B1226]">今日のタイムライン</p>
+                  <p className="mt-1 text-sm text-slate-500">{targetEmployee?.name ?? "社員"} の記録</p>
+                </div>
+                <Badge tone="amber">{todayLogs.length}件</Badge>
+              </div>
+              <div className="mt-4 space-y-0">
+                {todayLogs.slice(0, 12).map((log, index) => (
+                  <div key={log.id} className="relative grid grid-cols-[28px_1fr] gap-3 pb-4">
+                    {index < todayLogs.length - 1 ? <span className="absolute left-[11px] top-6 h-full w-px bg-slate-200" /> : null}
+                    <span className="relative z-10 mt-1 h-6 w-6 rounded-full border-4 border-white bg-[#E08F12] shadow-soft" />
+                    <div className="rounded-panel bg-white p-3 ring-1 ring-border">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-bold">{attendanceEventLabels[log.eventType]}</p>
+                        <span className="text-xs font-bold text-slate-500">{new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit" }).format(new Date(log.recordedAt))}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{formatDateTime(log.recordedAt)} / {log.source}</p>
                     </div>
-                    <span className="text-right text-slate-500">{formatDateTime(log.recordedAt)}</span>
                   </div>
-                );
-              })}
+                ))}
+                {!todayLogs.length ? <p className="rounded-panel bg-slate-50 p-4 text-sm text-slate-500">今日の打刻はまだありません。</p> : null}
+              </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>残り有給管理</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              {attendance.data.employees.map((employee) => (
-                <div key={employee.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium">{employee.name}</p>
-                    <Badge tone="green">{employee.leaveBalanceDays}日</Badge>
+            <CardContent className="p-4">
+              <p className="font-extrabold text-[#0B1226]">有給・申請状況</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {attendance.data.employees.map((employee) => (
+                  <div key={employee.id} className="rounded-panel bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-bold">{employee.name}</p>
+                      <Badge tone="green">{employee.leaveBalanceDays}日</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">申請中 {attendance.data?.leaveRequests.filter((request) => request.employeeId === employee.id && request.status === "pending").length ?? 0}件</p>
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">申請中 {attendance.data?.leaveRequests.filter((request) => request.employeeId === employee.id && request.status === "pending").length ?? 0}件</p>
-                </div>
-              ))}
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -160,3 +184,33 @@ export default function AttendancePage() {
   );
 }
 
+function StatusPill({ status }: { status: Employee["attendanceStatus"] }) {
+  const working = status === "working";
+  return (
+    <span className={cn("inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-extrabold", working ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}>
+      <span className={cn("h-2 w-2 rounded-full", working ? "bg-emerald-500" : "bg-slate-400")} />
+      {attendanceStatusLabels[status]}
+    </span>
+  );
+}
+
+function TeamTile({ label, value, tone = "slate" }: { label: string; value: number; tone?: "green" | "slate" }) {
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <p className="text-xs font-bold text-slate-500">{label}</p>
+        <p className={cn("mt-2 text-2xl font-extrabold", tone === "green" ? "text-emerald-600" : "text-[#0B1226]")}>{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function formatClock(value: Date) {
+  return new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit" }).format(value);
+}
+
+function isToday(value: string) {
+  const target = new Date(value);
+  const today = new Date();
+  return target.getFullYear() === today.getFullYear() && target.getMonth() === today.getMonth() && target.getDate() === today.getDate();
+}

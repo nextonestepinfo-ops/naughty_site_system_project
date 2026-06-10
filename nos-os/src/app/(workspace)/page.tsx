@@ -50,45 +50,74 @@ export default function DashboardPage() {
       <PageHeader
         title={session?.role === "admin" ? "今日の司令室" : "今日やること"}
         description="今やる、次にやる、遅れそうなものだけ。"
+        kicker="COMMAND ROOM"
       />
 
-      <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card className="overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={plan.riskLevel === "danger" ? "red" : plan.riskLevel === "watch" ? "amber" : "green"}>
-                {plan.riskLevel === "danger" ? "今すぐ" : plan.riskLevel === "watch" ? "注意" : "順調"}
-              </Badge>
-              <span className="text-sm text-slate-500">{formatDateTime(plan.generatedAt)} 更新</span>
-            </div>
-            <h2 className="mt-3 text-2xl font-bold leading-tight">{plan.focusTask?.title ?? "今日は大きな未完了タスクがありません"}</h2>
-            <div className="mt-4 flex flex-wrap gap-2">
+      <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+        <Card className="overflow-hidden border-white bg-white">
+          <div className="h-2 bg-[#0B1226]" />
+          <CardContent className="grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:p-5">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
+                  <span className="h-2 w-2 rounded-full bg-[#E08F12]" />
+                  いまの最優先
+                </span>
+                <Badge tone={plan.riskLevel === "danger" ? "red" : plan.riskLevel === "watch" ? "amber" : "green"}>
+                  {plan.riskLevel === "danger" ? "要対応" : plan.riskLevel === "watch" ? "注意" : "順調"}
+                </Badge>
+                <span className="text-xs font-medium text-slate-500">{formatDateTime(plan.generatedAt)} 更新</span>
+              </div>
+              <h2 className="mt-3 line-clamp-2 break-words text-[26px] font-extrabold leading-tight text-[#0B1226]">
+                {plan.focusTask?.title ?? "今日は大きな未完了タスクがありません"}
+              </h2>
               {plan.focusTask ? (
-                <Button disabled={completeTask.isPending} onClick={() => completeTask.mutate(plan.focusTask!.id)}>
-                  <Check className="h-4 w-4" />
-                  完了
-                </Button>
+                <p className="mt-2 text-sm font-medium text-slate-500">
+                  案件: {projectMap.get(plan.focusTask.projectId)?.name ?? "未設定"} / 担当: {employeeMap.get(plan.focusTask.primaryAssigneeId)?.name ?? "未設定"}
+                </p>
               ) : null}
-              <a href={plan.calendarExportUrl}>
-                <Button variant="secondary">
-                  <Download className="h-4 w-4" />
-                  ICS
-                </Button>
-              </a>
-              {plan.focusTask ? (
-                <a href={focusGoogleCalendarPath} target="_blank" rel="noreferrer">
-                  <Button variant="secondary">
-                    <CalendarPlus className="h-4 w-4" />
-                    Google
+              <div className="mt-5 flex flex-wrap gap-2">
+                {plan.focusTask ? (
+                  <Button disabled={completeTask.isPending} onClick={() => completeTask.mutate(plan.focusTask!.id)} variant="secondary">
+                    <Check className="h-4 w-4" />
+                    完了にする
+                  </Button>
+                ) : null}
+                {plan.focusTask ? (
+                  <Link href={`/tasks?taskId=${plan.focusTask.id}`}>
+                    <Button>
+                      <Clock3 className="h-4 w-4" />
+                      開始する
+                    </Button>
+                  </Link>
+                ) : null}
+                <Link href="/assistant">
+                  <Button variant="ghost" className="text-indigo-600">
+                    <Mic className="h-4 w-4" />
+                    秘書に相談
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 sm:block">
+              <PriorityRing value={plan.focusTask?.aiPriorityScore ?? 0} />
+              <div className="grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-1">
+                <a href={plan.calendarExportUrl}>
+                  <Button className="w-full" variant="ghost" size="sm">
+                    <Download className="h-4 w-4" />
+                    ICS
                   </Button>
                 </a>
-              ) : null}
-              <Link href="/assistant">
-                <Button variant="ghost">
-                  <Mic className="h-4 w-4" />
-                  AI
-                </Button>
-              </Link>
+                {plan.focusTask ? (
+                  <a href={focusGoogleCalendarPath} target="_blank" rel="noreferrer">
+                    <Button className="w-full" variant="ghost" size="sm">
+                      <CalendarPlus className="h-4 w-4" />
+                      Google
+                    </Button>
+                  </a>
+                ) : null}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -330,5 +359,19 @@ function QuickExportStep({ href }: { href: string }) {
       </div>
       <p className="mt-2 line-clamp-2 font-semibold leading-6">出力</p>
     </a>
+  );
+}
+
+function PriorityRing({ value }: { value: number }) {
+  const clamped = Math.max(0, Math.min(100, Math.round(value)));
+  return (
+    <div className="grid h-24 w-24 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(#E08F12 ${clamped * 3.6}deg, #E9EDF4 0deg)` }}>
+      <div className="grid h-[76px] w-[76px] place-items-center rounded-full bg-white text-center shadow-inner">
+        <div>
+          <p className="text-2xl font-extrabold leading-none text-[#0B1226]">{clamped}</p>
+          <p className="mt-1 text-[10px] font-bold text-slate-400">PRIORITY</p>
+        </div>
+      </div>
+    </div>
   );
 }
