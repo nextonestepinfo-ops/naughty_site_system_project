@@ -2,10 +2,10 @@ const base = process.env.NOS_OS_PRODUCTION_URL || "https://nos-os-silk.vercel.ap
 const adminScope = "?role=admin&employeeId=0646e8a9-dbc2-525b-b99f-dddaa74dfdee";
 
 const employees = {
-  "0646e8a9-dbc2-525b-b99f-dddaa74dfdee": { position: "管理者 / 代表", department: "経営・営業", bio: "会社全体の案件、売上、タスク優先度を確認します。" },
-  "e47d3925-107f-5836-b288-bc701828be71": { position: "管理者 / 運用", department: "経営・運用", bio: "社員βの運用、案件確認、タスク整理を担当します。" },
-  "592a547d-7c00-502e-a5a3-dd57fec5679d": { position: "社員", department: "制作・運用", bio: "制作、確認、営業準備のタスクを担当します。" },
-  "4bd50f79-5bed-5dd5-9d39-1908f8d16ff2": { position: "社員", department: "システム開発", bio: "システム、DB、業務改善タスクを担当します。" },
+  "0646e8a9-dbc2-525b-b99f-dddaa74dfdee": { position: "事業責任者", department: "事業運営", bio: "NOStechnology Webサイト事業の責任者として、案件、売上、今日の優先度を確認します。" },
+  "e47d3925-107f-5836-b288-bc701828be71": { position: "社長", department: "経営", bio: "会社全体の判断、社員βの運用、案件確認を担当します。" },
+  "592a547d-7c00-502e-a5a3-dd57fec5679d": { position: "社員", department: "", bio: "制作、確認、営業準備のタスクを担当します。" },
+  "4bd50f79-5bed-5dd5-9d39-1908f8d16ff2": { position: "社員", department: "", bio: "システム、DB、業務改善タスクを担当します。" },
 };
 
 const customers = {

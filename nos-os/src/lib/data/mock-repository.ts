@@ -68,10 +68,10 @@ const mutablePasswords = new Map(
   }),
 );
 const betaProfiles = new Map([
-  ["emp-urata", { email: "urata@nostechnology.jp", name: "浦田 和真", role: "admin" as Role, position: "管理者 / 代表", department: "経営・営業", avatarUrl: "UK" }],
-  ["emp-akari", { email: "hashisako@nostechnology.jp", name: "橋迫 翔太", role: "employee" as Role, position: "社員", department: "制作・運用", avatarUrl: "HS" }],
-  ["emp-ren", { email: "watanabe@nostechnology.jp", name: "渡邉 駿", role: "employee" as Role, position: "社員", department: "システム開発", avatarUrl: "WS" }],
-  ["emp-mio", { email: "osaki@nostechnology.jp", name: "大崎 雄介", role: "admin" as Role, position: "管理者 / 運用", department: "経営・運用", avatarUrl: "OY" }],
+  ["emp-urata", { email: "urata@nostechnology.jp", name: "浦田 和真", role: "admin" as Role, position: "事業責任者", department: "事業運営", avatarUrl: "UK" }],
+  ["emp-akari", { email: "hashisako@nostechnology.jp", name: "橋迫 翔太", role: "employee" as Role, position: "社員", department: "", avatarUrl: "HS" }],
+  ["emp-ren", { email: "watanabe@nostechnology.jp", name: "渡邉 駿", role: "employee" as Role, position: "社員", department: "", avatarUrl: "WS" }],
+  ["emp-mio", { email: "osaki@nostechnology.jp", name: "大崎 雄介", role: "admin" as Role, position: "社長", department: "経営", avatarUrl: "OY" }],
 ]);
 const hiddenEmployeeIds = new Set(["emp-admin"]);
 
@@ -758,9 +758,12 @@ function buildRevenueSummary(role: Role, employeeId?: string): RevenueSummary {
 export function getDailyPlan(role: Role, employeeId?: string): DailyPlan {
   const scopedTasks = visibleTasks(role, employeeId).filter((task) => task.status !== "done");
   const sortedTasks = [...scopedTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore);
-  const focusTask = sortedTasks[0] ?? null;
-  const nextTasks = sortedTasks.slice(1, 5);
-  const completedToday = visibleTasks(role, employeeId).filter((task) => task.status === "done" && dayDiff(task.updatedAt) === 0);
+  const personalTasks = employeeId ? sortedTasks.filter((task) => task.primaryAssigneeId === employeeId || task.assigneeIds.includes(employeeId)) : sortedTasks;
+  const focusTask = personalTasks[0] ?? null;
+  const nextTasks = personalTasks.slice(1, 5);
+  const completedToday = visibleTasks(role, employeeId).filter(
+    (task) => task.status === "done" && dayDiff(task.updatedAt) === 0 && (!employeeId || task.primaryAssigneeId === employeeId || task.assigneeIds.includes(employeeId)),
+  );
   const schedule = sortedTasks.slice(0, 5).map(taskToScheduleBlock);
   const topRisk = focusTask?.aiPriorityScore ?? 0;
   const riskLevel: DailyPlan["riskLevel"] = topRisk >= 82 ? "danger" : topRisk >= 60 ? "watch" : "safe";

@@ -68,7 +68,7 @@ export default function EmployeesPage() {
                   <div className="min-w-0">
                     <p className="font-semibold">{employee.name}</p>
                     <p className="text-sm text-slate-500">{employee.position}</p>
-                    <p className="mt-1 text-xs text-slate-500">{employee.department}</p>
+                    {employee.department ? <p className="mt-1 text-xs text-slate-500">{employee.department}</p> : null}
                   </div>
                   <Badge className="ml-auto" tone={employee.attendanceStatus === "working" ? "green" : "blue"}>
                     {attendanceStatusLabels[employee.attendanceStatus]}

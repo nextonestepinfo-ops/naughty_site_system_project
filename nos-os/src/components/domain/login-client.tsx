@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, BookOpenCheck, ChevronDown, CircleHelp, Delete, KeyRound, LogIn, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, ChevronDown, CircleHelp, Delete, Fingerprint, KeyRound, LogIn, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BrandMark, nosBrand } from "@/components/domain/brand";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { roleLabels } from "@/lib/data/labels";
 import { apiFetch } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import { cn } from "@/lib/utils";
-import type { LoginAccount, User } from "@/lib/types";
+import type { Employee, LoginAccount, User } from "@/lib/types";
 
 const avatarStyles = [
   "from-[#0B1226] to-[#243353]",
@@ -21,6 +21,17 @@ const avatarStyles = [
   "from-[#E08F12] to-[#F0A93C]",
   "from-[#6366F1] to-[#8B5CF6]",
 ];
+
+const lastEmployeeStorageKey = "nos-os-last-employee-id";
+const deviceUnlockStorageKey = "nos-os-device-unlock-v1";
+
+type DeviceUnlockRecord = {
+  employeeId: string;
+  userId: string;
+  name: string;
+  credentialId: string;
+  createdAt: string;
+};
 
 export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount[] }) {
   const router = useRouter();
@@ -33,18 +44,45 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
   const [pendingUser, setPendingUser] = useState<User | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deviceUnlockSupported, setDeviceUnlockSupported] = useState(false);
+  const [deviceUnlock, setDeviceUnlock] = useState<DeviceUnlockRecord | null>(null);
+  const [deviceUnlockBusy, setDeviceUnlockBusy] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(true);
 
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.employeeId === employeeId) ?? accounts[0],
     [accounts, employeeId],
   );
 
-  async function login() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const lastEmployeeId = window.localStorage.getItem(lastEmployeeStorageKey);
+    if (lastEmployeeId && accounts.some((account) => account.employeeId === lastEmployeeId)) {
+      setEmployeeId(lastEmployeeId);
+    }
+    setDeviceUnlockSupported(Boolean(window.PublicKeyCredential && navigator.credentials));
+  }, [accounts]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !employeeId) return;
+    window.localStorage.setItem(lastEmployeeStorageKey, employeeId);
+    setDeviceUnlock(readDeviceUnlock(employeeId));
+  }, [employeeId]);
+
+  async function finishLogin(user: User) {
+    if (rememberDevice && deviceUnlockSupported && !readDeviceUnlock(user.employeeId)) {
+      await registerDeviceUnlock(user, selectedAccount).catch(() => undefined);
+    }
+    setSession(user);
+    router.replace("/");
+  }
+
+  async function login(passcode = password) {
     if (!employeeId) {
       setError("社員を選択してください。");
       return;
     }
-    if (!password) {
+    if (!passcode) {
       setError("パスコードを入力してください。");
       return;
     }
@@ -54,14 +92,13 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
     try {
       const user = await apiFetch<User>("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ employeeId, password, provider: "email" }),
+        body: JSON.stringify({ employeeId, password: passcode, provider: "email" }),
       });
       if (user.mustChangePassword) {
         setPendingUser(user);
         return;
       }
-      setSession(user);
-      router.replace("/");
+      await finishLogin(user);
     } catch {
       setError("パスコードを確認してください。初回は 0000 です。");
     } finally {
@@ -91,8 +128,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
           newPassword,
         }),
       });
-      setSession(user);
-      router.replace("/");
+      await finishLogin(user);
     } catch {
       setError("パスワードを設定できませんでした。もう一度確認してください。");
     } finally {
@@ -112,60 +148,85 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
   function pressKey(value: string) {
     if (pendingUser || loading) return;
     setError("");
-    setPassword((current) => (current + value).slice(0, 8));
+    setPassword((current) => {
+      const next = (current + value).slice(0, 8);
+      if (next.length === 4) {
+        window.setTimeout(() => {
+          void login(next);
+        }, 120);
+      }
+      return next;
+    });
+  }
+
+  async function unlockWithDevice() {
+    if (!deviceUnlock || !deviceUnlockSupported) return;
+    setDeviceUnlockBusy(true);
+    setError("");
+    try {
+      const credential = await navigator.credentials.get({
+        publicKey: {
+          challenge: randomChallenge(),
+          allowCredentials: [{ id: base64UrlToBuffer(deviceUnlock.credentialId), type: "public-key" }],
+          userVerification: "preferred",
+          timeout: 60000,
+        },
+      });
+      if (!credential) throw new Error("No credential");
+      const data = await apiFetch<{ user: User; employee: Employee }>(`/api/me?userId=${deviceUnlock.userId}`);
+      setSession(data.user);
+      router.replace("/");
+    } catch {
+      setError("端末認証で解除できませんでした。数字で解除してください。");
+    } finally {
+      setDeviceUnlockBusy(false);
+    }
   }
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#0B1226] px-3 py-4 text-white sm:px-4 sm:py-8">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl flex-col justify-center gap-5 lg:min-h-[calc(100vh-4rem)] lg:grid lg:grid-cols-[minmax(0,1fr)_430px] lg:items-center lg:gap-10">
-        <section>
-          <div className="flex items-center gap-3">
+      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl flex-col justify-center gap-5 lg:min-h-[calc(100vh-4rem)]">
+        <header className="flex items-center gap-3">
             <BrandMark className="h-14 w-14 shrink-0" />
             <div>
               <p className="text-sm font-bold uppercase tracking-[0.14em] text-slate-400">NOS OS V2</p>
               <h1 className="mt-1 text-3xl font-extrabold leading-tight sm:text-5xl">{nosBrand.appName}</h1>
             </div>
-          </div>
-          <p className="mt-4 max-w-xl text-lg font-bold leading-8 text-slate-100">チームの今日を、ひとつの画面に。</p>
-          <p className="mt-2 max-w-xl text-sm leading-7 text-slate-300">社員を選んでパスコードで入ります。初回は 0000 を入力し、自分のパスワードに変更します。</p>
+        </header>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-center lg:gap-10">
+        <section className="order-2 lg:order-1">
+          <p className="max-w-xl text-lg font-bold leading-8 text-slate-100">チームの今日を、ひとつの画面に。</p>
+          <p className="mt-2 max-w-xl text-sm leading-7 text-slate-300">前回の社員を自動で選びます。開いたら数字を入れるだけで解除できます。</p>
+
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3">
             {accounts.map((account, index) => (
-              <button
+              <MemberButton
                 key={account.employeeId}
-                className={cn(
-                  "rounded-panel border p-3 text-left transition",
-                  account.employeeId === employeeId ? "border-[#E08F12] bg-white text-[#0B1226]" : "border-white/10 bg-white/7 text-white hover:bg-white/10",
-                )}
+                account={account}
+                active={account.employeeId === employeeId}
+                gradient={avatarStyles[index % avatarStyles.length]}
                 onClick={() => {
                   setEmployeeId(account.employeeId);
                   setPassword("");
                   setPendingUser(null);
                   setError("");
                 }}
-                type="button"
-              >
-                <div className={cn("grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br text-sm font-extrabold text-white", avatarStyles[index % avatarStyles.length])}>
-                  {account.name.slice(0, 1)}
-                </div>
-                <p className="mt-3 truncate font-extrabold">{account.name}</p>
-                <p className={cn("mt-1 truncate text-xs", account.employeeId === employeeId ? "text-slate-500" : "text-slate-300")}>{account.position}</p>
-                <Badge className="mt-2" tone={account.role === "admin" ? "blue" : "green"}>{roleLabels[account.role]}</Badge>
-              </button>
+              />
             ))}
           </div>
         </section>
 
-        <Card className="border-white/80 bg-white text-[#0B1226] shadow-command">
+        <Card className="order-1 border-white/80 bg-white text-[#0B1226] shadow-command lg:order-2">
           <CardContent className="p-5">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
-                <p className="ios-kicker">LOGIN</p>
-                <p className="mt-1 text-2xl font-extrabold">パスコード</p>
+                <p className="ios-kicker">UNLOCK</p>
+                <p className="mt-1 text-2xl font-extrabold">ロック解除</p>
               </div>
               <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700">
                 <Sparkles className="h-4 w-4" />
-                社員β
+                すぐ使う
               </span>
             </div>
 
@@ -187,10 +248,17 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-extrabold">{selectedAccount.name}</p>
-                    <p className="truncate text-xs text-slate-500">{selectedAccount.department} / {selectedAccount.position}</p>
+                    <p className="truncate text-xs text-slate-500">{roleLabels[selectedAccount.role]}</p>
                   </div>
                 </div>
               </div>
+            ) : null}
+
+            {!pendingUser && deviceUnlock && deviceUnlockSupported ? (
+              <Button className="mb-3 h-12 w-full text-base" disabled={deviceUnlockBusy || loading} type="button" onClick={unlockWithDevice}>
+                <Fingerprint className="h-4 w-4" />
+                {deviceUnlockBusy ? "確認中" : "この端末で解除"}
+              </Button>
             ) : null}
 
             <form onSubmit={submit} className="space-y-4">
@@ -230,9 +298,26 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
 
               {error ? <p className="rounded-panel bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p> : null}
 
+              {!pendingUser ? (
+                <button
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-between gap-3 rounded-panel border px-3 py-3 text-left text-sm font-bold transition",
+                    rememberDevice ? "border-indigo-200 bg-indigo-50 text-indigo-800" : "border-border bg-slate-50 text-slate-500",
+                  )}
+                  onClick={() => setRememberDevice((current) => !current)}
+                >
+                  <span className="flex items-center gap-2">
+                    <Fingerprint className="h-4 w-4" />
+                    次回からこの端末で解除
+                  </span>
+                  <span>{deviceUnlockSupported ? (rememberDevice ? "ON" : "OFF") : "未対応"}</span>
+                </button>
+              ) : null}
+
               <Button className="h-12 w-full text-base" disabled={loading || !accounts.length} type="submit" variant="secondary">
                 {pendingUser ? <KeyRound className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-                {pendingUser ? "パスワードを設定して入る" : "ログイン"}
+                {pendingUser ? "パスワードを設定して入る" : loading ? "解除中" : "解除する"}
               </Button>
             </form>
 
@@ -257,7 +342,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
                 </div>
                 <div className="flex gap-2">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-                  <p>社員一覧はサーバーから読み込みます。パスワードは画面に表示しません。</p>
+                  <p>対応端末では、次回から端末認証で解除できます。未対応の場合は数字だけで解除できます。</p>
                 </div>
                 <Link href="/guide" className="inline-flex min-h-10 items-center gap-2 rounded-panel bg-white px-3 py-2 font-extrabold text-indigo-700 ring-1 ring-border">
                   <BookOpenCheck className="h-4 w-4" />
@@ -267,7 +352,117 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
             </details>
           </CardContent>
         </Card>
+        </div>
       </div>
     </main>
   );
+}
+
+function MemberButton({
+  account,
+  active,
+  gradient,
+  onClick,
+}: {
+  account: LoginAccount;
+  active: boolean;
+  gradient: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={cn(
+        "min-h-[86px] rounded-panel border p-3 text-left transition",
+        active ? "border-[#E08F12] bg-white text-[#0B1226]" : "border-white/10 bg-white/7 text-white hover:bg-white/10",
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      <div className="flex items-center gap-3">
+        <div className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br text-sm font-extrabold text-white", gradient)}>
+          {account.name.slice(0, 1)}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-extrabold">{account.name}</p>
+          <Badge className="mt-1" tone={account.role === "admin" ? "blue" : "green"}>{roleLabels[account.role]}</Badge>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function readDeviceUnlock(employeeId: string): DeviceUnlockRecord | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(deviceUnlockStorageKey);
+  if (!raw) return null;
+  try {
+    const records = JSON.parse(raw) as DeviceUnlockRecord[];
+    return records.find((record) => record.employeeId === employeeId) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDeviceUnlock(record: DeviceUnlockRecord) {
+  if (typeof window === "undefined") return;
+  const raw = window.localStorage.getItem(deviceUnlockStorageKey);
+  const records = raw ? (JSON.parse(raw) as DeviceUnlockRecord[]) : [];
+  const next = [record, ...records.filter((item) => item.employeeId !== record.employeeId)];
+  window.localStorage.setItem(deviceUnlockStorageKey, JSON.stringify(next.slice(0, 8)));
+}
+
+async function registerDeviceUnlock(user: User, account?: LoginAccount) {
+  if (!window.PublicKeyCredential || !navigator.credentials || !account) return;
+  const credential = await navigator.credentials.create({
+    publicKey: {
+      challenge: randomChallenge(),
+      rp: { name: "Nos OS" },
+      user: {
+        id: new TextEncoder().encode(user.id),
+        name: user.name,
+        displayName: user.name,
+      },
+      pubKeyCredParams: [
+        { type: "public-key", alg: -7 },
+        { type: "public-key", alg: -257 },
+      ],
+      authenticatorSelection: { userVerification: "preferred" },
+      timeout: 60000,
+      attestation: "none",
+    },
+  });
+  if (!credential) return;
+  writeDeviceUnlock({
+    employeeId: account.employeeId,
+    userId: user.id,
+    name: account.name,
+    credentialId: bufferToBase64Url((credential as PublicKeyCredential).rawId),
+    createdAt: new Date().toISOString(),
+  });
+}
+
+function randomChallenge() {
+  const buffer = new Uint8Array(32);
+  window.crypto.getRandomValues(buffer);
+  return buffer;
+}
+
+function bufferToBase64Url(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return window.btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlToBuffer(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+  const binary = window.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
 }

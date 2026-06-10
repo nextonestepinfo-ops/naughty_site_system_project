@@ -150,10 +150,10 @@ const users = [
 ];
 
 const employees = [
-  { id: ids.employees.urata, user_id: ids.users.urata, name: "浦田 和真", position: "管理者 / 代表", department: "経営・営業", avatar_url: "UK", bio: "会社全体の案件、売上、タスク優先度を確認します。", leave_balance_days: 11, attendance_status: "working" },
-  { id: ids.employees.osaki, user_id: ids.users.osaki, name: "大崎 雄介", position: "管理者 / 運用", department: "経営・運用", avatar_url: "OY", bio: "社員βの運用、案件確認、タスク整理を担当します。", leave_balance_days: 12, attendance_status: "working" },
-  { id: ids.employees.hashisako, user_id: ids.users.hashisako, name: "橋迫 翔太", position: "社員", department: "制作・運用", avatar_url: "HS", bio: "制作、確認、営業準備のタスクを担当します。", leave_balance_days: 10, attendance_status: "meeting" },
-  { id: ids.employees.watanabe, user_id: ids.users.watanabe, name: "渡邉 駿", position: "社員", department: "システム開発", avatar_url: "WS", bio: "システム、DB、業務改善タスクを担当します。", leave_balance_days: 10, attendance_status: "working" },
+  { id: ids.employees.urata, user_id: ids.users.urata, name: "浦田 和真", position: "事業責任者", department: "事業運営", avatar_url: "UK", bio: "NOStechnology Webサイト事業の責任者として、案件、売上、今日の優先度を確認します。", leave_balance_days: 11, attendance_status: "working" },
+  { id: ids.employees.osaki, user_id: ids.users.osaki, name: "大崎 雄介", position: "社長", department: "経営", avatar_url: "OY", bio: "会社全体の判断、社員βの運用、案件確認を担当します。", leave_balance_days: 12, attendance_status: "working" },
+  { id: ids.employees.hashisako, user_id: ids.users.hashisako, name: "橋迫 翔太", position: "社員", department: "", avatar_url: "HS", bio: "制作、確認、営業準備のタスクを担当します。", leave_balance_days: 10, attendance_status: "meeting" },
+  { id: ids.employees.watanabe, user_id: ids.users.watanabe, name: "渡邉 駿", position: "社員", department: "", avatar_url: "WS", bio: "システム、DB、業務改善タスクを担当します。", leave_balance_days: 10, attendance_status: "working" },
 ];
 
 const customers = [

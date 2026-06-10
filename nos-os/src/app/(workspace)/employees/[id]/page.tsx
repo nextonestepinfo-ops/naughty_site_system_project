@@ -41,7 +41,7 @@ export default function EmployeeProfilePage() {
                 <div>
                   <p className="text-lg font-bold">{employee.name}</p>
                   <p className="mt-1 text-sm text-slate-500">{employee.position}</p>
-                  <p className="text-sm text-slate-500">{employee.department}</p>
+                  {employee.department ? <p className="text-sm text-slate-500">{employee.department}</p> : null}
                   <Badge className="mt-3" tone={employee.attendanceStatus === "working" ? "green" : "blue"}>
                     {attendanceStatusLabels[employee.attendanceStatus]}
                   </Badge>

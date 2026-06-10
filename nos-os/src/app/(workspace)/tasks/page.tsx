@@ -50,7 +50,7 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
   const session = useAppStore((state) => state.session);
   const [segment, setSegment] = useState<Segment>("today");
-  const [chip, setChip] = useState<Chip>(session?.role === "admin" ? "all" : "mine");
+  const [chip, setChip] = useState<Chip>("mine");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [adding, setAdding] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -133,7 +133,11 @@ export default function TasksPage() {
       return true;
     });
   }, [activeTasks, chip, segment, session?.employeeId]);
-  const focusTask = useMemo(() => [...activeTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null, [activeTasks]);
+  const personalActiveTasks = useMemo(
+    () => (session?.employeeId ? activeTasks.filter((task) => [task.primaryAssigneeId, ...task.assigneeIds].includes(session.employeeId)) : activeTasks),
+    [activeTasks, session?.employeeId],
+  );
+  const focusTask = useMemo(() => [...personalActiveTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null, [personalActiveTasks]);
   const stats = useMemo(
     () => ({
       today: activeTasks.filter((task) => dayDistance(task.dueDate) === 0).length,

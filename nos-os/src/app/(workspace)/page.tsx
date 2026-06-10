@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarCheck, CalendarDays, CalendarPlus, Check, CheckCircle2, Clock3, Download, FilePenLine, Mic, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { GoalTreeBoard } from "@/components/domain/goal-tree-board";
 import { LoadingPanel } from "@/components/domain/loading";
 import { MetricCard } from "@/components/domain/metric-card";
@@ -13,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { attendanceStatusLabels } from "@/lib/data/labels";
-import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
+import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import type { DashboardSummary, Employee, Project, Task } from "@/lib/types";
 import { cn, formatDateTime, formatTime } from "@/lib/utils";
@@ -21,12 +22,10 @@ import { cn, formatDateTime, formatTime } from "@/lib/utils";
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const session = useAppStore((state) => state.session);
+  const [heroMode, setHeroMode] = useState<"personal" | "company">("personal");
   const dashboard = useScopedQuery<DashboardSummary>(["dashboard"], "/api/dashboard");
   const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
   const projects = useScopedQuery<Project[]>(["projects"], "/api/projects");
-  const focusGoogleCalendarPath = useScopedPath(
-    dashboard.data?.dailyPlan.focusTask ? `/api/calendar/tasks/${dashboard.data.dailyPlan.focusTask.id}/google` : "/api/calendar/ics",
-  );
 
   const completeTask = useMutation({
     mutationFn: (taskId: string) => apiFetch<Task>(`/api/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify({ status: "done" }) }),
@@ -43,6 +42,10 @@ export default function DashboardPage() {
   const projectMap = new Map((projects.data ?? []).map((project) => [project.id, project]));
   const statusTotal = Object.values(dashboard.data.employeeStatus).reduce((sum, value) => sum + value, 0);
   const priorityTasks = Array.from(new Map([...(plan.focusTask ? [plan.focusTask] : []), ...plan.nextTasks].map((task) => [task.id, task])).values());
+  const companyFocusTask = Array.from(new Map([...dashboard.data.delayedTasks, ...dashboard.data.urgentTasks, ...dashboard.data.weekTasks].map((task) => [task.id, task])).values())
+    .sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null;
+  const heroTask = session?.role === "admin" && heroMode === "company" ? companyFocusTask : plan.focusTask;
+  const heroGoogleCalendarPath = scopedHref(heroTask ? `/api/calendar/tasks/${heroTask.id}/google` : "/api/calendar/ics", session);
   const nextTask = plan.nextTasks[0];
 
   return (
@@ -66,25 +69,43 @@ export default function DashboardPage() {
                 <Badge tone={plan.riskLevel === "danger" ? "red" : plan.riskLevel === "watch" ? "amber" : "green"}>
                   {plan.riskLevel === "danger" ? "要対応" : plan.riskLevel === "watch" ? "注意" : "順調"}
                 </Badge>
+                {session?.role === "admin" ? (
+                  <span className="grid grid-cols-2 rounded-full bg-slate-100 p-1 text-xs font-extrabold text-slate-500">
+                    <button
+                      className={cn("h-7 rounded-full px-3", heroMode === "personal" && "bg-white text-[#0B1226] shadow-soft")}
+                      onClick={() => setHeroMode("personal")}
+                      type="button"
+                    >
+                      自分
+                    </button>
+                    <button
+                      className={cn("h-7 rounded-full px-3", heroMode === "company" && "bg-white text-[#0B1226] shadow-soft")}
+                      onClick={() => setHeroMode("company")}
+                      type="button"
+                    >
+                      会社
+                    </button>
+                  </span>
+                ) : null}
                 <span className="text-xs font-medium text-slate-500">{formatDateTime(plan.generatedAt)} 更新</span>
               </div>
               <h2 className="mt-3 line-clamp-2 break-words text-[26px] font-extrabold leading-tight text-[#0B1226]">
-                {plan.focusTask?.title ?? "今日は大きな未完了タスクがありません"}
+                {heroTask?.title ?? (heroMode === "company" ? "会社全体の確認タスクはありません" : "自分の未完了タスクはありません")}
               </h2>
-              {plan.focusTask ? (
+              {heroTask ? (
                 <p className="mt-2 text-sm font-medium text-slate-500">
-                  案件: {projectMap.get(plan.focusTask.projectId)?.name ?? "未設定"} / 担当: {employeeMap.get(plan.focusTask.primaryAssigneeId)?.name ?? "未設定"}
+                  {heroMode === "company" ? "会社タスク" : "自分のタスク"} / 案件: {projectMap.get(heroTask.projectId)?.name ?? "未設定"} / 担当: {employeeMap.get(heroTask.primaryAssigneeId)?.name ?? "未設定"}
                 </p>
               ) : null}
               <div className="mt-5 flex flex-wrap gap-2">
-                {plan.focusTask ? (
-                  <Button disabled={completeTask.isPending} onClick={() => completeTask.mutate(plan.focusTask!.id)} variant="secondary">
+                {heroTask ? (
+                  <Button disabled={completeTask.isPending} onClick={() => completeTask.mutate(heroTask.id)} variant="secondary">
                     <Check className="h-4 w-4" />
                     完了にする
                   </Button>
                 ) : null}
-                {plan.focusTask ? (
-                  <Link href={`/tasks?taskId=${plan.focusTask.id}`}>
+                {heroTask ? (
+                  <Link href={`/tasks?taskId=${heroTask.id}`}>
                     <Button>
                       <Clock3 className="h-4 w-4" />
                       開始する
@@ -101,7 +122,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-center gap-3 sm:block">
-              <PriorityRing value={plan.focusTask?.aiPriorityScore ?? 0} />
+              <PriorityRing value={heroTask?.aiPriorityScore ?? 0} />
               <div className="grid grid-cols-2 gap-2 sm:mt-4 sm:grid-cols-1">
                 <a href={plan.calendarExportUrl}>
                   <Button className="w-full" variant="ghost" size="sm">
@@ -109,8 +130,8 @@ export default function DashboardPage() {
                     ICS
                   </Button>
                 </a>
-                {plan.focusTask ? (
-                  <a href={focusGoogleCalendarPath} target="_blank" rel="noreferrer">
+                {heroTask ? (
+                  <a href={heroGoogleCalendarPath} target="_blank" rel="noreferrer">
                     <Button className="w-full" variant="ghost" size="sm">
                       <CalendarPlus className="h-4 w-4" />
                       Google
@@ -247,6 +268,17 @@ export default function DashboardPage() {
       </section>
     </>
   );
+}
+
+function scopedHref(path: string, session: { role: string; employeeId: string; id: string } | null) {
+  const params = new URLSearchParams();
+  if (session) {
+    params.set("role", session.role);
+    params.set("employeeId", session.employeeId);
+    params.set("userId", session.id);
+  }
+  const query = params.toString();
+  return `${path}${query ? `?${query}` : ""}`;
 }
 
 function CalendarBoard({

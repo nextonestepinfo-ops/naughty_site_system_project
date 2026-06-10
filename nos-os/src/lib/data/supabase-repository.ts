@@ -1204,14 +1204,21 @@ async function buildRevenueSummary(role: Role, employeeId?: string): Promise<Rev
 export async function getDailyPlan(role: Role, employeeId?: string): Promise<DailyPlan> {
   const scopedTasks = (await getTasks(role, employeeId)).filter((task) => task.status !== "done");
   const sortedTasks = [...scopedTasks].sort((a, b) => b.aiPriorityScore - a.aiPriorityScore);
-  const focusTask = sortedTasks[0] ?? null;
-  const nextTasks = sortedTasks.slice(1, 5);
-  const completedToday = (await getTasks(role, employeeId)).filter((task) => task.status === "done" && dayDiff(task.updatedAt) === 0);
+  const normalizedEmployeeId = dbId(employeeId);
+  const personalTasks = normalizedEmployeeId ? sortedTasks.filter((task) => task.primaryAssigneeId === normalizedEmployeeId || task.assigneeIds.includes(normalizedEmployeeId)) : sortedTasks;
+  const focusTask = personalTasks[0] ?? null;
+  const nextTasks = personalTasks.slice(1, 5);
+  const completedToday = (await getTasks(role, employeeId)).filter(
+    (task) =>
+      task.status === "done" &&
+      dayDiff(task.updatedAt) === 0 &&
+      (!normalizedEmployeeId || task.primaryAssigneeId === normalizedEmployeeId || task.assigneeIds.includes(normalizedEmployeeId)),
+  );
   const schedule = sortedTasks.slice(0, 5).map(taskToScheduleBlock);
   const topRisk = focusTask?.aiPriorityScore ?? 0;
   const riskLevel: DailyPlan["riskLevel"] = topRisk >= 82 ? "danger" : topRisk >= 60 ? "watch" : "safe";
   return {
-    ownerEmployeeId: dbId(employeeId) ?? null,
+    ownerEmployeeId: normalizedEmployeeId ?? null,
     generatedAt: new Date().toISOString(),
     focusTask,
     nextTasks,
