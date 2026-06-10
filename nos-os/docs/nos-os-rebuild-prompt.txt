@@ -1,0 +1,753 @@
+NOS OS 再構築プロンプト
+作成日: 2026-06-10
+
+以下を、別のAI/開発エージェントにそのまま渡してください。
+目的は、既存のNOS OSを完全コピーすることではなく、業務上の考え方、データ構造、API境界、スマホ中心の操作性、AIタスク整理の工夫を無駄にせず、別実装として再構築できる状態にすることです。
+
+============================================================
+ここからプロンプト
+============================================================
+
+あなたはシニアプロダクトエンジニアです。
+「NOS OS」という社内向けタスク管理OSを、社員テスト版として再構築してください。
+
+UIデザインはあなたに任せます。
+ただし、以下の業務仕様、データ構造、API方針、スマホ運用の工夫は必ず引き継いでください。
+見た目を完全に同じにする必要はありません。むしろ、スマホで直感的に使える神ツールを目指して、より良く再設計してください。
+
+------------------------------------------------------------
+1. プロダクト概要
+------------------------------------------------------------
+
+名前:
+- NOS OS
+
+目的:
+- 社員が毎日スマホで開き、「今日何をやるか」「誰が何を進めているか」「案件のどこが詰まっているか」をすぐ確認できる社内タスクOS。
+- 経営/管理者は、案件、タスク、社員、勤怠、目標ツリーを横断して確認する。
+- 社員は、自分の担当タスク、担当案件、勤怠、通知、AI相談を使う。
+- 最初の完成目標は「社員実データβ」。完璧なiOSアプリではなく、まずWeb/PWAで社員が実際に触れる状態にする。
+
+現在の本番URL:
+- https://nos-os-silk.vercel.app/login
+- https://nos-os-silk.vercel.app/tasks
+- https://nos-os-silk.vercel.app/guide
+- https://nos-os-silk.vercel.app/api/health
+
+現在のブランチ:
+- codex/nos-os-daily-cockpit
+
+現在のデプロイ先:
+- Vercel project: nos-os
+- Production alias: https://nos-os-silk.vercel.app
+
+想定ユーザー:
+- 浦田 和真: 管理者
+- 大崎 雄介: 管理者
+- 橋迫 翔太: 一般社員
+- 渡邉 駿: 一般社員
+
+------------------------------------------------------------
+2. 技術方針
+------------------------------------------------------------
+
+推奨スタック:
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- React Query / TanStack Query
+- Zustandなどの軽量クライアント状態管理
+- Supabase PostgreSQL
+- OpenAI APIはサーバー側だけで利用
+- PWA対応
+
+重要な境界:
+- ブラウザに Supabase service role key や OpenAI API key を絶対に出さない。
+- ブラウザは既存APIを呼ぶだけ。
+- サーバー側API routeで service role key を使ってSupabaseを読み書きする。
+- データ層は `NOS_OS_DATA_MODE` で切り替え可能にする。
+
+データモード:
+- `mock`: ローカル/デモ用。動作確認ができる。
+- `supabase`: 本番/社員β用。Supabaseに永続化する。
+
+必要な環境変数名:
+- NOS_OS_DATA_MODE
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- OPENAI_API_KEY
+- OPENAI_MODEL
+- URATA_LOGIN_PASSWORD
+- NEXT_PUBLIC_VAPID_PUBLIC_KEY
+- VAPID_PRIVATE_KEY
+- VAPID_SUBJECT
+- NOS_OS_CRON_SECRET
+
+注意:
+- 秘密値はコード、ドキュメント、チャット、スクショに書かない。
+- Google OAuth / Google Sheets / Gmailの完全連携は次フェーズでよい。
+
+------------------------------------------------------------
+3. 完了条件
+------------------------------------------------------------
+
+社員テスト版の最低完了条件:
+- `/api/health` が以下を返す。
+  - employeePreviewReady: true
+  - dataMode: "supabase"
+  - blockers: []
+- `/login` から社員プルダウンでログインできる。
+- メールアドレス入力ではなく、社員が少ない前提で社員プルダウンにする。
+- 初回パスワードは `0000`。
+- 初回ログイン後、自分のパスワードを設定する。
+- アプリ内でパスワード変更ができる。
+- 浦田と大崎は管理者として全案件/全タスクを見られる。
+- 一般社員は自分の担当案件/タスク中心に見える。
+- タスク、案件、目標ツリー、勤怠がSupabaseに保存され、リロード後も残る。
+- OpenAIが設定されていればAI秘書/AIタスク整理が `source: "openai"` で返る。
+- OpenAI未設定でもローカルfallbackで最低限動く。
+- スマホ幅で横スクロールが出ない。
+- スマホでタスク追加ボタンが押しやすい。
+- テストデータは実データと誤解されないよう `【テスト】` や「テスト」バッジで明示する。
+
+------------------------------------------------------------
+4. ロールと権限
+------------------------------------------------------------
+
+Role:
+- admin
+- employee
+- sales
+
+admin:
+- 全案件、全タスク、全社員、顧客、勤怠、通知、テスト画面を確認可能。
+- 会社目標ツリーを編集可能。
+- 社員権限を管理可能。
+
+employee:
+- 自分の担当案件、自分の担当タスク、自分の勤怠を中心に見る。
+- 会社目標ツリーは閲覧中心。直接編集は不可または制限。
+- 自分のタスク状態変更、コメント、勤怠打刻はできる。
+
+sales:
+- DB制約で弾かれないようにする。
+- 初期βではemployeeに近い表示でよいが、将来営業向け画面を広げられる余地を残す。
+
+------------------------------------------------------------
+5. 主要画面
+------------------------------------------------------------
+
+必須画面:
+- `/login`
+- `/`
+- `/tasks`
+- `/projects`
+- `/projects/[id]`
+- `/attendance`
+- `/notifications`
+- `/assistant`
+- `/guide`
+- `/test`
+- `/settings`
+- `/employees`
+- `/employees/[id]`
+- `/customers`
+
+ログイン:
+- 社員プルダウン。
+- パスワード欄。
+- 初めて使う方はこちら、という案内を下部にまとめる。
+- 初期パスワード `0000` を説明。
+- 初回ログイン時は新しいパスワード設定フォームに進む。
+- ログイン後はホームへ。
+
+ホーム:
+- 今日の司令室。
+- 一番重要なタスク。
+- 次にやること。
+- 今日/緊急/遅延/出勤状況などの数値。
+- 週の簡易カレンダー。
+- 目標ツリーの概要。
+
+タスク画面:
+- 最重要画面。スマホ中心。
+- 「タスク追加」ボタンを目立たせる。
+- AI相談ボタンも置く。
+- タスクカードには必ず以下を見える化する。
+  - 案件
+  - 大タスク
+  - 小タスク
+  - 担当者
+  - 期限
+  - 優先度
+  - 状態
+  - テストデータかどうか
+- 操作はスマホではアイコン中心で横にはみ出さない。
+  - 開始
+  - 確認へ
+  - 完了
+  - 保留
+  - カレンダー追加
+  - Googleカレンダー追加
+  - 編集
+  - 削除
+- 削除は必ず確認を出す。
+- 「減らす」は基本的に物理削除ではなく `priority: "hold"` にして保留扱いにする。
+
+タスク追加フォーム:
+- スマホで押しやすくする。
+- ラベルを必ず表示する。
+- 小タスク名
+- 大タスク
+- 案件
+- 担当
+- 期限
+- 優先度
+- 状態
+- 遅延リスク
+- 顧客返信待ち
+- 内容
+- 期限は今日の日付を初期値にする。
+- 大タスクを選ぶと案件と担当が自然に揃う設計にする。
+- 保存/キャンセルはスマホで押しやすい位置に置く。
+- 入力欄はiPhoneで自動ズームしないよう、モバイルでは16px相当のフォントにする。
+
+案件画面:
+- 案件一覧。
+- 案件作成。
+- 案件編集。
+- 案件詳細で関連タスク、メンバー、顧客、履歴を確認。
+- 管理者は金額、期限、担当、状態、メモを編集できる。
+
+通知画面:
+- 期限超過
+- 本日期限
+- 明日期限
+- 未読
+- 対象タスクへ移動できる。
+- PWA通知の案内を置く。
+- VAPID未設定時は画面内通知だけでよい。
+
+使い方画面:
+- 社員テスト版の使い方を短くまとめる。
+- ログイン方法。
+- 初期パスワード。
+- タスク更新方法。
+- AI相談方法。
+- フィードバック方法。
+
+テスト画面:
+- `/api/health` の状態を表示。
+- テスト手順。
+- 既知の未対応。
+- フィードバック方法。
+
+------------------------------------------------------------
+6. API設計
+------------------------------------------------------------
+
+既存API URLはできるだけ変えない。
+画面はこのAPIを呼び、裏側のデータ層だけ `mock` / `supabase` で切り替える。
+
+必須API:
+- POST `/api/auth/login`
+- POST `/api/auth/logout`
+- POST `/api/auth/password`
+- GET `/api/auth/accounts`
+- GET `/api/me`
+- GET `/api/dashboard`
+- GET `/api/daily-plan`
+- GET `/api/projects`
+- POST `/api/projects`
+- GET `/api/projects/[id]`
+- PATCH `/api/projects/[id]`
+- DELETE `/api/projects/[id]`
+- GET `/api/tasks`
+- POST `/api/tasks`
+- POST `/api/tasks/assistant-plan`
+- PATCH `/api/tasks/[id]`
+- DELETE `/api/tasks/[id]`
+- POST `/api/tasks/[id]/comments`
+- GET `/api/goal-trees`
+- POST `/api/goal-trees`
+- PATCH `/api/goal-trees/[id]`
+- DELETE `/api/goal-trees/[id]`
+- GET `/api/attendance`
+- POST `/api/attendance/clock`
+- GET `/api/leave`
+- GET `/api/notifications`
+- PATCH `/api/notifications/[id]/read`
+- POST `/api/notifications/push-subscription`
+- POST `/api/ai/secretary`
+- GET `/api/calendar/ics`
+- GET `/api/calendar/tasks/[id]/ics`
+- GET `/api/calendar/tasks/[id]/google`
+- GET `/api/health`
+- POST `/api/cron/notifications`
+
+APIレスポンス基本形:
+```json
+{
+  "data": {}
+}
+```
+
+タスクフィルター:
+- assigneeId
+- projectId
+- priority
+- status
+- due: today / week / overdue
+- sort: dueDate / priority / assignee / updatedAt
+
+優先度スコア:
+```txt
+score = deadline * 0.4 + priority * 0.3 + customer_wait * 0.2 + delay_risk * 0.1
+```
+
+------------------------------------------------------------
+7. データモデル
+------------------------------------------------------------
+
+主要テーブル:
+- users
+- employees
+- customers
+- projects
+- project_members
+- tasks
+- task_assignees
+- task_comments
+- goal_trees
+- attendance_logs
+- leave_requests
+- notifications
+- push_subscriptions
+- activity_logs
+- emails
+
+users:
+- id
+- email
+- role: admin / employee / sales
+- employment_type
+- auth_provider
+- password_salt
+- password_hash
+- must_change_password
+- password_changed_at
+- created_at
+- updated_at
+
+employees:
+- id
+- user_id
+- name
+- position
+- department
+- avatar_url
+- bio
+- leave_balance_days
+- attendance_status
+- created_at
+- updated_at
+
+projects:
+- id
+- name
+- customer_id
+- primary_owner_id
+- secondary_owner_id
+- start_date
+- due_date
+- budget
+- status
+- notes
+- created_at
+- updated_at
+
+project_members:
+- project_id
+- employee_id
+- role: primary / secondary / viewer
+
+tasks:
+- id
+- title
+- body
+- project_id
+- primary_assignee_id
+- due_date
+- priority: urgent / high / normal / low / hold
+- status: todo / in_progress / review / done
+- attachments
+- customer_waiting
+- delay_risk
+- ai_priority_score
+- estimated_minutes
+- scheduled_start
+- scheduled_end
+- created_at
+- updated_at
+
+task_assignees:
+- task_id
+- employee_id
+
+task_comments:
+- id
+- task_id
+- author_user_id
+- body
+- created_at
+
+goal_trees:
+- id
+- scope: company / daily / personal
+- title
+- goal
+- owner_employee_id
+- due_date
+- metrics jsonb
+- branches jsonb
+- created_at
+- updated_at
+
+GoalTree branchesの形:
+```json
+{
+  "id": "branch-xxx",
+  "title": "大タスク名",
+  "dueDate": "2026-06-10",
+  "assigneeId": "employee uuid or null",
+  "projectId": "project uuid or null",
+  "tasks": [
+    {
+      "id": "tree-task-xxx",
+      "title": "小タスク名",
+      "dueDate": "2026-06-10",
+      "assigneeId": "employee uuid or null",
+      "taskId": "materialized task uuid or null"
+    }
+  ]
+}
+```
+
+attendance_logs:
+- id
+- employee_id
+- event_type: clock_in / break_start / break_end / out / return / meeting / clock_out / absent
+- recorded_at
+- source: manual / qr / google_sheets
+- note
+
+notifications:
+- id
+- user_id
+- type: task_created / due_tomorrow / due_today / overdue / attendance_missing / admin
+- title
+- body
+- severity: info / success / warning / danger
+- target_href
+- read_at
+- created_at
+
+------------------------------------------------------------
+8. Seed / 初期データ方針
+------------------------------------------------------------
+
+絶対に破壊的リセットを前提にしない。
+既存Supabaseへ必要なテーブル/制約を追加し、初期データはupsertで投入する。
+
+mock IDは deterministic UUID に変換する。
+seedを何度流しても同じレコードへupsertされるようにする。
+
+既存のデモ/seed由来タスクは実データと誤解されないよう、タイトルに `【テスト】` を付ける。
+画面側でも「テスト」バッジを出す。
+
+初期ユーザー:
+- 浦田 和真: admin
+- 大崎 雄介: admin
+- 橋迫 翔太: employee
+- 渡邉 駿: employee
+
+初期パスワード:
+- 0000
+- must_change_password: true
+
+------------------------------------------------------------
+9. AIタスク整理
+------------------------------------------------------------
+
+重要:
+AIが直接DBを勝手に変更してはいけない。
+AIは「候補」を返し、人間が確認してから反映する。
+
+API:
+- POST `/api/tasks/assistant-plan`
+
+入力:
+```json
+{
+  "message": "今日の営業スプリントを3つに分解して"
+}
+```
+
+出力:
+```json
+{
+  "summary": "短い要約",
+  "source": "openai or local",
+  "warnings": [],
+  "actions": []
+}
+```
+
+actions:
+- create
+- update
+- delete
+
+create action:
+- title
+- description
+- projectId
+- projectName
+- primaryAssigneeId
+- assigneeName
+- sourceGoalTreeId
+- sourceGoalTreeTitle
+- sourceBranchId
+- sourceBranchTitle
+- dueDate
+- priority
+- estimatedMinutes
+- reason
+
+update action:
+- taskId
+- title
+- patch
+- projectName
+- assigneeName
+- sourceGoalTreeTitle
+- sourceBranchTitle
+- reason
+
+delete action:
+- taskId
+- title
+- projectName
+- assigneeName
+- sourceGoalTreeTitle
+- sourceBranchTitle
+- reason
+
+安全ルール:
+- 「減らして」「整理して」「減らせる候補」は、まず `priority: "hold"` への更新を提案する。
+- 物理削除は明確に「削除」と言われた場合だけ候補にする。
+- 削除候補は一括反映しない。個別確認を必須にする。
+- 「削除以外を反映」ボタンはcreate/updateのみ実行する。
+- 大タスクを選んだ場合、OpenAIが返したprojectIdよりも大タスク側のprojectIdを優先する。
+- タスクは必ず projectId / primaryAssigneeId / sourceGoalTreeId / sourceBranchId を持てる設計にして、後のiOS/Siri連携でも同じAPIを呼べるようにする。
+
+AI secretary:
+- POST `/api/ai/secretary`
+- 社内秘書チャット。
+- 今日やること、次の作業、売上、予定、担当者別確認を答える。
+- DB変更は基本的に提案だけ。
+- 実行が必要なタスク増減は `/api/tasks/assistant-plan` に寄せる。
+
+OpenAI:
+- サーバー側のみ。
+- OPENAI_API_KEYがあればOpenAI。
+- なければlocal fallback。
+- 小型モデルでも動くように、モデルによって未対応のreasoning等を無理に送らない。
+
+------------------------------------------------------------
+10. カレンダー / 通知 / PWA
+------------------------------------------------------------
+
+カレンダー:
+- `/api/calendar/tasks/[id]/google` はGoogle Calendarのイベント作成画面へredirectする。
+- `/api/calendar/tasks/[id]/ics` は1タスクのICSを返す。
+- `/api/calendar/ics` は今日の予定全体を返す。
+- 現時点では真のGoogle Calendar双方向同期ではなく、一方向の作成リンクでよい。
+
+通知:
+- due_today
+- due_tomorrow
+- overdue
+- task_created
+- attendance_missing
+- admin
+
+通知画面:
+- 本日、明日、期限超過、未読の数を表示。
+- 対象タスクへ遷移できる。
+
+PWA:
+- manifest.webmanifest
+- display: standalone
+- shortcuts:
+  - /tasks
+  - /assistant
+  - /attendance
+  - /notifications
+- iPhoneはホーム画面追加を案内する。
+
+Web Push:
+- push_subscriptionsテーブルを用意。
+- VAPID未設定なら `pwaPushConfigured: false` でよい。
+- 完全なバックグラウンドPushは次フェーズ。
+
+------------------------------------------------------------
+11. スマホUIで必ず引き継ぐ工夫
+------------------------------------------------------------
+
+スマホが主利用端末。
+PCよりスマホの操作性を優先する。
+
+必須:
+- 横スクロールを出さない。
+- ボタン内テキストを無理に詰め込まない。
+- タスク操作はスマホではアイコン中心でよい。
+- よく使う導線は大きく押しやすくする。
+- 入力欄はiPhoneでズームしないように16px相当。
+- 保存/キャンセルはフォーム下部で押しやすくする。
+- 下部ナビを置く。
+- タスク画面では下部ナビに「AI」があるので、浮遊AIボタンが保存ボタンに重ならないようにする。
+- 必要ならタスク画面のスマホでは浮遊AIボタンを非表示にする。
+- 「タスク追加」はヘッダー内だけでなく、スマホ用の大きいボタンも置く。
+- 大タスク/小タスク/案件/担当の関係が一目でわかるカードにする。
+- 文字が長い案件名はtruncateまたは折り返しで処理し、横幅を押し広げない。
+- テストタスクは `【テスト】` とバッジで明確に区別する。
+
+避ける:
+- スマホで横に広い表。
+- 重要ボタンが画面下のナビや浮遊ボタンに隠れること。
+- 英語ラベルだらけの画面。
+- 説明過多のランディングページ。
+- APIキーや設定手順を社員向け画面に出しすぎること。
+
+------------------------------------------------------------
+12. iOS / Siri 将来連携の前提
+------------------------------------------------------------
+
+今すぐネイティブiOSアプリは作らなくてよい。
+ただし将来、Siri / Shortcuts / App Intentsから同じタスク操作を呼べるように設計する。
+
+そのため:
+- タスク作成/更新/削除/保留/期限変更/担当変更はAPIに集約する。
+- 画面内だけに業務ロジックを書かない。
+- AIの自然文解釈も、最終的には明示的なaction配列に変換する。
+- iOS側はこのaction配列を確認してAPIへ反映するだけにできるようにする。
+
+将来候補:
+- App Intents: タスク作成、今日のタスク確認、タスク完了、保留、期限変更。
+- App Shortcuts: 「NOSにタスク追加」「NOSの次の作業」「今日のNOSタスク」。
+- Widgets: 今日の最重要タスク、期限超過、進行中。
+- Spotlight: タスク/案件検索。
+- Web Push/PWA: iOSアプリ前でもホーム画面追加と通知。
+
+------------------------------------------------------------
+13. 現在の既知未対応
+------------------------------------------------------------
+
+未対応または次フェーズ:
+- Google OAuth
+- Google Sheets完全同期
+- Gmail解析
+- Google Calendar双方向同期
+- VAPID設定後の本番バックグラウンドPush実機検証
+- ネイティブiOSアプリ
+- Siri/App Shortcuts実装
+- AI精度の継続改善
+- 監査ログ/undoの強化
+
+社員βでは許容:
+- Google Calendarは作成リンクでよい。
+- Pushは画面内通知中心でよい。
+- Google系は未設定でもよい。
+
+------------------------------------------------------------
+14. 再構築時の実装順
+------------------------------------------------------------
+
+1. 型定義とDBスキーマを作る。
+2. mock repositoryを作る。
+3. Supabase repositoryを作る。
+4. `NOS_OS_DATA_MODE` で切り替える。
+5. auth/accounts/login/passwordを作る。
+6. `/api/health` を作る。
+7. タスク/案件/目標ツリー/勤怠APIを作る。
+8. スマホ中心のログイン、ホーム、タスク画面を作る。
+9. タスク追加/編集/削除/保留/状態変更を永続化する。
+10. 大タスクと小タスクの紐づきを見える化する。
+11. AI task plannerを作る。
+12. AI secretaryを作る。
+13. 通知画面とdue通知生成を作る。
+14. PWA manifest/service workerを追加する。
+15. `/guide` と `/test` を作る。
+16. typecheck/build/スマホ幅確認。
+17. GitHub/Vercelへデプロイ。
+
+------------------------------------------------------------
+15. 検証チェックリスト
+------------------------------------------------------------
+
+ローカル:
+- npm run typecheck
+- npm run build
+- `/api/health`
+- `/login`
+- `/tasks`
+- 390px幅で横スクロールなし
+- タスク追加ボタンが押せる
+- タスク作成がAPIにPOSTされる
+- 作成後、一覧に出る
+- タスク状態変更ができる
+- 保留にできる
+- 削除は確認が出る
+- 大タスク/案件/担当が見える
+- テストタスクが `【テスト】` とバッジで見える
+
+本番:
+- https://nos-os-silk.vercel.app/api/health
+- employeePreviewReady: true
+- dataMode: "supabase"
+- blockers: []
+- https://nos-os-silk.vercel.app/login 200
+- https://nos-os-silk.vercel.app/tasks 200
+- https://nos-os-silk.vercel.app/guide 200
+- CI green
+- Vercel production deploy ready
+
+スマホ:
+- ログインしやすい
+- 初回パスワード設定が迷わない
+- タスク追加が迷わない
+- 保存ボタンが隠れない
+- 下部ナビとフォームが重ならない
+- 文字が横にはみ出ない
+- タスクカードが何の作業かすぐ分かる
+
+------------------------------------------------------------
+16. 重要な引き継ぎメモ
+------------------------------------------------------------
+
+- UIは再設計してよいが、スマホ中心という前提は絶対に崩さない。
+- タスクは「案件 > 大タスク > 小タスク」の関係で見せる。
+- 管理者が「誰がどの案件を進めているか」を見られるようにする。
+- 社員本人も「自分はいま何の案件の何をやっているか」が分かるようにする。
+- 「タスクを減らす」は削除ではなく、まず保留。
+- AIは直接実行ではなく、提案 -> 人が確認 -> API反映。
+- seedデータは必ずテストと分かる表示にする。
+- 本番の秘密情報は一切出さない。
+- Xserverの通常静的ホスティングだけではNext.js API routesが動かない可能性がある。APIが必要な限り、Vercel等のNext.js対応ホストを使う。
+
+============================================================
+ここまでプロンプト
+============================================================
+
