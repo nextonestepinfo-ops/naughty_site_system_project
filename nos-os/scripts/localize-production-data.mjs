@@ -24,14 +24,14 @@ const projects = {
 };
 
 const tasks = {
-  "f33002d1-4c3a-5e6a-a053-4cf6f4e1b6ce": { title: "返信が来た候補へ次回確認日を返す", description: "温度が下がる前に、日程候補と次に確認する内容を短く返します。" },
-  "3fbf6ddc-c89e-52d9-873b-d19efcb70123": { title: "今日連絡する営業先10件を決める", description: "見込みが高い候補を選び、最初の一言まで用意します。" },
-  "6f3edf32-5067-59bb-8fd3-6d165fa180f8": { title: "売上管理シートの初期項目を確定", description: "担当、流入元、商品カテゴリ、状態、見込み金額、確度、次アクションを固定します。" },
-  "808ea268-10d3-58c2-8ff2-b3c6558daf8a": { title: "Webデモの説明を営業向けに整える", description: "デモの違い、価格の入口、納品までの流れを営業で話しやすい言葉に直します。" },
-  "37d8297a-3a86-582f-b364-1943049f2d00": { title: "ココナラ出品文と応募文を公開前確認", description: "Web制作、小ツール、資料作成の3カテゴリで最初に出せる文面を整えます。" },
-  "2182d3ab-4a93-5198-8b9e-dfe1be5ff2d1": { title: "小規模ツールのヒアリング質問を1枚にする", description: "勤怠、在庫、売上メモ、日報の確認項目に絞って商談で使える形にします。" },
-  "8c39a87c-fe22-58c7-9a27-184860fcef62": { title: "高単価POCの検証ステップを整理", description: "サンプル確認、POC、検証、本開発を分け、見積前に潰す不確実性を書きます。" },
-  "60336217-e420-5e4c-8097-90e699904374": { title: "メンバー別の今週成果物を登録", description: "各メンバーが今週出す見える成果物を1つずつ決めます。" },
+  "f33002d1-4c3a-5e6a-a053-4cf6f4e1b6ce": { title: "【テスト】返信が来た候補へ次回確認日を返す", description: "温度が下がる前に、日程候補と次に確認する内容を短く返します。" },
+  "3fbf6ddc-c89e-52d9-873b-d19efcb70123": { title: "【テスト】今日連絡する営業先10件を決める", description: "見込みが高い候補を選び、最初の一言まで用意します。" },
+  "6f3edf32-5067-59bb-8fd3-6d165fa180f8": { title: "【テスト】売上管理シートの初期項目を確定", description: "担当、流入元、商品カテゴリ、状態、見込み金額、確度、次アクションを固定します。" },
+  "808ea268-10d3-58c2-8ff2-b3c6558daf8a": { title: "【テスト】Webデモの説明を営業向けに整える", description: "デモの違い、価格の入口、納品までの流れを営業で話しやすい言葉に直します。" },
+  "37d8297a-3a86-582f-b364-1943049f2d00": { title: "【テスト】ココナラ出品文と応募文を公開前確認", description: "Web制作、小ツール、資料作成の3カテゴリで最初に出せる文面を整えます。" },
+  "2182d3ab-4a93-5198-8b9e-dfe1be5ff2d1": { title: "【テスト】小規模ツールのヒアリング質問を1枚にする", description: "勤怠、在庫、売上メモ、日報の確認項目に絞って商談で使える形にします。" },
+  "8c39a87c-fe22-58c7-9a27-184860fcef62": { title: "【テスト】高単価POCの検証ステップを整理", description: "サンプル確認、POC、検証、本開発を分け、見積前に潰す不確実性を書きます。" },
+  "60336217-e420-5e4c-8097-90e699904374": { title: "【テスト】メンバー別の今週成果物を登録", description: "各メンバーが今週出す見える成果物を1つずつ決めます。" },
 };
 
 const goalTrees = {
@@ -50,8 +50,8 @@ const goalTrees = {
         assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee",
         projectId: "65642bd9-140c-55a6-891a-0bfd0d4879a3",
         tasks: [
-          { id: "tree-task-company-list", title: "営業リストを作る", dueDate: "2026-06-10", assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee", taskId: "3fbf6ddc-c89e-52d9-873b-d19efcb70123" },
-          { id: "tree-task-company-reply", title: "返信候補を商談につなげる", dueDate: "2026-06-12", assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee", taskId: "f33002d1-4c3a-5e6a-a053-4cf6f4e1b6ce" },
+          { id: "tree-task-company-list", title: "【テスト】営業リストを作る", dueDate: "2026-06-10", assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee", taskId: "3fbf6ddc-c89e-52d9-873b-d19efcb70123" },
+          { id: "tree-task-company-reply", title: "【テスト】返信候補を商談につなげる", dueDate: "2026-06-12", assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee", taskId: "f33002d1-4c3a-5e6a-a053-4cf6f4e1b6ce" },
         ],
       },
     ],
@@ -68,8 +68,8 @@ const goalTrees = {
         assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee",
         projectId: "65642bd9-140c-55a6-891a-0bfd0d4879a3",
         tasks: [
-          { id: "tree-task-daily-reply", title: "返信候補に次回確認日を返す", dueDate: "2026-06-09", assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee", taskId: "f33002d1-4c3a-5e6a-a053-4cf6f4e1b6ce" },
-          { id: "tree-task-daily-ten", title: "今日連絡する10件を決める", dueDate: "2026-06-09", assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee", taskId: "3fbf6ddc-c89e-52d9-873b-d19efcb70123" },
+          { id: "tree-task-daily-reply", title: "【テスト】返信候補に次回確認日を返す", dueDate: "2026-06-09", assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee", taskId: "f33002d1-4c3a-5e6a-a053-4cf6f4e1b6ce" },
+          { id: "tree-task-daily-ten", title: "【テスト】今日連絡する10件を決める", dueDate: "2026-06-09", assigneeId: "0646e8a9-dbc2-525b-b99f-dddaa74dfdee", taskId: "3fbf6ddc-c89e-52d9-873b-d19efcb70123" },
         ],
       },
     ],
@@ -85,7 +85,7 @@ const goalTrees = {
         dueDate: "2026-06-12",
         assigneeId: "592a547d-7c00-502e-a5a3-dd57fec5679d",
         projectId: "a0677715-9120-5849-98c7-76fe36322078",
-        tasks: [{ id: "tree-task-hashisako-restaurant", title: "飲食店サンプルを営業向けに見直す", dueDate: "2026-06-10", assigneeId: "592a547d-7c00-502e-a5a3-dd57fec5679d", taskId: null }],
+        tasks: [{ id: "tree-task-hashisako-restaurant", title: "【テスト】飲食店サンプルを営業向けに見直す", dueDate: "2026-06-10", assigneeId: "592a547d-7c00-502e-a5a3-dd57fec5679d", taskId: null }],
       },
     ],
   },

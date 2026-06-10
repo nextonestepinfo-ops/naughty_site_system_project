@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Loader2, Mic, Send, Settings, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AssistantMessage } from "@/components/domain/assistant-message";
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,14 @@ type SpeechRecognitionCtor = new () => {
 const samplePrompts = ["今日やること", "次に何？", "売上は？", "予定を出して"];
 
 export function AssistantDock() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [reply, setReply] = useState("こんにちは。今日やること、次にやること、売上、予定の確認を手伝います。");
   const [source, setSource] = useState<SecretaryReply["source"]>("local");
+  const hideLauncherOnMobile = pathname.startsWith("/tasks");
 
   async function answer(text: string) {
     const normalized = text.trim();
@@ -75,7 +78,7 @@ export function AssistantDock() {
   return (
     <>
       <button
-        className="fixed bottom-24 right-3 z-40 flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-soft transition hover:scale-105 dark:bg-slate-950 sm:h-16 sm:w-16 lg:bottom-6 lg:right-4"
+        className={`fixed bottom-36 right-3 z-40 h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border bg-white shadow-soft transition hover:scale-105 dark:bg-slate-950 sm:bottom-32 sm:flex sm:h-16 sm:w-16 lg:bottom-6 lg:right-4 ${hideLauncherOnMobile ? "hidden" : "flex"}`}
         onClick={() => setOpen(true)}
         aria-label="AI秘書を開く"
         title="AI秘書を開く"

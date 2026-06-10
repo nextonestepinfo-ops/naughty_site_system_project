@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
+import { displayTaskTitle, isTestTask } from "@/lib/data/task-flags";
 import type { Project, Task, Employee } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -23,9 +24,11 @@ export function TaskCard({
   const [open, setOpen] = useState(false);
   const sourceGoalTreeTitle = task.sourceGoalTreeTitle?.trim();
   const sourceBranchTitle = task.sourceBranchTitle?.trim();
+  const title = displayTaskTitle(task);
+  const testTask = isTestTask(task);
 
   return (
-    <article className="rounded-panel border border-border bg-card">
+    <article className={cn("rounded-panel border bg-card", testTask ? "border-amber-200 bg-amber-50/40 dark:border-amber-500/30 dark:bg-amber-500/5" : "border-border")}>
       <button
         type="button"
         aria-expanded={open}
@@ -33,8 +36,9 @@ export function TaskCard({
         onClick={() => setOpen((value) => !value)}
       >
         <div className="min-w-0">
-          <p className="line-clamp-2 font-semibold leading-6">{task.title}</p>
+          <p className="line-clamp-2 break-words font-semibold leading-6">{title}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            {testTask ? <Badge tone="amber">テスト</Badge> : null}
             <Badge tone={priorityTone}>{taskPriorityLabels[task.priority]}</Badge>
             <Badge tone={statusTone}>{taskStatusLabels[task.status]}</Badge>
             <span>{formatDate(task.dueDate)}</span>
@@ -58,7 +62,7 @@ export function TaskCard({
                 {project ? <span>案件: {project.name}</span> : null}
                 {sourceGoalTreeTitle ? <span>目標: {sourceGoalTreeTitle}</span> : null}
                 <span>大タスク: {sourceBranchTitle ?? "未設定"}</span>
-                <span>小タスク: {task.title}</span>
+                <span>小タスク: {title}</span>
               </div>
             </div>
           ) : null}

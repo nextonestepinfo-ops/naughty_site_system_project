@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, BriefcaseBusiness, CalendarDays, CalendarPlus, CheckCircle2, Clock3, Columns3, GitBranch, ListFilter, Loader2, Mic, PauseCircle, Pencil, PlayCircle, Plus, Save, Sparkles, Target, Trash2, UserRound, Wand2 } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
 import { TaskCard } from "@/components/domain/task-card";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
 import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
+import { displayTaskTitle } from "@/lib/data/task-flags";
 import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
 import type { Employee, GoalTree, Project, Task, TaskAssistantAction, TaskAssistantPlan, TaskPriority, TaskStatus } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
@@ -48,6 +49,7 @@ export default function TasksPage() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [focusedTaskId, setFocusedTaskId] = useState("");
   const [newBigTaskRef, setNewBigTaskRef] = useState("");
+  const newTaskFormRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useState({
     assigneeId: "",
     projectId: "",
@@ -174,8 +176,18 @@ export default function TasksPage() {
     setFocusedTaskId(new URLSearchParams(window.location.search).get("taskId") ?? "");
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const timeout = window.setTimeout(() => newTaskFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    return () => window.clearTimeout(timeout);
+  }, [open]);
+
   function patchTask(id: string, body: Partial<Task>) {
     updateTask.mutate({ id, body });
+  }
+
+  function openNewTaskForm() {
+    setOpen(true);
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -212,13 +224,27 @@ export default function TasksPage() {
             <ViewButton active={view === "list"} icon={<ListFilter className="h-4 w-4" />} label="一覧" onClick={() => setView("list")} />
             <ViewButton active={view === "kanban"} icon={<Columns3 className="h-4 w-4" />} label="カンバン" onClick={() => setView("kanban")} />
             <ViewButton active={view === "calendar"} icon={<CalendarDays className="h-4 w-4" />} label="日付" onClick={() => setView("calendar")} />
-            <Button onClick={() => setOpen((value) => !value)} variant="secondary">
+            <Button className="min-w-28 sm:min-w-0" onClick={() => (open ? setOpen(false) : openNewTaskForm())} variant="secondary">
               <Plus className="h-4 w-4" />
-              追加
+              {open ? "閉じる" : "追加"}
             </Button>
           </>
         }
       />
+
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:hidden">
+        <Button className="w-full" onClick={openNewTaskForm} variant="secondary">
+          <Plus className="h-4 w-4" />
+          タスク追加
+        </Button>
+        <Link
+          href={`/assistant?prompt=${aiContextPrompt}`}
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-panel bg-slate-100 px-3 text-sm font-medium text-foreground transition hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15"
+        >
+          <Sparkles className="h-4 w-4" />
+          AI相談
+        </Link>
+      </div>
 
       <Card className="mb-5 overflow-hidden">
         <CardContent className="grid gap-4 p-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -227,11 +253,11 @@ export default function TasksPage() {
               <Badge tone={focusTask && focusTask.aiPriorityScore >= 82 ? "red" : "blue"}>次にやる</Badge>
               <span className="text-sm text-slate-500">AI優先度で自動整列</span>
             </div>
-            <h2 className="mt-3 line-clamp-2 text-xl font-bold leading-7">{focusTask?.title ?? "未完了タスクはありません"}</h2>
+            <h2 className="mt-3 line-clamp-2 break-words text-xl font-bold leading-7">{focusTask ? displayTaskTitle(focusTask) : "未完了タスクはありません"}</h2>
             <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
               {focusTask?.description ?? "完了済みのタスクを確認するか、新しいタスクを追加してください。"}
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
               {focusTask ? (
                 <>
                   <Button size="sm" onClick={() => patchTask(focusTask.id, { status: "in_progress" })} disabled={updateTask.isPending || focusTask.status === "in_progress"}>
@@ -338,45 +364,72 @@ export default function TasksPage() {
       </Card>
 
       {open ? (
-        <Card className="mb-5">
+        <Card ref={newTaskFormRef} className="mb-5 border-blue-200 dark:border-blue-500/30">
           <CardContent className="p-4">
-            <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
-              <Input name="title" required placeholder="タイトル" />
-              <Select name="bigTaskRef" value={newBigTaskRef} onChange={(event) => setNewBigTaskRef(event.target.value)}>
-                <option value="">大タスクを選択しない</option>
-                {branchOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-              <Select name="projectId" required>
-                {(projects.data ?? []).map((project) => (
-                  <option key={project.id} value={project.id}>{project.name}</option>
-                ))}
-              </Select>
-              <Select name="primaryAssigneeId" required>
-                {(employees.data ?? []).map((employee) => (
-                  <option key={employee.id} value={employee.id}>{employee.name}</option>
-                ))}
-              </Select>
-              <Input name="dueDate" required type="date" />
-              <Select name="priority" defaultValue="normal">
-                {priorities.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </Select>
-              <Select name="status" defaultValue="todo">
-                {statuses.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </Select>
-              <Input name="delayRisk" min={0} max={100} type="number" placeholder="遅延リスク 0-100" />
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="font-semibold">新規タスク</p>
+                <p className="mt-1 text-xs text-slate-500">大タスクを選ぶと、案件と担当が自動でそろいます。</p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+                閉じる
+              </Button>
+            </div>
+            <form onSubmit={submit} className="grid gap-3 pb-20 md:grid-cols-2 md:pb-0">
+              <FormField label="小タスク名">
+                <Input name="title" required placeholder="例: 初回提案文を作る" />
+              </FormField>
+              <FormField label="大タスク">
+                <Select name="bigTaskRef" value={newBigTaskRef} onChange={(event) => setNewBigTaskRef(event.target.value)}>
+                  <option value="">大タスクを選択しない</option>
+                  {branchOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label="案件">
+                <Select name="projectId" required defaultValue={selectedNewBranch?.projectId ?? projects.data?.[0]?.id ?? ""}>
+                  {(projects.data ?? []).map((project) => (
+                    <option key={project.id} value={project.id}>{project.name}</option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label="担当">
+                <Select name="primaryAssigneeId" required defaultValue={selectedNewBranch?.assigneeId ?? employees.data?.[0]?.id ?? ""}>
+                  {(employees.data ?? []).map((employee) => (
+                    <option key={employee.id} value={employee.id}>{employee.name}</option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label="期限">
+                <Input name="dueDate" required type="date" defaultValue={todayInputValue()} />
+              </FormField>
+              <FormField label="優先度">
+                <Select name="priority" defaultValue="normal">
+                  {priorities.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label="状態">
+                <Select name="status" defaultValue="todo">
+                  {statuses.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label="遅延リスク">
+                <Input name="delayRisk" min={0} max={100} type="number" defaultValue={10} placeholder="0-100" />
+              </FormField>
               <label className="flex h-11 items-center gap-2 rounded-panel border border-border px-3 text-sm">
                 <input name="customerWaiting" type="checkbox" />
                 顧客返信待ち
               </label>
-              <Textarea name="description" className="md:col-span-2" placeholder="内容" />
+              <FormField label="内容" className="md:col-span-2">
+                <Textarea name="description" placeholder="何をどこまでやるか" />
+              </FormField>
               {selectedNewBranch ? (
                 <div className="flex flex-wrap gap-2 rounded-panel bg-blue-50 p-3 text-xs text-blue-900 dark:bg-blue-500/10 dark:text-blue-100 md:col-span-2">
                   <span>大タスク: {selectedNewBranch.branchTitle}</span>
@@ -384,10 +437,13 @@ export default function TasksPage() {
                   {selectedNewBranch.assigneeName ? <span>担当: {selectedNewBranch.assigneeName}</span> : null}
                 </div>
               ) : null}
-              <div className="md:col-span-2">
-                <Button disabled={createTask.isPending} type="submit">
+              <div className="sticky bottom-[4.5rem] z-10 flex gap-2 rounded-panel border border-border bg-card/95 p-2 shadow-soft backdrop-blur md:static md:col-span-2 md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+                <Button className="flex-1 md:flex-none" disabled={createTask.isPending} type="submit">
                   <Save className="h-4 w-4" />
-                  保存
+                  {createTask.isPending ? "保存中" : "保存"}
+                </Button>
+                <Button className="flex-1 md:flex-none" type="button" variant="ghost" onClick={() => setOpen(false)}>
+                  キャンセル
                 </Button>
               </div>
             </form>
@@ -459,7 +515,7 @@ export default function TasksPage() {
                   <Badge tone={task.priority === "urgent" ? "red" : "blue"}>{taskPriorityLabels[task.priority]}</Badge>
                   <span className="text-sm font-semibold">{formatDate(task.dueDate)}</span>
                 </div>
-                <p className="mt-3 font-semibold">{task.title}</p>
+                <p className="mt-3 break-words font-semibold">{displayTaskTitle(task)}</p>
                 <p className="mt-1 text-sm text-slate-500">{projectMap.get(task.projectId)?.name}</p>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
                   {employeeMap.get(task.primaryAssigneeId)?.name ? (
@@ -505,8 +561,8 @@ function WorkloadOverview({
 
   return (
     <Card className="mb-5">
-      <CardContent className="grid gap-5 p-4 xl:grid-cols-2">
-        <section>
+      <CardContent className="grid min-w-0 gap-5 p-4 xl:grid-cols-2">
+        <section className="min-w-0">
           <div className="mb-3 flex items-center gap-2">
             <UserRound className="h-4 w-4 text-accent" />
             <p className="font-semibold">担当別の進行</p>
@@ -514,23 +570,23 @@ function WorkloadOverview({
           <div className="space-y-2">
             {workload.map((item) => (
               <div key={item.employee.id} className="rounded-panel border border-border px-3 py-2">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{item.employee.name}</p>
                     <p className="mt-1 truncate text-xs text-slate-500">{item.projects.length ? item.projects.join(" / ") : "案件未設定"}</p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                     <Badge tone={item.overdue ? "red" : "blue"}>{item.total}件</Badge>
                     {item.inProgress ? <Badge tone="green">進行中 {item.inProgress}</Badge> : null}
                   </div>
                 </div>
-                {item.topTask ? <p className="mt-2 line-clamp-1 text-xs text-slate-500">次: {item.topTask.title}</p> : null}
+                {item.topTask ? <p className="mt-2 line-clamp-1 text-xs text-slate-500">次: {displayTaskTitle(item.topTask)}</p> : null}
               </div>
             ))}
           </div>
         </section>
 
-        <section>
+        <section className="min-w-0">
           <div className="mb-3 flex items-center gap-2">
             <GitBranch className="h-4 w-4 text-accent" />
             <p className="font-semibold">大タスク別の進行</p>
@@ -538,14 +594,14 @@ function WorkloadOverview({
           <div className="space-y-2">
             {branchWorkload.map((item) => (
               <div key={`${item.projectName}-${item.title}`} className="rounded-panel border border-border px-3 py-2">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{item.title}</p>
                     <p className="mt-1 truncate text-xs text-slate-500">案件: {item.projectName}</p>
                   </div>
-                  <Badge tone={item.title === "大タスク未設定" ? "amber" : "blue"}>{item.total}件</Badge>
+                  <Badge className="w-fit sm:shrink-0" tone={item.title === "大タスク未設定" ? "amber" : "blue"}>{item.total}件</Badge>
                 </div>
-                {item.topTask ? <p className="mt-2 line-clamp-1 text-xs text-slate-500">小タスク: {item.topTask.title}</p> : null}
+                {item.topTask ? <p className="mt-2 line-clamp-1 text-xs text-slate-500">小タスク: {displayTaskTitle(item.topTask)}</p> : null}
               </div>
             ))}
           </div>
@@ -881,6 +937,19 @@ function dayDistance(value: string) {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function FormField({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={cn("grid gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-300", className)}>
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function OpsMetric({
   icon,
   label,
@@ -931,27 +1000,28 @@ function TaskActions({
   const calendarPath = useScopedPath(`/api/calendar/tasks/${task.id}/ics`);
   const googleCalendarPath = useScopedPath(`/api/calendar/tasks/${task.id}/google`);
   return (
-    <div className={cn("flex gap-2", compact ? "flex-wrap" : "lg:flex-col")}>
+    <div className={cn("grid gap-2", compact ? "" : "lg:w-36")}>
       {compact ? null : (
-        <Select value={task.status} onChange={(event) => onStatus(event.target.value as TaskStatus)} disabled={disabled}>
+        <Select className="hidden lg:block" value={task.status} onChange={(event) => onStatus(event.target.value as TaskStatus)} disabled={disabled}>
           {statuses.map(([value, label]) => (
             <option key={value} value={value}>{label}</option>
           ))}
         </Select>
       )}
-      <div className="flex gap-2">
-        <QuickStatusButtons task={task} onStatus={onStatus} disabled={disabled} compact />
+      <div className={cn("grid gap-2", compact ? "grid-cols-6" : "grid-cols-4 sm:grid-cols-7 lg:grid-cols-1")}>
+        <QuickStatusButtons task={task} onStatus={onStatus} disabled={disabled} compact className="contents" mobileIconOnly={!compact} />
         {onPatch ? (
           <Button
             aria-label="保留"
             title="今やるリストから外す"
+            className="min-w-0 px-0 sm:px-3 lg:px-3"
             variant={task.priority === "hold" ? "secondary" : "ghost"}
             size={compact ? "icon" : "sm"}
             onClick={() => onPatch({ priority: task.priority === "hold" ? "normal" : "hold" })}
             disabled={disabled || task.status === "done"}
           >
             <PauseCircle className="h-4 w-4" />
-            {compact ? null : task.priority === "hold" ? "復帰" : "保留"}
+            {compact ? null : <span className="hidden sm:inline lg:inline">{task.priority === "hold" ? "復帰" : "保留"}</span>}
           </Button>
         ) : null}
         <a
@@ -960,11 +1030,11 @@ function TaskActions({
           href={calendarPath}
           className={cn(
             "inline-flex items-center justify-center gap-2 rounded-panel bg-transparent font-medium text-foreground transition hover:bg-slate-100 dark:hover:bg-white/10",
-            compact ? "h-10 w-10 p-0" : "h-9 px-3 text-sm",
+            compact ? "h-10 w-10 p-0" : "h-9 min-w-0 px-0 text-sm sm:px-3 lg:px-3",
           )}
         >
           <CalendarDays className="h-4 w-4" />
-          {compact ? null : "ICS"}
+          {compact ? null : <span className="hidden sm:inline lg:inline">ICS</span>}
         </a>
         <a
           aria-label="Googleカレンダー追加"
@@ -974,31 +1044,31 @@ function TaskActions({
           rel="noreferrer"
           className={cn(
             "inline-flex items-center justify-center gap-2 rounded-panel bg-transparent font-medium text-foreground transition hover:bg-slate-100 dark:hover:bg-white/10",
-            compact ? "h-10 w-10 p-0" : "h-9 px-3 text-sm",
+            compact ? "h-10 w-10 p-0" : "h-9 min-w-0 px-0 text-sm sm:px-3 lg:px-3",
           )}
         >
           <CalendarPlus className="h-4 w-4" />
-          {compact ? null : "Google"}
+          {compact ? null : <span className="hidden sm:inline lg:inline">Google</span>}
         </a>
         {onEdit ? (
-          <Button aria-label="タスク編集" title="タスク編集" variant="ghost" size={compact ? "icon" : "sm"} onClick={onEdit} disabled={disabled}>
+          <Button aria-label="タスク編集" title="タスク編集" className="min-w-0 px-0 sm:px-3 lg:px-3" variant="ghost" size={compact ? "icon" : "sm"} onClick={onEdit} disabled={disabled}>
             <Pencil className="h-4 w-4" />
-            {compact ? null : "編集"}
+            {compact ? null : <span className="hidden sm:inline lg:inline">編集</span>}
           </Button>
         ) : null}
         <Button
           aria-label="タスク削除"
           title="タスク削除"
-          className="px-3 text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/10"
+          className="min-w-0 px-0 text-red-600 hover:bg-red-50 sm:px-3 lg:px-3 dark:text-red-300 dark:hover:bg-red-500/10"
           variant="ghost"
           size="sm"
           onClick={() => {
-            if (window.confirm(`「${task.title}」を削除しますか？`)) onDelete();
+            if (window.confirm(`「${displayTaskTitle(task)}」を削除しますか？`)) onDelete();
           }}
           disabled={disabled}
         >
           <Trash2 className="h-4 w-4 text-red-500" />
-          削除
+          <span className="hidden sm:inline lg:inline">削除</span>
         </Button>
       </div>
     </div>
@@ -1010,26 +1080,30 @@ function QuickStatusButtons({
   onStatus,
   disabled,
   compact = false,
+  className,
+  mobileIconOnly = false,
 }: {
   task: Task;
   onStatus: (status: TaskStatus) => void;
   disabled?: boolean;
   compact?: boolean;
+  className?: string;
+  mobileIconOnly?: boolean;
 }) {
   const size = compact ? "icon" : "sm";
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button aria-label="開始" title="開始" size={size} variant={task.status === "in_progress" ? "secondary" : "ghost"} onClick={() => onStatus("in_progress")} disabled={disabled || task.status === "in_progress" || task.status === "done"}>
+    <div className={cn("flex flex-wrap gap-2", className)}>
+      <Button className="min-w-0 px-0 sm:px-3 lg:px-3" aria-label="開始" title="開始" size={size} variant={task.status === "in_progress" ? "secondary" : "ghost"} onClick={() => onStatus("in_progress")} disabled={disabled || task.status === "in_progress" || task.status === "done"}>
         <PlayCircle className="h-4 w-4" />
-        {compact ? null : "開始"}
+        {compact ? null : <span className={mobileIconOnly ? "hidden sm:inline lg:inline" : undefined}>開始</span>}
       </Button>
-      <Button aria-label="確認へ" title="確認へ" size={size} variant={task.status === "review" ? "secondary" : "ghost"} onClick={() => onStatus("review")} disabled={disabled || task.status === "review" || task.status === "done"}>
+      <Button className="min-w-0 px-0 sm:px-3 lg:px-3" aria-label="確認へ" title="確認へ" size={size} variant={task.status === "review" ? "secondary" : "ghost"} onClick={() => onStatus("review")} disabled={disabled || task.status === "review" || task.status === "done"}>
         <Clock3 className="h-4 w-4" />
-        {compact ? null : "確認"}
+        {compact ? null : <span className={mobileIconOnly ? "hidden sm:inline lg:inline" : undefined}>確認</span>}
       </Button>
-      <Button aria-label="完了" title="完了" size={size} variant={task.status === "done" ? "secondary" : "ghost"} onClick={() => onStatus("done")} disabled={disabled || task.status === "done"}>
+      <Button className="min-w-0 px-0 sm:px-3 lg:px-3" aria-label="完了" title="完了" size={size} variant={task.status === "done" ? "secondary" : "ghost"} onClick={() => onStatus("done")} disabled={disabled || task.status === "done"}>
         <CheckCircle2 className="h-4 w-4" />
-        {compact ? null : "完了"}
+        {compact ? null : <span className={mobileIconOnly ? "hidden sm:inline lg:inline" : undefined}>完了</span>}
       </Button>
     </div>
   );
@@ -1037,9 +1111,9 @@ function QuickStatusButtons({
 
 function ViewButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <Button variant={active ? "primary" : "ghost"} onClick={onClick}>
+    <Button className="h-10 w-10 px-0 sm:h-11 sm:w-auto sm:px-4" variant={active ? "primary" : "ghost"} onClick={onClick}>
       {icon}
-      {label}
+      <span className="hidden sm:inline">{label}</span>
     </Button>
   );
 }
