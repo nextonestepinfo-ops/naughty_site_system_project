@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loginUser } from "@/lib/data/repository";
+import { createSessionCookieValue, sessionCookieName } from "@/lib/data/request";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -13,5 +14,13 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Login failed" }, { status: 401 });
   }
-  return NextResponse.json({ data: user });
+  const response = NextResponse.json({ data: user });
+  response.cookies.set(sessionCookieName, createSessionCookieValue(user), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 14,
+  });
+  return response;
 }

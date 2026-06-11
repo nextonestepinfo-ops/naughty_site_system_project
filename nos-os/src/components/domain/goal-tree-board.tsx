@@ -68,13 +68,7 @@ export function GoalTreeBoard({
   const companyProgress = companyTree ? goalTreeProgress(companyTree, revenue) : null;
 
   function scoped(path: string) {
-    const params = new URLSearchParams();
-    if (session) {
-      params.set("role", session.role);
-      params.set("employeeId", session.employeeId);
-      params.set("userId", session.id);
-    }
-    return `${path}?${params.toString()}`;
+    return path;
   }
 
   const createTree = useMutation({

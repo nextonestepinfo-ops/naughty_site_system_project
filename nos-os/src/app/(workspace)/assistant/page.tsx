@@ -11,16 +11,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/form";
 import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
+import { displayTaskTitle } from "@/lib/data/task-flags";
 import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
-import type { AiSummary, Employee, Project, SecretaryReply, SecretarySuggestion, Task, TaskPriority } from "@/lib/types";
+import type { AiSummary, Employee, Project, SecretaryReply, SecretarySuggestion, Task, TaskPriority, TaskStatus } from "@/lib/types";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
   interimResults: boolean;
+  continuous?: boolean;
+  maxAlternatives?: number;
   start: () => void;
+  stop?: () => void;
   onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
   onend: (() => void) | null;
+  onerror?: ((event: { error?: string }) => void) | null;
 };
 
 type ChatMessage = {
@@ -45,6 +50,9 @@ export default function AssistantPage() {
   const [question, setQuestion] = useState("");
   const [loadedInitialPrompt, setLoadedInitialPrompt] = useState(false);
   const [listening, setListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState("");
+  const [voiceSuggestions, setVoiceSuggestions] = useState<SecretarySuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [applyingSuggestionId, setApplyingSuggestionId] = useState<string | null>(null);
   const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<string[]>([]);
@@ -139,6 +147,7 @@ export default function AssistantPage() {
   }
 
   function startVoice() {
+    setVoiceStatus("");
     const SpeechRecognition = (window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor })
       .SpeechRecognition ?? (window as Window & { webkitSpeechRecognition?: SpeechRecognitionCtor }).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -151,14 +160,40 @@ export default function AssistantPage() {
     const recognition = new SpeechRecognition();
     recognition.lang = "ja-JP";
     recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
       const text = event.results[0]?.[0]?.transcript ?? "";
       setQuestion(text);
-      void ask(text);
+      setVoiceTranscript(text);
+      const suggestions = buildVoiceSuggestions(text, openTasks, topPriorityTask);
+      setVoiceSuggestions(suggestions);
+      setVoiceStatus(
+        text
+          ? suggestions.length
+            ? "聞き取りました。操作候補を確認して反映できます。"
+            : "聞き取りました。内容を確認して送信できます。"
+          : "音声を文字にできませんでした。",
+      );
+    };
+    recognition.onerror = (event) => {
+      setVoiceStatus(event.error ? `音声入力でエラーが出ました: ${event.error}` : "音声入力でエラーが出ました。");
     };
     recognition.onend = () => setListening(false);
     setListening(true);
+    setVoiceStatus("聞き取り中です。話し終わると確認欄に入ります。");
     recognition.start();
+  }
+
+  function submitVoicePrompt(mode: "plain" | "task" | "report" | "deadline" = "plain") {
+    const base = voiceTranscript.trim() || question.trim();
+    if (!base) return;
+    const prompt = enhanceVoicePrompt(base, mode, topPriorityTask);
+    setQuestion(prompt);
+    setVoiceTranscript("");
+    setVoiceStatus("");
+    setVoiceSuggestions([]);
+    void ask(prompt);
   }
 
   async function applySuggestion(suggestion: SecretarySuggestion) {
@@ -166,7 +201,7 @@ export default function AssistantPage() {
     setApplyingSuggestionId(suggestion.id);
     try {
       if (suggestion.type === "task_hold") {
-        const target = lowPriorityTask ?? topPriorityTask;
+        const target = targetTaskForSuggestion(suggestion, openTasks, topPriorityTask ?? lowPriorityTask);
         if (!target) throw new Error("保留にできるタスクがありません");
         await apiFetch<Task>(`/api/tasks/${target.id}`, {
           method: "PATCH",
@@ -175,29 +210,32 @@ export default function AssistantPage() {
       }
 
       if (suggestion.type === "task_update") {
-        const target = topPriorityTask ?? lowPriorityTask;
+        const target = targetTaskForSuggestion(suggestion, openTasks, topPriorityTask ?? lowPriorityTask);
         if (!target) throw new Error("更新できるタスクがありません");
+        const patch = taskPatchFromSuggestion(suggestion);
         await apiFetch<Task>(`/api/tasks/${target.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ status: "in_progress" }),
+          body: JSON.stringify(Object.keys(patch).length ? patch : { status: "in_progress" }),
         });
       }
 
       if (suggestion.type === "task_create") {
         const assigneeId = session?.employeeId ?? employees.data?.[0]?.id;
         if (!assigneeId) throw new Error("担当者が見つかりません");
+        const dueDate = stringPayload(suggestion.payload.dueDate) || todayInputValue();
+        const priority = taskPriorityPayload(suggestion.payload.priority) ?? ("normal" satisfies TaskPriority);
         await apiFetch<Task>("/api/tasks", {
           method: "POST",
           body: JSON.stringify({
             title: stringPayload(suggestion.payload.title) || suggestion.title,
             description: suggestion.summary,
-            projectId: null,
+            projectId: stringPayload(suggestion.payload.projectId) || null,
             primaryAssigneeId: assigneeId,
             assigneeIds: [assigneeId],
-            dueDate: todayInputValue(),
-            priority: "normal" satisfies TaskPriority,
+            dueDate,
+            priority,
             status: "todo",
-            estimatedMinutes: 45,
+            estimatedMinutes: numberPayload(suggestion.payload.estimatedMinutes) ?? 45,
             customerWaiting: false,
             delayRisk: 10,
           }),
@@ -229,6 +267,8 @@ export default function AssistantPage() {
       void queryClient.invalidateQueries({ queryKey: ["tasks"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
     } catch (error) {
       setMessages((current) => [
         ...current,
@@ -307,6 +347,39 @@ export default function AssistantPage() {
             </div>
 
             <div className="border-t border-border/70 bg-white p-3 dark:border-white/10 dark:bg-[#050816]">
+              {(voiceStatus || voiceTranscript) ? (
+                <div className="mb-3 rounded-[20px] border border-indigo-100 bg-indigo-50 p-3 dark:border-indigo-300/20 dark:bg-indigo-400/15">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-indigo-700 dark:text-indigo-100">VOICE</p>
+                    {listening ? <Badge tone="red">聞き取り中</Badge> : <Badge tone={voiceTranscript ? "green" : "slate"}>{voiceTranscript ? "確認待ち" : "待機"}</Badge>}
+                  </div>
+                  {voiceStatus ? <p className="mt-2 text-xs font-bold text-indigo-900 dark:text-indigo-100">{voiceStatus}</p> : null}
+                  {voiceTranscript ? (
+                    <>
+                      <p className="mt-2 rounded-panel bg-white px-3 py-2 text-sm font-bold leading-6 text-[#0B1226] ring-1 ring-indigo-100 dark:bg-[#101a36] dark:text-white dark:ring-white/10">{voiceTranscript}</p>
+                      {voiceSuggestions.length ? (
+                        <div className="mt-2 grid gap-2">
+                          {voiceSuggestions.map((suggestion) => (
+                            <SecretarySuggestionCard
+                              key={suggestion.id}
+                              suggestion={suggestion}
+                              applied={appliedSuggestionIds.includes(suggestion.id)}
+                              applying={applyingSuggestionId === suggestion.id}
+                              onApply={() => void applySuggestion(suggestion)}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => submitVoicePrompt("plain")} disabled={loading}>送信</Button>
+                        <Button size="sm" variant="ghost" onClick={startVoice} disabled={loading || listening}>もう一度</Button>
+                        <Button size="sm" variant="ghost" onClick={() => submitVoicePrompt("task")} disabled={loading}>タスク相談</Button>
+                        <Button size="sm" variant="ghost" onClick={() => submitVoicePrompt("deadline")} disabled={loading}>期限変更</Button>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="mb-3 grid grid-cols-2 gap-2 sm:flex sm:overflow-x-auto sm:pb-1 sm:scrollbar-none">
                 {samplePrompts.map((sample) => (
                   <button key={sample} className="h-11 min-w-0 rounded-full bg-slate-100 px-3 text-xs font-extrabold text-slate-600 dark:bg-white/10 dark:text-slate-100 dark:ring-1 dark:ring-white/10 sm:shrink-0" onClick={() => void ask(sample)}>
@@ -323,6 +396,20 @@ export default function AssistantPage() {
                   <Mic className="h-4 w-4" />
                 </Button>
               </div>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {[
+                  ["今日のタスクを整理して", "整理"],
+                  ["最優先タスクの期限変更を相談したい", "期限"],
+                  ["今日の日報を作って", "日報"],
+                ].map(([prompt, label]) => (
+                  <button key={prompt} className="min-h-10 rounded-full bg-slate-100 px-2 text-xs font-extrabold text-slate-600 dark:bg-white/10 dark:text-slate-100" onClick={() => void ask(prompt)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] font-bold leading-5 text-slate-500 dark:text-slate-300">
+                音声例: 「このタスクを明日にして」「完了にして」「新しいタスクを追加」
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -417,10 +504,234 @@ function stringPayload(value: SecretarySuggestion["payload"][string]) {
   return typeof value === "string" ? value : "";
 }
 
+function numberPayload(value: SecretarySuggestion["payload"][string]) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function taskPriorityPayload(value: SecretarySuggestion["payload"][string]): TaskPriority | null {
+  return typeof value === "string" && isTaskPriority(value) ? value : null;
+}
+
+function targetTaskForSuggestion(suggestion: SecretarySuggestion, tasks: Task[], fallback: Task | null) {
+  const taskId = stringPayload(suggestion.payload.taskId);
+  if (taskId) return tasks.find((task) => task.id === taskId) ?? fallback;
+  const title = stringPayload(suggestion.payload.title);
+  if (title) {
+    const normalizedTitle = normalizeVoiceText(title);
+    const matched = tasks.find((task) => normalizeVoiceText(displayTaskTitle(task)).includes(normalizedTitle) || normalizedTitle.includes(normalizeVoiceText(displayTaskTitle(task))));
+    if (matched) return matched;
+  }
+  return fallback;
+}
+
+function taskPatchFromSuggestion(suggestion: SecretarySuggestion): Partial<Task> {
+  const patch: Partial<Task> = {};
+  const { payload } = suggestion;
+  const dueDate = stringPayload(payload.dueDate);
+  const title = stringPayload(payload.title);
+  const description = stringPayload(payload.description);
+  const projectId = stringPayload(payload.projectId);
+  const assigneeId = stringPayload(payload.primaryAssigneeId);
+  const estimatedMinutes = numberPayload(payload.estimatedMinutes);
+
+  if (dueDate && isInputDate(dueDate)) patch.dueDate = dueDate;
+  if (typeof payload.status === "string" && isTaskStatus(payload.status)) patch.status = payload.status;
+  if (typeof payload.priority === "string" && isTaskPriority(payload.priority)) patch.priority = payload.priority;
+  if (title) patch.title = title;
+  if (description) patch.description = description;
+  if (projectId || payload.projectId === null) patch.projectId = projectId || null;
+  if (assigneeId) {
+    patch.primaryAssigneeId = assigneeId;
+    patch.assigneeIds = [assigneeId];
+  }
+  if (estimatedMinutes !== null) patch.estimatedMinutes = estimatedMinutes;
+
+  return patch;
+}
+
+function buildVoiceSuggestions(text: string, tasks: Task[], topTask: Task | null): SecretarySuggestion[] {
+  const normalized = text.trim();
+  if (!normalized) return [];
+  const suggestions: SecretarySuggestion[] = [];
+  const target = findVoiceTargetTask(normalized, tasks, topTask);
+  const dueDate = parseJapaneseDueDate(normalized);
+  const title = target ? displayTaskTitle(target) : "最優先タスク";
+  const basePayload = target ? { taskId: target.id, title } : { strategy: "top_priority", title };
+
+  if (dueDate && /期限|締切|しめきり|変更|ずら|延ば|延期|今日|明日|明後日|来週|再来週|週明け|月曜|火曜|水曜|木曜|金曜|土曜|日曜/.test(normalized)) {
+    suggestions.push({
+      id: `voice-due-${Date.now()}`,
+      type: "task_update",
+      title: `${title} の期限を ${dateLabel(dueDate)} に変更`,
+      summary: "音声から期限変更を読み取りました。反映するまでDBは変わりません。",
+      payload: { ...basePayload, dueDate },
+      riskLevel: "watch",
+    });
+  }
+
+  if (/完了|終わっ|終わり|済み/.test(normalized)) {
+    suggestions.push({
+      id: `voice-done-${Date.now()}`,
+      type: "task_update",
+      title: `${title} を完了にする`,
+      summary: "完了にすると日報の自動入力にも入りやすくなります。",
+      payload: { ...basePayload, status: "done" },
+      riskLevel: "watch",
+    });
+  } else if (/開始|着手|進行中|始め/.test(normalized)) {
+    suggestions.push({
+      id: `voice-start-${Date.now()}`,
+      type: "task_update",
+      title: `${title} を進行中にする`,
+      summary: "今から取りかかるタスクとして状態を更新します。",
+      payload: { ...basePayload, status: "in_progress" },
+      riskLevel: "safe",
+    });
+  } else if (/確認待ち|確認に回|レビュー/.test(normalized)) {
+    suggestions.push({
+      id: `voice-review-${Date.now()}`,
+      type: "task_update",
+      title: `${title} を確認待ちにする`,
+      summary: "作業完了後の確認フェーズとして状態を更新します。",
+      payload: { ...basePayload, status: "review" },
+      riskLevel: "safe",
+    });
+  }
+
+  if (/保留|減ら|今日から外|今週から外|後回し/.test(normalized)) {
+    suggestions.push({
+      id: `voice-hold-${Date.now()}`,
+      type: "task_hold",
+      title: `${title} を保留にする`,
+      summary: "削除ではなく保留にします。あとで戻せます。",
+      payload: basePayload,
+      riskLevel: "safe",
+    });
+  }
+
+  if (/追加|作って|作成|タスク化/.test(normalized) && !/期限.*変更|完了|保留/.test(normalized)) {
+    const taskTitle = extractTaskTitle(normalized);
+    suggestions.push({
+      id: `voice-create-${Date.now()}`,
+      type: "task_create",
+      title: "音声内容をタスク追加",
+      summary: taskTitle,
+      payload: { title: taskTitle, dueDate: dueDate ?? todayInputValue(), priority: /緊急|急ぎ/.test(normalized) ? "urgent" : "normal" },
+      riskLevel: "watch",
+    });
+  }
+
+  return suggestions.slice(0, 3);
+}
+
+function enhanceVoicePrompt(text: string, mode: "plain" | "task" | "report" | "deadline", topTask: Task | null) {
+  const normalized = text.trim();
+  if (mode === "report" || /日報|週報|振り返り/.test(normalized)) {
+    return `音声入力です。日報や振り返りとして整理してください。内容: ${normalized}`;
+  }
+  if (mode === "deadline" || /期限|締切|しめきり|今日|明日|来週|延期|延ば/.test(normalized)) {
+    return [
+      "音声入力です。タスクの期限変更として、直接変更せず提案カードで返してください。",
+      topTask ? `対象候補: ${topTask.title}` : null,
+      `内容: ${normalized}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+  if (mode === "task" || /タスク|整理|減ら|増や|追加|保留|完了/.test(normalized)) {
+    return [
+      "音声入力です。タスク操作の相談として、直接変更せず提案カードで返してください。",
+      "減らす相談は削除ではなく保留提案を優先してください。",
+      topTask ? `最優先候補: ${topTask.title}` : null,
+      `内容: ${normalized}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+  return normalized;
+}
+
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function dateOffsetInput(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function dateKey(value: string) {
   return new Date(value).toISOString().slice(0, 10);
+}
+
+function parseJapaneseDueDate(text: string) {
+  if (/再来週/.test(text)) return dateOffsetInput(14);
+  if (/来週|一週間|1週間/.test(text)) return dateOffsetInput(7);
+  if (/明後日|あさって/.test(text)) return dateOffsetInput(2);
+  if (/明日|あした/.test(text)) return dateOffsetInput(1);
+  if (/今日|本日/.test(text)) return todayInputValue();
+  if (/週明け/.test(text)) return nextWeekdayInput(1);
+  const weekday = [
+    ["日", 0],
+    ["月", 1],
+    ["火", 2],
+    ["水", 3],
+    ["木", 4],
+    ["金", 5],
+    ["土", 6],
+  ].find(([label]) => new RegExp(`${label}曜`).test(text));
+  return weekday ? nextWeekdayInput(Number(weekday[1])) : null;
+}
+
+function nextWeekdayInput(targetDay: number) {
+  const date = new Date();
+  const currentDay = date.getDay();
+  const diff = (targetDay - currentDay + 7) % 7 || 7;
+  date.setDate(date.getDate() + diff);
+  return date.toISOString().slice(0, 10);
+}
+
+function dateLabel(value: string) {
+  const diff = Math.round((new Date(value).setHours(0, 0, 0, 0) - new Date(todayInputValue()).getTime()) / 86400000);
+  if (diff === 0) return "今日";
+  if (diff === 1) return "明日";
+  if (diff === 2) return "明後日";
+  if (diff === 7) return "来週";
+  return value;
+}
+
+function findVoiceTargetTask(text: string, tasks: Task[], fallback: Task | null) {
+  const normalized = normalizeVoiceText(text);
+  const candidates = tasks
+    .map((task) => ({ task, title: normalizeVoiceText(displayTaskTitle(task)) }))
+    .filter(({ title }) => title.length >= 4 && (normalized.includes(title.slice(0, Math.min(12, title.length))) || title.includes(normalized.slice(0, Math.min(12, normalized.length)))))
+    .sort((a, b) => b.title.length - a.title.length);
+  return candidates[0]?.task ?? fallback;
+}
+
+function extractTaskTitle(text: string) {
+  return (
+    text
+      .replace(/(を)?タスク(に)?(追加|作成|化).*$/g, "")
+      .replace(/追加|作って|作成|タスク化/g, "")
+      .trim()
+      .slice(0, 48) || `音声タスク: ${text.slice(0, 32)}`
+  );
+}
+
+function normalizeVoiceText(value: string) {
+  return value.replace(/[【】\[\]\s　、。・「」]/g, "").toLowerCase();
+}
+
+function isInputDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(value).getTime());
+}
+
+function isTaskStatus(value: string): value is TaskStatus {
+  return value === "todo" || value === "in_progress" || value === "review" || value === "done";
+}
+
+function isTaskPriority(value: string): value is TaskPriority {
+  return value === "urgent" || value === "high" || value === "normal" || value === "low" || value === "hold";
 }

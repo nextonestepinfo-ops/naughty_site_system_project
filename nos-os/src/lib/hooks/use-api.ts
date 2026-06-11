@@ -21,20 +21,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 }
 
 export function useScopedPath(path: string, extra?: Record<string, string | undefined>) {
-  const session = useAppStore((state) => state.session);
   return useMemo(() => {
     const params = new URLSearchParams();
-    if (session) {
-      params.set("role", session.role);
-      params.set("employeeId", session.employeeId);
-      params.set("userId", session.id);
-    }
     Object.entries(extra ?? {}).forEach(([key, value]) => {
       if (value) params.set(key, value);
     });
     const query = params.toString();
     return `${path}${query ? `?${query}` : ""}`;
-  }, [extra, path, session]);
+  }, [extra, path]);
 }
 
 export function useScopedQuery<T>(key: QueryKey, path: string, extra?: Record<string, string | undefined>) {
@@ -46,4 +40,3 @@ export function useScopedQuery<T>(key: QueryKey, path: string, extra?: Record<st
     enabled: Boolean(session),
   });
 }
-

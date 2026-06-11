@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { role } = getRequestScope(request);
+  if (role !== "admin") return NextResponse.json({ error: { message: "Not allowed" } }, { status: 403 });
   const body = await request.json().catch(() => ({}));
   return NextResponse.json({ data: await createProject(body) }, { status: 201 });
 }

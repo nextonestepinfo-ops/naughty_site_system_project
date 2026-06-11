@@ -26,6 +26,18 @@ export function buildSecretarySuggestions(message: string): SecretarySuggestion[
     });
   }
 
+  const dueDate = parseRelativeDueDate(trimmed);
+  if (dueDate && /期限|締切|しめきり|変更|ずら|延ば|延期|明日|明後日|来週|再来週|週明け/.test(trimmed)) {
+    suggestions.push({
+      id: "task-change-deadline",
+      type: "task_update",
+      title: "最優先タスクの期限を変更",
+      summary: "期限変更の候補です。反映するまでタスクは変更されません。",
+      payload: { strategy: "top_priority", dueDate },
+      riskLevel: "watch",
+    });
+  }
+
   if (trimmed.includes("今日") || trimmed.includes("次") || trimmed.includes("開始") || normalized.includes("start")) {
     suggestions.push({
       id: "task-start-top-priority",
@@ -71,6 +83,28 @@ export function buildSecretarySuggestions(message: string): SecretarySuggestion[
   }
 
   return suggestions.slice(0, 3);
+}
+
+function parseRelativeDueDate(text: string) {
+  if (/再来週/.test(text)) return dateOffset(14);
+  if (/来週|一週間|1週間/.test(text)) return dateOffset(7);
+  if (/明後日|あさって/.test(text)) return dateOffset(2);
+  if (/明日|あした/.test(text)) return dateOffset(1);
+  if (/週明け/.test(text)) return nextWeekday(1);
+  return null;
+}
+
+function dateOffset(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function nextWeekday(targetDay: number) {
+  const date = new Date();
+  const diff = (targetDay - date.getDay() + 7) % 7 || 7;
+  date.setDate(date.getDate() + diff);
+  return date.toISOString().slice(0, 10);
 }
 
 function secretaryReply(message: string, reply: string, configured = false): SecretaryReply {

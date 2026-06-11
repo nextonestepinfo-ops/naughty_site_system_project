@@ -5,11 +5,9 @@ import { AlertTriangle, BookOpenCheck, ChevronDown, CircleHelp, Delete, Fingerpr
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BrandMark, nosBrand } from "@/components/domain/brand";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/form";
-import { roleLabels } from "@/lib/data/labels";
 import { apiFetch } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import { cn } from "@/lib/utils";
@@ -33,6 +31,15 @@ type DeviceUnlockRecord = {
   createdAt: string;
 };
 
+function getLoginStorage() {
+  if (typeof window === "undefined" || !("localStorage" in window)) return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount[] }) {
   const router = useRouter();
   const setSession = useAppStore((state) => state.setSession);
@@ -48,7 +55,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
   const [deviceUnlockSupported, setDeviceUnlockSupported] = useState(false);
   const [deviceUnlock, setDeviceUnlock] = useState<DeviceUnlockRecord | null>(null);
   const [deviceUnlockBusy, setDeviceUnlockBusy] = useState(false);
-  const [rememberDevice, setRememberDevice] = useState(true);
+  const [rememberDevice, setRememberDevice] = useState(false);
 
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.employeeId === employeeId) ?? accounts[0],
@@ -57,22 +64,24 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const lastEmployeeId = window.localStorage.getItem(lastEmployeeStorageKey);
+    const storage = getLoginStorage();
+    const lastEmployeeId = storage?.getItem(lastEmployeeStorageKey);
     if (lastEmployeeId && accounts.some((account) => account.employeeId === lastEmployeeId)) {
       setEmployeeId(lastEmployeeId);
     }
-    setDeviceUnlockSupported(Boolean(window.PublicKeyCredential && navigator.credentials));
+    setDeviceUnlockSupported(Boolean(storage && window.PublicKeyCredential && navigator.credentials));
   }, [accounts]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !employeeId) return;
-    window.localStorage.setItem(lastEmployeeStorageKey, employeeId);
+    const storage = getLoginStorage();
+    storage?.setItem(lastEmployeeStorageKey, employeeId);
     setDeviceUnlock(readDeviceUnlock(employeeId));
   }, [employeeId]);
 
   async function finishLogin(user: User) {
     if (rememberDevice && deviceUnlockSupported && !readDeviceUnlock(user.employeeId)) {
-      await registerDeviceUnlock(user, selectedAccount).catch(() => undefined);
+      void registerDeviceUnlock(user, selectedAccount).catch(() => undefined);
     }
     setSession(user);
     router.replace("/");
@@ -225,8 +234,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
           <CardContent className="p-5">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
-                <p className="ios-kicker">UNLOCK</p>
-                <p className="mt-1 text-2xl font-extrabold">ロック解除</p>
+                <p className="text-2xl font-extrabold">ロック解除</p>
               </div>
               <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-extrabold text-amber-700 dark:bg-[#F7C878] dark:text-[#2A1702]">
                 <Sparkles className="h-4 w-4" />
@@ -252,7 +260,6 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-extrabold">{selectedAccount.name}</p>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-300">{roleLabels[selectedAccount.role]}</p>
                   </div>
                 </div>
               </div>
@@ -280,7 +287,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
                     </button>
                   ))}
                   <button type="button" className="spring h-14 rounded-full bg-slate-100 font-bold text-[#0B1226] hover:bg-slate-200 dark:bg-[#17213A] dark:text-slate-50 dark:ring-1 dark:ring-white/10 dark:hover:bg-[#22304F]" onClick={() => setPassword("")}>
-                    Clear
+                    全消し
                   </button>
                   <button type="button" className="spring h-14 rounded-full bg-slate-100 text-xl font-extrabold text-[#0B1226] hover:bg-slate-200 dark:bg-[#17213A] dark:text-slate-50 dark:ring-1 dark:ring-white/10 dark:hover:bg-[#22304F]" onClick={() => pressKey("0")}>
                     0
@@ -313,7 +320,7 @@ export function LoginClient({ initialAccounts }: { initialAccounts: LoginAccount
                 >
                   <span className="flex items-center gap-2">
                     <Fingerprint className="h-4 w-4" />
-                    次回からこの端末で解除
+                    端末解除を使う（任意）
                   </span>
                   <span>{deviceUnlockSupported ? (rememberDevice ? "ON" : "OFF") : "未対応"}</span>
                 </button>
@@ -390,7 +397,6 @@ function MemberButton({
         </div>
         <div className="min-w-0">
           <p className="truncate font-extrabold">{account.name}</p>
-          <Badge className="mt-1" tone={account.role === "admin" ? "blue" : "green"}>{roleLabels[account.role]}</Badge>
         </div>
       </div>
     </button>
@@ -398,8 +404,8 @@ function MemberButton({
 }
 
 function readDeviceUnlock(employeeId: string): DeviceUnlockRecord | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(deviceUnlockStorageKey);
+  const storage = getLoginStorage();
+  const raw = storage?.getItem(deviceUnlockStorageKey);
   if (!raw) return null;
   try {
     const records = JSON.parse(raw) as DeviceUnlockRecord[];
@@ -410,11 +416,17 @@ function readDeviceUnlock(employeeId: string): DeviceUnlockRecord | null {
 }
 
 function writeDeviceUnlock(record: DeviceUnlockRecord) {
-  if (typeof window === "undefined") return;
-  const raw = window.localStorage.getItem(deviceUnlockStorageKey);
-  const records = raw ? (JSON.parse(raw) as DeviceUnlockRecord[]) : [];
+  const storage = getLoginStorage();
+  if (!storage) return;
+  const raw = storage.getItem(deviceUnlockStorageKey);
+  let records: DeviceUnlockRecord[] = [];
+  try {
+    records = raw ? (JSON.parse(raw) as DeviceUnlockRecord[]) : [];
+  } catch {
+    records = [];
+  }
   const next = [record, ...records.filter((item) => item.employeeId !== record.employeeId)];
-  window.localStorage.setItem(deviceUnlockStorageKey, JSON.stringify(next.slice(0, 8)));
+  storage.setItem(deviceUnlockStorageKey, JSON.stringify(next.slice(0, 8)));
 }
 
 async function registerDeviceUnlock(user: User, account?: LoginAccount) {

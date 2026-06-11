@@ -39,11 +39,17 @@ export default function AttendancePage() {
   const attendance = useScopedQuery<AttendancePayload>(["attendance"], "/api/attendance");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(session?.employeeId ?? "");
   const [now, setNow] = useState(new Date());
+  const [otherActionsOpen, setOtherActionsOpen] = useState(false);
+  const isAdmin = session?.role === "admin";
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin && session?.employeeId) setSelectedEmployeeId(session.employeeId);
+  }, [isAdmin, session?.employeeId]);
 
   const clock = useMutation({
     mutationFn: (eventType: AttendanceEvent) =>
@@ -63,7 +69,8 @@ export default function AttendancePage() {
 
   if (attendance.isLoading || !attendance.data) return <LoadingPanel label="勤怠を準備中" />;
 
-  const targetEmployee = attendance.data.employees.find((employee) => employee.id === (selectedEmployeeId || session?.employeeId)) ?? attendance.data.employees[0];
+  const targetEmployeeId = isAdmin ? selectedEmployeeId || session?.employeeId : session?.employeeId;
+  const targetEmployee = attendance.data.employees.find((employee) => employee.id === targetEmployeeId) ?? attendance.data.employees[0];
   const todayLogs = attendance.data.logs.filter((log) => isToday(log.recordedAt) && (!targetEmployee || log.employeeId === targetEmployee.id));
   const teamStatus = {
     working: attendance.data.employees.filter((employee) => employee.attendanceStatus === "working").length,
@@ -89,11 +96,13 @@ export default function AttendancePage() {
                 {targetEmployee ? <StatusPill status={targetEmployee.attendanceStatus} /> : null}
               </div>
 
-              <Select value={selectedEmployeeId || targetEmployee?.id} onChange={(event) => setSelectedEmployeeId(event.target.value)}>
-                {attendance.data.employees.map((employee) => (
-                  <option key={employee.id} value={employee.id}>{employee.name}</option>
-                ))}
-              </Select>
+              {isAdmin ? (
+                <Select value={selectedEmployeeId || targetEmployee?.id} onChange={(event) => setSelectedEmployeeId(event.target.value)}>
+                  {attendance.data.employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>{employee.name}</option>
+                  ))}
+                </Select>
+              ) : null}
 
               {targetEmployee ? (
                 <div className="flex items-center gap-3 rounded-panel bg-slate-50 p-3 dark:bg-white/5">
@@ -109,7 +118,7 @@ export default function AttendancePage() {
               ) : null}
 
               <div className="grid grid-cols-2 gap-2">
-                {actions.map((action) => (
+                {actions.filter((action) => action.primary).map((action) => (
                   <Button
                     key={action.event}
                     className={cn(action.primary && "h-14 text-base")}
@@ -122,15 +131,39 @@ export default function AttendancePage() {
                   </Button>
                 ))}
               </div>
+              <button
+                className="flex h-11 w-full items-center justify-center rounded-panel bg-slate-100 text-sm font-extrabold text-[#0B1226] ring-1 ring-border dark:bg-white/10 dark:text-white dark:ring-white/10"
+                type="button"
+                onClick={() => setOtherActionsOpen((current) => !current)}
+              >
+                {otherActionsOpen ? "その他の打刻を閉じる" : "その他の打刻"}
+              </button>
+              {otherActionsOpen ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {actions.filter((action) => !action.primary).map((action) => (
+                    <Button
+                      key={action.event}
+                      variant={action.danger ? "danger" : "ghost"}
+                      onClick={() => clock.mutate(action.event)}
+                      disabled={clock.isPending}
+                    >
+                      <action.icon className="h-4 w-4" />
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 gap-3">
-            <TeamTile label="勤務中" value={teamStatus.working} tone="green" />
-            <TeamTile label="休憩" value={teamStatus.break} />
-            <TeamTile label="外出/打合せ" value={teamStatus.out} />
-            <TeamTile label="退勤/欠勤" value={teamStatus.off} />
-          </div>
+          {isAdmin ? (
+            <div className="grid grid-cols-2 gap-3">
+              <TeamTile label="勤務中" value={teamStatus.working} tone="green" />
+              <TeamTile label="休憩" value={teamStatus.break} />
+              <TeamTile label="外出/打合せ" value={teamStatus.out} />
+              <TeamTile label="退勤/欠勤" value={teamStatus.off} />
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-5">
@@ -162,6 +195,7 @@ export default function AttendancePage() {
             </CardContent>
           </Card>
 
+          {isAdmin ? (
           <Card>
             <CardContent className="p-4">
               <p className="font-extrabold text-[#0B1226] dark:text-white">有給・申請状況</p>
@@ -178,6 +212,7 @@ export default function AttendancePage() {
               </div>
             </CardContent>
           </Card>
+          ) : null}
         </div>
       </section>
     </>

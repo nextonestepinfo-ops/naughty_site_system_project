@@ -23,8 +23,9 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { AssigneeBadge } from "@/components/domain/assignee-badge";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input, Select, Textarea } from "@/components/ui/form";
 import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
 import { displayTaskTitle, isTestTask } from "@/lib/data/task-flags";
+import { employeeColorToken } from "@/lib/employee-colors";
 import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import type { Employee, GoalTree, Project, Task, TaskAssistantAction, TaskAssistantPlan, TaskPriority, TaskStatus } from "@/lib/types";
@@ -61,6 +63,7 @@ const priorities = Object.entries(taskPriorityLabels) as Array<[TaskPriority, st
 
 export default function TasksPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const session = useAppStore((state) => state.session);
   const [segment, setSegment] = useState<Segment>("today");
@@ -177,6 +180,13 @@ export default function TasksPage() {
     window.localStorage.setItem(todayOrderKey, JSON.stringify(todayOrder));
   }, [todayOrder, todayOrderKey]);
 
+  useEffect(() => {
+    const taskId = new URLSearchParams(queryString).get("taskId");
+    if (!taskId || !tasks.data?.length) return;
+    const target = tasks.data.find((task) => task.id === taskId);
+    if (target) setSelectedTask(target);
+  }, [queryString, tasks.data]);
+
   const visibleTasks = useMemo(() => {
     const filtered = activeTasks.filter((task) => {
       const distance = dayDistance(task.dueDate);
@@ -240,6 +250,19 @@ export default function TasksPage() {
 
   function patchTask(id: string, body: Partial<Task>) {
     updateTask.mutate({ id, body });
+  }
+
+  function updateTaskQuery(patch: Partial<Record<"segment" | "chip" | "assigneeId" | "scope" | "due", string | null>>) {
+    const params = new URLSearchParams(queryString);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    });
+    const nextQuery = params.toString();
+    router.replace(`/tasks${nextQuery ? `?${nextQuery}` : ""}`, { scroll: false });
   }
 
   function submitTask(event: FormEvent<HTMLFormElement>) {
@@ -339,7 +362,7 @@ export default function TasksPage() {
         }
       />
 
-      <section className="mb-5 grid gap-3 md:grid-cols-[1.15fr_0.85fr]">
+      <section className="mb-5 hidden gap-3 md:grid md:grid-cols-[1.15fr_0.85fr]">
         <Card className="overflow-hidden">
           <div className="h-2 bg-[#0B1226]" />
           <CardContent className="p-4">
@@ -395,7 +418,10 @@ export default function TasksPage() {
               <button
                 key={value}
                 className={cn("h-11 rounded-[14px] text-sm font-extrabold text-slate-500 transition dark:text-slate-200", segment === value && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
-                onClick={() => setSegment(value)}
+                onClick={() => {
+                  setSegment(value);
+                  updateTaskQuery({ segment: value });
+                }}
               >
                 {label}
               </button>
@@ -416,24 +442,54 @@ export default function TasksPage() {
                   "h-11 shrink-0 rounded-full px-3 text-xs font-extrabold transition",
                   chip === value ? "bg-[#0B1226] text-white dark:bg-[#F4F6FA] dark:text-[#050816]" : "bg-white text-slate-600 ring-1 ring-border dark:bg-white/5 dark:text-slate-200 dark:ring-white/10",
                 )}
-                onClick={() => setChip(value)}
+                onClick={() => {
+                  setChip(value);
+                  updateTaskQuery({
+                    chip: value,
+                    due: value === "overdue" ? "overdue" : null,
+                    scope: value === "mine" ? "mine" : value === "all" ? "team" : null,
+                  });
+                }}
               >
                 {label}
               </button>
             ))}
           </div>
           {session?.role === "admin" ? (
-            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
-              担当者で絞り込み
-              <Select value={selectedAssigneeId} onChange={(event) => setSelectedAssigneeId(event.target.value)}>
-                <option value="all">全員のタスク</option>
+            <div className="grid gap-2">
+              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-300">担当者で絞り込み</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                <button
+                  className={cn(
+                    "h-11 shrink-0 rounded-full px-3 text-xs font-extrabold ring-1 ring-border dark:ring-white/10",
+                    selectedAssigneeId === "all" ? "bg-[#0B1226] text-white dark:bg-[#F4F6FA] dark:text-[#050816]" : "bg-white text-slate-600 dark:bg-white/5 dark:text-slate-100",
+                  )}
+                  type="button"
+                  onClick={() => {
+                    setSelectedAssigneeId("all");
+                    updateTaskQuery({ assigneeId: null });
+                  }}
+                >
+                  全員
+                </button>
                 {(employees.data ?? []).map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </option>
+                  <button
+                    key={employee.id}
+                    className={cn(
+                      "min-h-11 shrink-0 rounded-full ring-2 ring-transparent transition",
+                      selectedAssigneeId === employee.id && "ring-[#E08F12]",
+                    )}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAssigneeId(employee.id);
+                      updateTaskQuery({ assigneeId: employee.id, scope: "team" });
+                    }}
+                  >
+                    <AssigneeBadge employee={employee} size="sm" />
+                  </button>
                 ))}
-              </Select>
-            </label>
+              </div>
+            </div>
           ) : null}
         </CardContent>
       </Card>
@@ -475,6 +531,8 @@ export default function TasksPage() {
           task={selectedTask}
           project={selectedTask.projectId ? projectMap.get(selectedTask.projectId) : undefined}
           employee={employeeMap.get(selectedTask.primaryAssigneeId)}
+          employees={employees.data ?? []}
+          projects={projects.data ?? []}
           onClose={() => setSelectedTask(null)}
           onPatch={(body) => patchTask(selectedTask.id, body)}
           onDelete={() => {
@@ -608,8 +666,9 @@ function TaskRow({
   onMoveDown?: () => void;
 }) {
   const distance = dayDistance(task.dueDate);
+  const assigneeColor = employeeColorToken(employee?.id ?? task.primaryAssigneeId);
   return (
-    <Card data-task-row-id={task.id} className={cn("overflow-hidden transition", dragging && "scale-[0.99] ring-2 ring-[#E08F12]", isTestTask(task) && "bg-amber-50/50 dark:bg-amber-400/10")}>
+    <Card data-task-row-id={task.id} className={cn("overflow-hidden border-l-4 transition", isTestTask(task) && "bg-amber-50/50 dark:bg-amber-400/10", assigneeColor.border, dragging && "scale-[0.99] ring-2 ring-[#E08F12]")}>
       <CardContent className={cn("grid gap-3 p-3", reorderEnabled ? "grid-cols-[44px_1fr_44px]" : "grid-cols-[44px_1fr]")}>
         <button
           className="mt-1 grid h-11 w-11 place-items-center rounded-full border-2 border-slate-200 bg-white text-slate-300 transition hover:border-emerald-400 hover:text-emerald-500 dark:border-white/15 dark:bg-[#050816] dark:text-slate-300"
@@ -620,14 +679,21 @@ function TaskRow({
           <Check className="h-5 w-5" />
         </button>
         <button className="min-w-0 text-left" onClick={onOpen}>
-          <div className="flex flex-wrap items-center gap-2">
-            {isTestTask(task) ? <Badge tone="amber">テスト</Badge> : null}
-            <Badge tone={priorityTone(task.priority)}>{taskPriorityLabels[task.priority]}</Badge>
-            <Badge tone={statusTone(task.status)}>{taskStatusLabels[task.status]}</Badge>
-            <Badge tone={distance < 0 ? "red" : distance === 0 ? "amber" : "slate"}>{distance < 0 ? "超過" : distance === 0 ? "今日" : formatDate(task.dueDate)}</Badge>
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <span className="inline-flex min-w-0 items-center gap-2">
+              <span className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-extrabold text-white", assigneeColor.dot)}>
+                {employee?.name.slice(0, 1) ?? "?"}
+              </span>
+              <span className="truncate text-xs font-bold text-slate-500 dark:text-slate-300">{employee?.name ?? "担当未設定"}</span>
+            </span>
+            <Badge className="shrink-0" tone={distance < 0 ? "red" : distance === 0 ? "amber" : "slate"}>{distance < 0 ? "超過" : distance === 0 ? "今日" : formatDate(task.dueDate)}</Badge>
           </div>
           <p className="mt-2 line-clamp-2 break-words text-[15px] font-extrabold leading-6 text-[#0B1226] dark:text-white">{displayTaskTitle(task)}</p>
-          <TaskContext task={task} project={project} employee={employee} compact />
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {isTestTask(task) ? <Badge tone="amber">テスト</Badge> : null}
+            {["urgent", "high", "hold"].includes(task.priority) ? <Badge tone={priorityTone(task.priority)}>{taskPriorityLabels[task.priority]}</Badge> : <Badge tone={statusTone(task.status)}>{taskStatusLabels[task.status]}</Badge>}
+          </div>
+          <p className="mt-2 truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{project?.name ?? "案件なし"} / 詳細で作業内容を確認</p>
         </button>
         {reorderEnabled ? (
           <div className="grid gap-1 self-center">
@@ -664,7 +730,7 @@ function TaskContext({ task, project, employee, compact = false }: { task: Task;
         <ContextPill icon={<BriefcaseBusiness className="h-3.5 w-3.5" />} label="案件なし" />
       )}
       {task.sourceBranchTitle ? <ContextPill icon={<GitBranch className="h-3.5 w-3.5" />} label={`大タスク: ${task.sourceBranchTitle}`} ai /> : null}
-      {employee ? <ContextPill icon={<UserRound className="h-3.5 w-3.5" />} label={`担当: ${employee.name}`} /> : null}
+      {employee && !compact ? <ContextPill icon={<UserRound className="h-3.5 w-3.5" />} label={`担当: ${employee.name}`} /> : null}
     </div>
   );
 }
@@ -682,6 +748,8 @@ function TaskSheet({
   task,
   project,
   employee,
+  employees,
+  projects,
   onClose,
   onPatch,
   onDelete,
@@ -690,6 +758,8 @@ function TaskSheet({
   task: Task;
   project?: Project;
   employee?: Employee;
+  employees: Employee[];
+  projects: Project[];
   onClose: () => void;
   onPatch: (body: Partial<Task>) => void;
   onDelete: () => void;
@@ -703,6 +773,7 @@ function TaskSheet({
       <div className="space-y-4">
         <div>
           <div className="flex flex-wrap gap-2">
+            <AssigneeBadge employee={employee} label="担当未設定" size="sm" />
             <Badge tone={priorityTone(task.priority)}>{taskPriorityLabels[task.priority]}</Badge>
             <Badge tone={statusTone(task.status)}>{taskStatusLabels[task.status]}</Badge>
             <Badge tone="slate">{formatDate(task.dueDate)}</Badge>
@@ -718,6 +789,96 @@ function TaskSheet({
           <InfoRow label="小タスク" value={displayTaskTitle(task)} />
           <InfoRow label="担当" value={employee?.name ?? "未設定"} />
           <InfoRow label="期限" value={formatDate(task.dueDate)} />
+        </div>
+        <div className="rounded-panel bg-white p-3 ring-1 ring-border dark:bg-white/5 dark:ring-white/10">
+          <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">EDIT</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
+              期限
+              <Input
+                type="date"
+                value={dateInputValue(task.dueDate)}
+                disabled={disabled}
+                onChange={(event) => onPatch({ dueDate: event.target.value })}
+              />
+            </label>
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
+              所要時間
+              <Input
+                type="number"
+                min={5}
+                step={5}
+                value={task.estimatedMinutes}
+                disabled={disabled}
+                onChange={(event) => onPatch({ estimatedMinutes: Number(event.target.value || 0) })}
+              />
+            </label>
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
+              優先度
+              <Select value={task.priority} disabled={disabled} onChange={(event) => onPatch({ priority: event.target.value as TaskPriority })}>
+                {priorities.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </Select>
+            </label>
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
+              状態
+              <Select value={task.status} disabled={disabled} onChange={(event) => onPatch({ status: event.target.value as TaskStatus })}>
+                {(Object.entries(taskStatusLabels) as Array<[TaskStatus, string]>).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </Select>
+            </label>
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
+              担当者
+              <Select
+                value={task.primaryAssigneeId}
+                disabled={disabled}
+                onChange={(event) => onPatch({ primaryAssigneeId: event.target.value, assigneeIds: [event.target.value] })}
+              >
+                {employees.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </Select>
+            </label>
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
+              開始予定
+              <Input
+                type="datetime-local"
+                value={dateTimeInputValue(task.scheduledStart)}
+                disabled={disabled}
+                onChange={(event) => onPatch({ scheduledStart: event.target.value ? localDateTimeToIso(event.target.value) : null })}
+              />
+            </label>
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
+              終了予定
+              <Input
+                type="datetime-local"
+                value={dateTimeInputValue(task.scheduledEnd)}
+                disabled={disabled}
+                onChange={(event) => onPatch({ scheduledEnd: event.target.value ? localDateTimeToIso(event.target.value) : null })}
+              />
+            </label>
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300 sm:col-span-2">
+              案件
+              <Select value={task.projectId ?? ""} disabled={disabled} onChange={(event) => onPatch({ projectId: event.target.value || null })}>
+                <option value="">案件名なし</option>
+                {projects.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </Select>
+            </label>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Button size="sm" variant="ghost" onClick={() => onPatch({ dueDate: todayInputValue() })} disabled={disabled}>今日</Button>
+            <Button size="sm" variant="ghost" onClick={() => onPatch({ dueDate: dateOffsetInput(1) })} disabled={disabled}>明日</Button>
+            <Button size="sm" variant="ghost" onClick={() => onPatch({ dueDate: dateOffsetInput(7) })} disabled={disabled}>来週</Button>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <Button size="sm" variant="ghost" onClick={() => onPatch({ dueDate: dateOffsetInput(3) })} disabled={disabled}>3日後</Button>
+            <Button size="sm" variant="ghost" onClick={() => onPatch({ dueDate: dateOffsetInput(14) })} disabled={disabled}>2週後</Button>
+            <Button size="sm" variant="ghost" onClick={() => onPatch({ scheduledStart: null, scheduledEnd: null })} disabled={disabled}>時刻クリア</Button>
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Button variant="ghost" onClick={() => onPatch({ priority: task.priority === "hold" ? "normal" : "hold" })} disabled={disabled || task.status === "done"}>
@@ -846,6 +1007,25 @@ function dayDistance(value: string) {
 
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function dateInputValue(value: string) {
+  if (!value) return todayInputValue();
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function dateTimeInputValue(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function localDateTimeToIso(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
 }
 
 function dateOffsetInput(days: number) {

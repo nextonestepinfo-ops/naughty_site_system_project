@@ -10,11 +10,12 @@ import {
   ChevronRight,
   ClipboardList,
   FilePenLine,
-  FlaskConical,
   Home,
   LogOut,
+  Menu,
   Megaphone,
   Settings,
+  ShieldCheck,
   UserRound,
   Users,
   type LucideIcon,
@@ -22,31 +23,31 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { AssistantDock } from "@/components/domain/assistant-dock";
 import { BrandMark, BrandText, nosBrand } from "@/components/domain/brand";
 import { ThemeModeControl } from "@/components/domain/theme-mode-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { roleLabels } from "@/lib/data/labels";
+import { useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
+import type { Notification as AppNotification } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const navItems: Array<{ href: string; label: string; icon: LucideIcon; adminOnly?: boolean }> = [
   { href: "/", label: "ホーム", icon: Home },
   { href: "/tasks", label: "タスク", icon: ClipboardList },
   { href: "/assistant", label: "秘書", icon: Bot },
+  { href: "/admin", label: "管理", icon: ShieldCheck, adminOnly: true },
   { href: "/attendance", label: "勤怠", icon: CalendarClock },
   { href: "/reports", label: "日報", icon: FilePenLine },
   { href: "/notifications", label: "通知", icon: Bell },
+  { href: "/menu", label: "メニュー", icon: Menu },
   { href: "/projects", label: "案件", icon: BriefcaseBusiness },
   { href: "/sales", label: "営業素材", icon: Megaphone },
   { href: "/customers", label: "顧客", icon: Building2, adminOnly: true },
   { href: "/employees", label: "社員", icon: Users, adminOnly: true },
   { href: "/guide", label: "使い方", icon: BookOpenCheck },
-  { href: "/test", label: "テスト", icon: FlaskConical, adminOnly: true },
 ];
-
-const mobileItems = navItems.filter((item) => ["/", "/tasks", "/assistant", "/attendance", "/notifications"].includes(item.href));
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hydrated = useAppStore((state) => state.hydrated);
   const hydrateSession = useAppStore((state) => state.hydrateSession);
   const logout = useAppStore((state) => state.logout);
+  const notifications = useScopedQuery<AppNotification[]>(["notifications", "shell"], "/api/notifications");
 
   useEffect(() => {
     hydrateSession();
@@ -73,6 +75,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const filteredNav = navItems.filter((item) => !item.adminOnly || session.role === "admin");
+  const unreadCount = notifications.data?.filter((notice) => !notice.readAt).length ?? 0;
+  const mobileHrefs = ["/", "/tasks", "/assistant", "/attendance", "/menu"];
+  const mobileItems = mobileHrefs
+    .map((href) => filteredNav.find((item) => item.href === href))
+    .filter((item): item is { href: string; label: string; icon: LucideIcon; adminOnly?: boolean } => Boolean(item));
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
@@ -159,11 +166,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-white/80 px-2 py-2 frosted-tabbar lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1">
           {mobileItems.map((item) => (
-            <MobileNavLink key={item.href} item={item} active={isActive(pathname, item.href)} />
+            <MobileNavLink key={item.href} item={item} active={isActive(pathname, item.href)} badgeCount={item.href === "/menu" ? unreadCount : 0} />
           ))}
         </div>
       </nav>
-      <AssistantDock />
     </div>
   );
 }
@@ -197,9 +203,11 @@ function NavLink({
 function MobileNavLink({
   item,
   active,
+  badgeCount = 0,
 }: {
   item: { href: string; label: string; icon: LucideIcon };
   active: boolean;
+  badgeCount?: number;
 }) {
   const isAssistant = item.href === "/assistant";
   return (
@@ -223,6 +231,11 @@ function MobileNavLink({
         <item.icon className={cn(isAssistant ? "h-6 w-6" : "h-5 w-5")} />
       </span>
       <span className={cn(isAssistant && "sr-only")}>{item.label}</span>
+      {badgeCount > 0 ? (
+        <span className="absolute right-3 top-2 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-extrabold text-white">
+          {badgeCount > 9 ? "9+" : badgeCount}
+        </span>
+      ) : null}
     </Link>
   );
 }

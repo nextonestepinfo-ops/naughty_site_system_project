@@ -18,6 +18,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { role, employeeId } = getRequestScope(request);
   const body = await request.json().catch(() => ({}));
-  return NextResponse.json({ data: await createTask(body) }, { status: 201 });
+  const safeBody =
+    role === "admin"
+      ? body
+      : {
+          ...body,
+          primaryAssigneeId: employeeId,
+          assigneeIds: [employeeId],
+        };
+  return NextResponse.json({ data: await createTask(safeBody) }, { status: 201 });
 }

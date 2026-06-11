@@ -193,8 +193,8 @@ export type Task = {
   delayRisk: number;
   aiPriorityScore: number;
   estimatedMinutes: number;
-  scheduledStart?: string;
-  scheduledEnd?: string;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
   createdAt: string;
   updatedAt: string;
 };

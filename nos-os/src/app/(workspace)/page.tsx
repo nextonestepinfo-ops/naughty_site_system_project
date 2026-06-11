@@ -1,33 +1,39 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarCheck, CalendarDays, CalendarPlus, Check, CheckCircle2, ChevronDown, Clock3, Download, FilePenLine, Mic, Sparkles, Users } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CalendarDays, CalendarPlus, Check, ChevronDown, Clock3, Download, FilePenLine, Mic } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AssigneeBadge } from "@/components/domain/assignee-badge";
 import { GoalTreeBoard } from "@/components/domain/goal-tree-board";
 import { LoadingPanel } from "@/components/domain/loading";
-import { MetricCard } from "@/components/domain/metric-card";
 import { PageHeader } from "@/components/domain/page-header";
+import { PriorityDrawer } from "@/components/domain/priority-drawer";
 import { ProjectCard } from "@/components/domain/project-card";
 import { TaskCard } from "@/components/domain/task-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { attendanceStatusLabels } from "@/lib/data/labels";
+import { displayTaskTitle } from "@/lib/data/task-flags";
 import { apiFetch, useScopedQuery } from "@/lib/hooks/use-api";
 import { useAppStore } from "@/lib/store/app-store";
 import type { DashboardSummary, Employee, Project, Task } from "@/lib/types";
-import { cn, formatDateTime, formatTime } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatTime } from "@/lib/utils";
+
+type HomeDrawerId = "report" | "team" | "calendar" | "goals" | "projects" | "ai";
 
 export default function DashboardPage() {
   const queryClient = useQueryClient();
   const session = useAppStore((state) => state.session);
-  const [heroMode, setHeroMode] = useState<"personal" | "company">("personal");
   const [expandedMetric, setExpandedMetric] = useState<"today" | "urgent" | "delayed" | null>(null);
+  const [openDrawers, setOpenDrawers] = useState<HomeDrawerId[]>([]);
+  const [drawerStateLoaded, setDrawerStateLoaded] = useState(false);
   const dashboard = useScopedQuery<DashboardSummary>(["dashboard"], "/api/dashboard");
   const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
   const projects = useScopedQuery<Project[]>(["projects"], "/api/projects");
+  const drawerStateKey = useMemo(() => `nos-os-home-drawers-${session?.employeeId ?? "guest"}`, [session?.employeeId]);
 
   const completeTask = useMutation({
     mutationFn: (taskId: string) => apiFetch<Task>(`/api/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify({ status: "done" }) }),
@@ -37,26 +43,54 @@ export default function DashboardPage() {
     },
   });
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(drawerStateKey);
+    try {
+      setOpenDrawers(raw ? JSON.parse(raw) : defaultHomeDrawers());
+    } catch {
+      setOpenDrawers(defaultHomeDrawers());
+    }
+    setDrawerStateLoaded(true);
+  }, [drawerStateKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !drawerStateLoaded) return;
+    window.localStorage.setItem(drawerStateKey, JSON.stringify(openDrawers));
+  }, [drawerStateKey, drawerStateLoaded, openDrawers]);
+
   if (dashboard.isLoading || !dashboard.data) return <LoadingPanel label="ダッシュボードを準備中" />;
 
   const plan = dashboard.data.dailyPlan;
   const employeeMap = new Map((employees.data ?? []).map((employee) => [employee.id, employee]));
   const projectMap = new Map((projects.data ?? []).map((project) => [project.id, project]));
   const statusTotal = Object.values(dashboard.data.employeeStatus).reduce((sum, value) => sum + value, 0);
-  const priorityTasks = Array.from(new Map([...(plan.focusTask ? [plan.focusTask] : []), ...plan.nextTasks].map((task) => [task.id, task])).values());
-  const companyFocusTask = Array.from(new Map([...dashboard.data.delayedTasks, ...dashboard.data.urgentTasks, ...dashboard.data.weekTasks].map((task) => [task.id, task])).values())
-    .sort((a, b) => b.aiPriorityScore - a.aiPriorityScore)[0] ?? null;
-  const heroTask = session?.role === "admin" && heroMode === "company" ? companyFocusTask : plan.focusTask;
-  const heroGoogleCalendarPath = scopedHref(heroTask ? `/api/calendar/tasks/${heroTask.id}/google` : "/api/calendar/ics", session);
-  const nextTask = plan.nextTasks[0];
+  const allDashboardTasks = uniqueTasks([...(plan.focusTask ? [plan.focusTask] : []), ...plan.nextTasks, ...dashboard.data.todayTasks, ...dashboard.data.urgentTasks, ...dashboard.data.delayedTasks, ...dashboard.data.weekTasks]);
+  const personalDashboardTasks = session?.employeeId ? allDashboardTasks.filter((task) => isAssignedTo(task, session.employeeId)) : allDashboardTasks;
+  const personalTodayTasks = dashboard.data.todayTasks.filter((task) => !session?.employeeId || isAssignedTo(task, session.employeeId));
+  const personalUrgentTasks = dashboard.data.urgentTasks.filter((task) => !session?.employeeId || isAssignedTo(task, session.employeeId));
+  const personalDelayedTasks = dashboard.data.delayedTasks.filter((task) => !session?.employeeId || isAssignedTo(task, session.employeeId));
+  const priorityTasks = uniqueTasks([...(plan.focusTask ? [plan.focusTask] : []), ...plan.nextTasks, ...personalDashboardTasks])
+    .filter((task) => !session?.employeeId || isAssignedTo(task, session.employeeId))
+    .sort((a, b) => b.aiPriorityScore - a.aiPriorityScore);
+  const heroTask = plan.focusTask && (!session?.employeeId || isAssignedTo(plan.focusTask, session.employeeId)) ? plan.focusTask : personalTodayTasks[0] ?? priorityTasks[0] ?? null;
+  const nextPersonalTasks = priorityTasks.filter((task) => task.id !== heroTask?.id).slice(0, 3);
+  const heroGoogleCalendarPath = heroTask ? `/api/calendar/tasks/${heroTask.id}/google` : "/api/calendar/ics";
   const homeCopy = homeModeCopy();
   const metricTaskMap = {
-    today: dashboard.data.todayTasks,
-    urgent: dashboard.data.urgentTasks,
-    delayed: dashboard.data.delayedTasks,
+    today: personalTodayTasks,
+    urgent: personalUrgentTasks,
+    delayed: personalDelayedTasks,
   };
   const expandedMetricMeta = expandedMetric ? metricMeta[expandedMetric] : null;
   const expandedMetricTasks = expandedMetric ? metricTaskMap[expandedMetric] : [];
+  const teamSummaries = buildTeamSummaries(employees.data ?? [], allDashboardTasks);
+  const teamUrgentCount = allDashboardTasks.filter((task) => ["urgent", "high"].includes(task.priority)).length;
+  const teamDelayedCount = dashboard.data.delayedTasks.length;
+  const toggleDrawer = (id: HomeDrawerId) => {
+    setOpenDrawers((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  };
+  const isDrawerOpen = (id: HomeDrawerId) => openDrawers.includes(id);
 
   return (
     <>
@@ -66,7 +100,7 @@ export default function DashboardPage() {
         kicker="COMMAND ROOM"
       />
 
-      <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className="grid gap-4">
         <Card className="overflow-hidden border-white bg-white dark:border-white/10 dark:bg-card">
           <div className="h-2 bg-[#0B1226]" />
           <CardContent className="grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:p-5">
@@ -79,33 +113,18 @@ export default function DashboardPage() {
                 <Badge tone={plan.riskLevel === "danger" ? "red" : plan.riskLevel === "watch" ? "amber" : "green"}>
                   {plan.riskLevel === "danger" ? "要対応" : plan.riskLevel === "watch" ? "注意" : "順調"}
                 </Badge>
-                {session?.role === "admin" ? (
-                  <span className="grid grid-cols-2 rounded-full bg-slate-100 p-1 text-xs font-extrabold text-slate-500 dark:bg-white/10 dark:text-slate-200">
-                    <button
-                      className={cn("h-11 rounded-full px-4", heroMode === "personal" && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
-                      onClick={() => setHeroMode("personal")}
-                      type="button"
-                    >
-                      自分
-                    </button>
-                    <button
-                      className={cn("h-11 rounded-full px-4", heroMode === "company" && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
-                      onClick={() => setHeroMode("company")}
-                      type="button"
-                    >
-                      会社
-                    </button>
-                  </span>
-                ) : null}
-                <span className="text-xs font-medium text-slate-500">{formatDateTime(plan.generatedAt)} 更新</span>
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-300">{formatDateTime(plan.generatedAt)} 更新</span>
               </div>
               <h2 className="mt-3 line-clamp-2 break-words text-[26px] font-extrabold leading-tight text-[#0B1226] dark:text-white">
-                {heroTask?.title ?? (heroMode === "company" ? "会社全体の確認タスクはありません" : "自分の未完了タスクはありません")}
+                {heroTask ? displayTaskTitle(heroTask) : "自分の未完了タスクはありません"}
               </h2>
               {heroTask ? (
-                <p className="mt-2 text-sm font-medium text-slate-500">
-                  {heroMode === "company" ? "会社タスク" : "自分のタスク"} / 案件: {heroTask.projectId ? projectMap.get(heroTask.projectId)?.name : "案件なし"} / 担当: {employeeMap.get(heroTask.primaryAssigneeId)?.name ?? "未設定"}
-                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-300">
+                  <AssigneeBadge employee={employeeMap.get(heroTask.primaryAssigneeId)} label="担当未設定" />
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-slate-100">
+                    案件: {heroTask.projectId ? projectMap.get(heroTask.projectId)?.name ?? "未設定" : "案件なし"}
+                  </span>
+                </div>
               ) : null}
               <div className="mt-5 flex flex-wrap gap-2">
                 {heroTask ? (
@@ -152,28 +171,41 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-
-        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-          <FocusSideItem label="次" title={nextTask?.title ?? "通知を確認"} tone="green" />
-          <FocusSideItem
-            label="リスク"
-            title={plan.riskLevel === "danger" ? "遅れると危険" : plan.riskLevel === "watch" ? "今日中に調整" : "順調"}
-            tone={plan.riskLevel === "danger" ? "red" : plan.riskLevel === "watch" ? "amber" : "green"}
-          />
-          <QuickExportStep href={plan.calendarExportUrl} />
-        </div>
       </section>
 
-      <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <HomeMetricTile label="今日" value={dashboard.data.todayTasks.length} helper="本日期限" icon={CalendarCheck} tone="blue" active={expandedMetric === "today"} onClick={() => setExpandedMetric((current) => (current === "today" ? null : "today"))} />
-        <HomeMetricTile label="緊急" value={dashboard.data.urgentTasks.length} helper="優先度: 緊急" icon={AlertTriangle} tone="red" active={expandedMetric === "urgent"} onClick={() => setExpandedMetric((current) => (current === "urgent" ? null : "urgent"))} />
-        <HomeMetricTile label="遅延" value={dashboard.data.delayedTasks.length} helper="期限超過" icon={Clock3} tone={dashboard.data.delayedTasks.length ? "red" : "green"} active={expandedMetric === "delayed"} onClick={() => setExpandedMetric((current) => (current === "delayed" ? null : "delayed"))} />
-        <MetricCard
-          label={session?.role === "admin" ? "出勤" : "有給"}
-          value={session?.role === "admin" ? `${dashboard.data.employeeStatus.working}/${statusTotal}` : `${dashboard.data.leaveBalanceDays ?? "-"}日`}
-          helper={session?.role === "admin" ? "社員状況" : "残日数"}
-          icon={session?.role === "admin" ? Users : CheckCircle2}
-          tone="green"
+      <section className="mt-5 grid gap-3 sm:grid-cols-3">
+        <HomeMetricTile
+          label={session?.role === "admin" ? "自分の今日" : "今日"}
+          value={personalTodayTasks.length}
+          helper="本日期限"
+          icon={CalendarCheck}
+          tone="blue"
+          active={expandedMetric === "today"}
+          topTask={personalTodayTasks[0]}
+          assignee={personalTodayTasks[0] ? employeeMap.get(personalTodayTasks[0].primaryAssigneeId) : undefined}
+          onClick={() => setExpandedMetric((current) => (current === "today" ? null : "today"))}
+        />
+        <HomeMetricTile
+          label={session?.role === "admin" ? "自分の緊急" : "緊急"}
+          value={personalUrgentTasks.length}
+          helper="優先度: 高以上"
+          icon={AlertTriangle}
+          tone="red"
+          active={expandedMetric === "urgent"}
+          topTask={personalUrgentTasks[0]}
+          assignee={personalUrgentTasks[0] ? employeeMap.get(personalUrgentTasks[0].primaryAssigneeId) : undefined}
+          onClick={() => setExpandedMetric((current) => (current === "urgent" ? null : "urgent"))}
+        />
+        <HomeMetricTile
+          label={session?.role === "admin" ? "自分の遅延" : "遅延"}
+          value={personalDelayedTasks.length}
+          helper="期限超過"
+          icon={Clock3}
+          tone={personalDelayedTasks.length ? "red" : "green"}
+          active={expandedMetric === "delayed"}
+          topTask={personalDelayedTasks[0]}
+          assignee={personalDelayedTasks[0] ? employeeMap.get(personalDelayedTasks[0].primaryAssigneeId) : undefined}
+          onClick={() => setExpandedMetric((current) => (current === "delayed" ? null : "delayed"))}
         />
       </section>
 
@@ -190,152 +222,162 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {expandedMetricTasks.length ? (
-              expandedMetricTasks.slice(0, 6).map((task) => (
+              expandedMetricTasks.slice(0, 3).map((task) => (
                 <TaskCard key={task.id} task={task} project={task.projectId ? projectMap.get(task.projectId) : undefined} assignee={employeeMap.get(task.primaryAssigneeId)} />
               ))
             ) : (
               <p className="rounded-panel bg-slate-50 p-4 text-sm font-bold text-slate-500 dark:bg-white/5 dark:text-slate-200">対象タスクはありません。</p>
             )}
-            {expandedMetricTasks.length > 6 ? <p className="text-xs font-bold text-slate-500 dark:text-slate-300">ほか {expandedMetricTasks.length - 6} 件はタスク画面で確認できます。</p> : null}
+            {expandedMetricTasks.length > 3 ? <p className="text-xs font-bold text-slate-500 dark:text-slate-300">ほか {expandedMetricTasks.length - 3} 件はタスク画面で確認できます。</p> : null}
           </CardContent>
         </Card>
       ) : null}
 
-      <Card className="mt-5">
-        <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="min-w-0 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-50 text-[#E08F12] dark:bg-amber-400/15 dark:text-amber-100">
-                <FilePenLine className="h-4 w-4" />
-              </span>
+      <section className="mt-5">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">REPORT</p>
-                <h2 className="text-base font-extrabold text-[#0B1226] dark:text-white">日報・週報を書く</h2>
+                <p className="ios-kicker">NEXT</p>
+                <h2 className="text-lg font-extrabold text-[#0B1226] dark:text-white">このあとのタスク</h2>
               </div>
+              <Link href="/tasks?segment=today" className="inline-flex min-h-11 items-center rounded-full bg-slate-100 px-3 text-xs font-extrabold text-[#0B1226] dark:bg-white/10 dark:text-white">
+                すべて見る
+              </Link>
             </div>
-            <p className="text-sm leading-6 text-slate-500 dark:text-slate-200">
-              完了にしたタスクは日報へ自動で入ります。あとは補足や相談を書くだけです。
-            </p>
-            <div className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
-              <p className="text-xs font-extrabold text-slate-500 dark:text-slate-300">今日の自動入力</p>
-              <p className="mt-1 text-2xl font-extrabold text-[#0B1226] dark:text-white">{plan.completedToday.length}件</p>
-              {plan.completedToday.length ? (
-                <div className="mt-2 space-y-1">
-                  {plan.completedToday.slice(0, 2).map((task) => (
-                    <p key={task.id} className="truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{task.title}</p>
-                  ))}
-                  {plan.completedToday.length > 2 ? <p className="text-xs font-bold text-slate-400">+{plan.completedToday.length - 2}件</p> : null}
-                </div>
+            <div className="mt-3 grid gap-2">
+              {nextPersonalTasks.length ? (
+                nextPersonalTasks.map((task) => (
+                  <NextTaskRow key={task.id} task={task} project={task.projectId ? projectMap.get(task.projectId) : undefined} assignee={employeeMap.get(task.primaryAssigneeId)} />
+                ))
               ) : (
-                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-300">タスクを完了にすると、ここから日報に入ります。</p>
+                <p className="rounded-panel bg-slate-50 p-4 text-sm font-bold text-slate-500 dark:bg-white/5 dark:text-slate-300">次に控えているタスクはありません。</p>
               )}
             </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="mt-5 space-y-3">
+        <PriorityDrawer
+          priority="P2"
+          title="日報"
+          count={`${plan.completedToday.length}件`}
+          summary={plan.completedToday.length ? `完了: ${displayTaskTitle(plan.completedToday[0])}` : "完了タスクが入ると日報に自動反映されます"}
+          tone="gold"
+          href="/reports?period=daily"
+          open={isDrawerOpen("report")}
+          onToggle={() => toggleDrawer("report")}
+        >
+          <ReportQuickPanel completedToday={plan.completedToday} />
+        </PriorityDrawer>
+
+        {session?.role === "admin" ? (
+          <PriorityDrawer
+            priority="P2"
+            title="チーム監視"
+            count={`${dashboard.data.employeeStatus.working}/${statusTotal}`}
+            summary={`緊急${teamUrgentCount}件 / 遅延${teamDelayedCount}件。担当者別に確認できます`}
+            tone={teamDelayedCount ? "red" : "green"}
+            href="/tasks?segment=all"
+            open={isDrawerOpen("team")}
+            onToggle={() => toggleDrawer("team")}
+          >
+            <TeamMonitorPanel summaries={teamSummaries} employeeStatus={dashboard.data.employeeStatus} />
+          </PriorityDrawer>
+        ) : null}
+
+        <PriorityDrawer
+          priority="P3"
+          className="hidden lg:block"
+          title="カレンダー"
+          count={`${dashboard.data.weekTasks.length}件`}
+          summary="今週の予定とタスクは必要な時だけ開きます"
+          tone="blue"
+          href="/tasks?segment=week"
+          desktopOpen
+          open={isDrawerOpen("calendar")}
+          onToggle={() => toggleDrawer("calendar")}
+        >
+          <CalendarBoard baseDate={plan.generatedAt} tasks={dashboard.data.weekTasks} schedule={plan.schedule} embedded />
+        </PriorityDrawer>
+
+        <PriorityDrawer
+          priority="P3"
+          className="hidden lg:block"
+          title="目標ツリー"
+          count="要約"
+          summary="会社目標・自分の枝・未タスク化だけ先に確認します"
+          tone="slate"
+          desktopOpen
+          open={isDrawerOpen("goals")}
+          onToggle={() => toggleDrawer("goals")}
+        >
+          <GoalTreeBoard revenue={plan.revenue} focusEmployeeId={session?.employeeId} compact />
+        </PriorityDrawer>
+
+        <PriorityDrawer
+          priority="P3"
+          className="hidden lg:block"
+          title="担当案件"
+          count={`${dashboard.data.activeProjects.length}件`}
+          summary={dashboard.data.activeProjects[0]?.name ?? "担当案件はありません"}
+          tone="slate"
+          href="/projects"
+          desktopOpen
+          open={isDrawerOpen("projects")}
+          onToggle={() => toggleDrawer("projects")}
+        >
+          <div className="grid gap-3 md:grid-cols-2">
+            {dashboard.data.activeProjects.slice(0, 4).map((project) => (
+              <ProjectCard key={project.id} project={project} owner={employeeMap.get(project.primaryOwnerId)} />
+            ))}
+            {dashboard.data.activeProjects.length === 0 ? <p className="rounded-panel bg-slate-50 p-4 text-sm font-semibold text-slate-500 dark:bg-white/5 dark:text-slate-200">担当案件はありません。</p> : null}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:w-44 lg:grid-cols-1">
-            <Link href="/reports?period=daily">
-              <Button variant="secondary" className="w-full">
-                <FilePenLine className="h-4 w-4" />
-                日報を書く
-              </Button>
-            </Link>
-            <Link href="/reports?period=weekly">
-              <Button variant="ghost" className="w-full">
-                週報を書く
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+        </PriorityDrawer>
 
-      <CalendarBoard baseDate={plan.generatedAt} tasks={dashboard.data.weekTasks} schedule={plan.schedule} />
-
-      <GoalTreeBoard revenue={plan.revenue} focusEmployeeId={session?.employeeId} compact />
-
-      <section className="mt-5 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-        <div className="space-y-5">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>次にやること</CardTitle>
-              <Link href="/tasks" className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-bold text-accent">
-                一覧
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {priorityTasks.slice(0, 5).map((task) => (
-                <TaskCard key={task.id} task={task} project={task.projectId ? projectMap.get(task.projectId) : undefined} assignee={employeeMap.get(task.primaryAssigneeId)} />
-              ))}
-              {priorityTasks.length === 0 ? (
-                <p className="rounded-panel bg-slate-50 p-4 text-sm text-slate-500 dark:bg-white/5">未完了タスクはありません。</p>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>担当案件</CardTitle>
-              <Link href="/projects" className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm font-bold text-accent">
-                一覧
-              </Link>
-            </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
-              {dashboard.data.activeProjects.slice(0, 4).map((project) => (
-                <ProjectCard key={project.id} project={project} owner={employeeMap.get(project.primaryOwnerId)} />
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-5">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-accent" />
-                AI提案
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {dashboard.data.aiRecommendations.slice(0, 4).map((summary) => (
-                <div key={summary.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="font-semibold leading-6">{summary.title}</p>
-                    <Badge tone={summary.score >= 85 ? "red" : "blue"}>{summary.score}</Badge>
-                  </div>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">{summary.summary}</p>
+        <PriorityDrawer
+          priority="P3"
+          className="hidden lg:block"
+          title="AI提案"
+          count={`${dashboard.data.aiRecommendations.length}件`}
+          summary={dashboard.data.aiRecommendations[0]?.title ?? "提案はありません"}
+          tone="iris"
+          href="/assistant"
+          open={isDrawerOpen("ai")}
+          onToggle={() => toggleDrawer("ai")}
+        >
+          <div className="space-y-3">
+            {dashboard.data.aiRecommendations.slice(0, 4).map((summary) => (
+              <div key={summary.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold leading-6">{summary.title}</p>
+                  <Badge tone={summary.score >= 85 ? "red" : "blue"}>{summary.score}</Badge>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {session?.role === "admin" ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>社員状況</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {Object.entries(dashboard.data.employeeStatus).map(([status, count]) => (
-                  <div key={status} className="flex items-center justify-between rounded-panel bg-slate-50 px-3 py-2 text-sm dark:bg-white/5">
-                    <span>{attendanceStatusLabels[status as keyof typeof attendanceStatusLabels]}</span>
-                    <span className="font-semibold">{count}</span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ) : null}
-        </div>
+                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-200">{summary.summary}</p>
+              </div>
+            ))}
+          </div>
+        </PriorityDrawer>
       </section>
     </>
   );
 }
 
-function scopedHref(path: string, session: { role: string; employeeId: string; id: string } | null) {
-  const params = new URLSearchParams();
-  if (session) {
-    params.set("role", session.role);
-    params.set("employeeId", session.employeeId);
-    params.set("userId", session.id);
-  }
-  const query = params.toString();
-  return `${path}${query ? `?${query}` : ""}`;
+function NextTaskRow({ task, project, assignee }: { task: Task; project?: Project; assignee?: Employee }) {
+  const distance = homeDayDistance(task.dueDate);
+  return (
+    <Link href={`/tasks?taskId=${task.id}`} className="flex min-h-[64px] items-center gap-3 rounded-panel bg-slate-50 p-3 ring-1 ring-border transition active:scale-[.98] dark:bg-white/5 dark:ring-white/10">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-xs font-extrabold text-[#0B1226] ring-1 ring-border dark:bg-white/10 dark:text-white dark:ring-white/10">
+        {assignee?.name.slice(0, 1) ?? "?"}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-1 text-sm font-extrabold text-[#0B1226] dark:text-white">{displayTaskTitle(task)}</span>
+        <span className="mt-1 block truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{project?.name ?? "案件なし"}</span>
+      </span>
+      <Badge tone={distance < 0 ? "red" : distance === 0 ? "amber" : "slate"}>{distance < 0 ? "超過" : distance === 0 ? "今日" : formatDate(task.dueDate)}</Badge>
+    </Link>
+  );
 }
 
 function homeModeCopy() {
@@ -358,16 +400,164 @@ function homeModeCopy() {
   };
 }
 
+function defaultHomeDrawers(): HomeDrawerId[] {
+  const hour = new Date().getHours();
+  return hour >= 18 ? ["report"] : [];
+}
+
+function uniqueTasks(tasks: Task[]) {
+  return Array.from(new Map(tasks.map((task) => [task.id, task])).values());
+}
+
+function isAssignedTo(task: Task, employeeId: string) {
+  return [task.primaryAssigneeId, ...task.assigneeIds].includes(employeeId);
+}
+
+type TeamSummary = {
+  employee: Employee;
+  total: number;
+  today: number;
+  urgent: number;
+  delayed: number;
+  topTask: Task | null;
+};
+
+function buildTeamSummaries(employees: Employee[], tasks: Task[]): TeamSummary[] {
+  return employees
+    .map((employee) => {
+      const assigned = uniqueTasks(tasks.filter((task) => isAssignedTo(task, employee.id))).sort((a, b) => b.aiPriorityScore - a.aiPriorityScore);
+      return {
+        employee,
+        total: assigned.length,
+        today: assigned.filter((task) => homeDayDistance(task.dueDate) === 0).length,
+        urgent: assigned.filter((task) => ["urgent", "high"].includes(task.priority)).length,
+        delayed: assigned.filter((task) => homeDayDistance(task.dueDate) < 0).length,
+        topTask: assigned[0] ?? null,
+      };
+    })
+    .sort((a, b) => b.delayed - a.delayed || b.urgent - a.urgent || b.today - a.today || b.total - a.total);
+}
+
+function homeDayDistance(value: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(value);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+}
+
+function ReportQuickPanel({ completedToday }: { completedToday: Task[] }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+      <div className="min-w-0 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-amber-50 text-[#E08F12] dark:bg-amber-400/15 dark:text-amber-100">
+            <FilePenLine className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">REPORT</p>
+            <h2 className="text-base font-extrabold text-[#0B1226] dark:text-white">日報・週報を書く</h2>
+          </div>
+        </div>
+        <p className="text-sm leading-6 text-slate-500 dark:text-slate-200">完了にしたタスクは日報へ自動で入ります。あとは補足や相談を書くだけです。</p>
+        <div className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
+          <p className="text-xs font-extrabold text-slate-500 dark:text-slate-300">今日の自動入力</p>
+          <p className="mt-1 text-2xl font-extrabold text-[#0B1226] dark:text-white">{completedToday.length}件</p>
+          {completedToday.length ? (
+            <div className="mt-2 space-y-1">
+              {completedToday.slice(0, 2).map((task) => (
+                <p key={task.id} className="truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{displayTaskTitle(task)}</p>
+              ))}
+              {completedToday.length > 2 ? <p className="text-xs font-bold text-slate-400 dark:text-slate-300">+{completedToday.length - 2}件</p> : null}
+            </div>
+          ) : (
+            <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-300">タスクを完了にすると、ここから日報に入ります。</p>
+          )}
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:w-44 lg:grid-cols-1">
+        <Link href="/reports?period=daily">
+          <Button variant="secondary" className="w-full">
+            <FilePenLine className="h-4 w-4" />
+            日報を書く
+          </Button>
+        </Link>
+        <Link href="/reports?period=weekly">
+          <Button variant="ghost" className="w-full">
+            週報を書く
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function TeamMonitorPanel({
+  summaries,
+  employeeStatus,
+}: {
+  summaries: TeamSummary[];
+  employeeStatus: DashboardSummary["employeeStatus"];
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {Object.entries(employeeStatus).map(([status, count]) => (
+          <div key={status} className="flex items-center justify-between rounded-panel bg-slate-50 px-3 py-2 text-sm font-bold dark:bg-white/5">
+            <span className="text-slate-500 dark:text-slate-300">{attendanceStatusLabels[status as keyof typeof attendanceStatusLabels]}</span>
+            <span className="text-[#0B1226] dark:text-white">{count}</span>
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {summaries.map((summary) => (
+          <div key={summary.employee.id} className="rounded-panel bg-slate-50 p-3 dark:bg-white/5">
+            <div className="flex items-center justify-between gap-3">
+              <AssigneeBadge employee={summary.employee} />
+              <Link href={`/tasks?segment=all&assigneeId=${summary.employee.id}`} className="shrink-0 text-xs font-extrabold text-accent">
+                見る
+              </Link>
+            </div>
+            <div className="mt-3 grid grid-cols-4 gap-2 text-center text-xs font-extrabold">
+              <TeamMini label="全体" value={summary.total} />
+              <TeamMini label="今日" value={summary.today} />
+              <TeamMini label="緊急" value={summary.urgent} danger={summary.urgent > 0} />
+              <TeamMini label="遅延" value={summary.delayed} danger={summary.delayed > 0} />
+            </div>
+            <p className="mt-3 truncate text-xs font-semibold text-slate-500 dark:text-slate-300">
+              {summary.topTask ? displayTaskTitle(summary.topTask) : "未完了タスクなし"}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TeamMini({ label, value, danger = false }: { label: string; value: number; danger?: boolean }) {
+  return (
+    <span className={cn("rounded-panel px-2 py-2", danger ? "bg-red-50 text-red-700 dark:bg-red-400/15 dark:text-red-100" : "bg-white text-slate-600 dark:bg-white/5 dark:text-slate-100")}>
+      <span className="block text-[10px] opacity-75">{label}</span>
+      <span className="mt-0.5 block text-sm">{value}</span>
+    </span>
+  );
+}
+
 function CalendarBoard({
   baseDate,
   tasks,
   schedule,
+  embedded = false,
 }: {
   baseDate: string;
   tasks: Task[];
   schedule: DashboardSummary["dailyPlan"]["schedule"];
+  embedded?: boolean;
 }) {
   const days = buildCalendarDays(baseDate, tasks, schedule);
+  const content = <CalendarBoardContent days={days} />;
+
+  if (embedded) return content;
 
   return (
     <Card className="mt-5 overflow-hidden">
@@ -380,10 +570,43 @@ function CalendarBoard({
           一覧
         </a>
       </CardHeader>
-      <CardContent>
-        <div className="grid min-w-0 gap-2 sm:hidden">
+      <CardContent>{content}</CardContent>
+    </Card>
+  );
+}
+
+function CalendarBoardContent({ days }: { days: ReturnType<typeof buildCalendarDays> }) {
+  return (
+    <>
+      <div className="grid min-w-0 gap-2 sm:hidden">
+        {days.map((day) => (
+          <div key={day.key} className={cn("min-w-0 overflow-hidden rounded-panel border border-border p-3", day.isToday ? "bg-blue-50 dark:bg-blue-500/10" : "bg-slate-50 dark:bg-white/5")}>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">{day.label}</p>
+                <p className="text-lg font-bold">{day.date}</p>
+              </div>
+              {day.isToday ? <Badge tone="blue">今日</Badge> : null}
+            </div>
+            <div className="mt-3 grid gap-2">
+              {day.items.slice(0, 2).map((item) => (
+                <a key={item.id} href="/tasks" className={cn("flex min-h-11 min-w-0 items-center justify-between gap-3 overflow-hidden rounded-panel px-3 py-2 text-xs font-medium leading-5", item.tone)}>
+                  <span className="min-w-0">
+                    <span className="block truncate">{item.title}</span>
+                    <span className="text-[11px] opacity-80">{item.time}</span>
+                  </span>
+                </a>
+              ))}
+              {day.items.length > 2 ? <p className="text-xs font-bold text-slate-500 dark:text-slate-300">+{day.items.length - 2}件</p> : null}
+              {day.items.length === 0 ? <p className="rounded-panel bg-white px-3 py-3 text-center text-xs font-bold text-slate-400 dark:bg-white/5 dark:text-slate-300">空き</p> : null}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto pb-1 sm:block">
+        <div className="grid min-w-[760px] grid-cols-7 gap-2">
           {days.map((day) => (
-            <div key={day.key} className={cn("min-w-0 overflow-hidden rounded-panel border border-border p-3", day.isToday ? "bg-blue-50 dark:bg-blue-500/10" : "bg-slate-50 dark:bg-white/5")}>
+            <div key={day.key} className={cn("min-h-44 rounded-panel border border-border p-3", day.isToday ? "bg-blue-50 dark:bg-blue-500/10" : "bg-slate-50 dark:bg-white/5")}>
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-300">{day.label}</p>
@@ -391,48 +614,21 @@ function CalendarBoard({
                 </div>
                 {day.isToday ? <Badge tone="blue">今日</Badge> : null}
               </div>
-              <div className="mt-3 grid gap-2">
-                {day.items.slice(0, 2).map((item) => (
-                  <a key={item.id} href="/tasks" className={cn("flex min-h-11 min-w-0 items-center justify-between gap-3 overflow-hidden rounded-panel px-3 py-2 text-xs font-medium leading-5", item.tone)}>
-                    <span className="min-w-0">
-                      <span className="block truncate">{item.title}</span>
-                      <span className="text-[11px] opacity-80">{item.time}</span>
-                    </span>
+              <div className="mt-3 space-y-2">
+                {day.items.slice(0, 3).map((item) => (
+                  <a key={item.id} href="/tasks" className={cn("block rounded-panel px-2 py-2 text-xs font-medium leading-5", item.tone)}>
+                    <span className="block truncate">{item.time}</span>
+                    <span className="line-clamp-2">{item.title}</span>
                   </a>
                 ))}
-                {day.items.length > 2 ? <p className="text-xs font-bold text-slate-500 dark:text-slate-300">+{day.items.length - 2}件</p> : null}
-                {day.items.length === 0 ? <p className="rounded-panel bg-white px-3 py-3 text-center text-xs font-bold text-slate-400 dark:bg-white/5 dark:text-slate-300">空き</p> : null}
+                {day.items.length > 3 ? <p className="text-xs text-slate-500 dark:text-slate-300">+{day.items.length - 3}</p> : null}
+                {day.items.length === 0 ? <p className="rounded-panel bg-white px-2 py-5 text-center text-xs text-slate-400 dark:bg-white/5 dark:text-slate-300">空き</p> : null}
               </div>
             </div>
           ))}
         </div>
-        <div className="hidden overflow-x-auto pb-1 sm:block">
-          <div className="grid min-w-[760px] grid-cols-7 gap-2">
-            {days.map((day) => (
-              <div key={day.key} className={cn("min-h-44 rounded-panel border border-border p-3", day.isToday ? "bg-blue-50 dark:bg-blue-500/10" : "bg-slate-50 dark:bg-white/5")}>
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500">{day.label}</p>
-                    <p className="text-lg font-bold">{day.date}</p>
-                  </div>
-                  {day.isToday ? <Badge tone="blue">今日</Badge> : null}
-                </div>
-                <div className="mt-3 space-y-2">
-                  {day.items.slice(0, 3).map((item) => (
-                    <a key={item.id} href="/tasks" className={cn("block rounded-panel px-2 py-2 text-xs font-medium leading-5", item.tone)}>
-                      <span className="block truncate">{item.time}</span>
-                      <span className="line-clamp-2">{item.title}</span>
-                    </a>
-                  ))}
-                  {day.items.length > 3 ? <p className="text-xs text-slate-500">+{day.items.length - 3}</p> : null}
-                  {day.items.length === 0 ? <p className="rounded-panel bg-white px-2 py-5 text-center text-xs text-slate-400 dark:bg-white/5">空き</p> : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </>
   );
 }
 
@@ -511,6 +707,8 @@ function HomeMetricTile({
   icon: Icon,
   tone,
   active,
+  topTask,
+  assignee,
   onClick,
 }: {
   label: string;
@@ -519,6 +717,8 @@ function HomeMetricTile({
   icon: LucideIcon;
   tone: "blue" | "green" | "red";
   active: boolean;
+  topTask?: Task;
+  assignee?: Employee;
   onClick: () => void;
 }) {
   const toneClass = {
@@ -539,6 +739,14 @@ function HomeMetricTile({
             <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
             <p className="mt-2 text-2xl font-bold">{value}</p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">{helper}</p>
+            {topTask ? (
+              <div className="mt-3 max-w-full">
+                <p className="line-clamp-1 break-words text-xs font-extrabold text-[#0B1226] dark:text-white">{displayTaskTitle(topTask)}</p>
+                <div className="mt-1">
+                  <AssigneeBadge employee={assignee} label="担当未設定" size="xs" />
+                </div>
+              </div>
+            ) : null}
             <p className="mt-2 inline-flex items-center gap-1 text-xs font-extrabold text-[#E08F12]">
               {active ? "閉じる" : "中を見る"}
               <ChevronDown className={cn("h-3.5 w-3.5 transition", active && "rotate-180")} />
@@ -550,39 +758,6 @@ function HomeMetricTile({
         </CardContent>
       </Card>
     </button>
-  );
-}
-
-function FocusSideItem({ label, title, tone }: { label: string; title: string; tone: "green" | "red" | "amber" }) {
-  const toneClass = {
-    green: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-100",
-    red: "border-red-200 bg-red-50 text-red-900 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-100",
-    amber: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-100",
-  }[tone];
-
-  return (
-    <div className={cn("rounded-panel border p-4", toneClass)}>
-      <p className="text-xs font-bold uppercase">{label}</p>
-      <p className="mt-2 line-clamp-2 font-semibold leading-6">{title}</p>
-    </div>
-  );
-}
-
-function QuickExportStep({ href }: { href: string }) {
-  return (
-    <a
-      href={href}
-      className={cn(
-        "flex min-h-[88px] flex-col rounded-panel border border-slate-200 bg-white p-4 text-slate-900 transition hover:-translate-y-0.5 hover:shadow-soft",
-        "dark:border-white/10 dark:bg-white/5 dark:text-white",
-      )}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-bold uppercase">予定</p>
-        <Download className="h-4 w-4 text-accent" />
-      </div>
-      <p className="mt-2 line-clamp-2 font-semibold leading-6">出力</p>
-    </a>
   );
 }
 

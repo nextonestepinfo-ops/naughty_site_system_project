@@ -85,14 +85,7 @@ export default function ReportsPage() {
   }, [autoCompletedText, form.id, suggestedCompletedText]);
 
   function scoped(path: string) {
-    const params = new URLSearchParams();
-    if (session) {
-      params.set("role", session.role);
-      params.set("employeeId", session.employeeId);
-      params.set("userId", session.id);
-    }
-    const query = params.toString();
-    return `${path}${query ? `?${query}` : ""}`;
+    return path;
   }
 
   const saveReport = useMutation({

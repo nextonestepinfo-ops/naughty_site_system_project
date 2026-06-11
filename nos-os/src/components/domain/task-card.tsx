@@ -1,12 +1,14 @@
 "use client";
 
-import { BriefcaseBusiness, ChevronDown, GitBranch, UserRound } from "lucide-react";
+import { BriefcaseBusiness, ChevronDown, GitBranch } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import type { ReactNode } from "react";
+import { AssigneeBadge } from "@/components/domain/assignee-badge";
 import { Badge } from "@/components/ui/badge";
 import { taskPriorityLabels, taskStatusLabels } from "@/lib/data/labels";
 import { displayTaskTitle, isTestTask } from "@/lib/data/task-flags";
+import { employeeColorToken } from "@/lib/employee-colors";
 import type { Project, Task, Employee } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -26,9 +28,10 @@ export function TaskCard({
   const sourceBranchTitle = task.sourceBranchTitle?.trim();
   const title = displayTaskTitle(task);
   const testTask = isTestTask(task);
+  const assigneeColor = employeeColorToken(assignee?.id ?? task.primaryAssigneeId);
 
   return (
-    <article className={cn("rounded-panel border bg-card", testTask ? "border-amber-200 bg-amber-50/40 dark:border-amber-500/30 dark:bg-amber-500/5" : "border-border")}>
+    <article className={cn("rounded-panel border border-l-4 bg-card", testTask ? "border-amber-200 bg-amber-50/40 dark:border-amber-500/30 dark:bg-amber-500/5" : "border-border", assigneeColor.border)}>
       <button
         type="button"
         aria-expanded={open}
@@ -38,6 +41,7 @@ export function TaskCard({
         <div className="min-w-0">
           <p className="line-clamp-2 break-words font-semibold leading-6">{title}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            {assignee ? <AssigneeBadge employee={assignee} size="xs" /> : null}
             {testTask ? <Badge tone="amber">テスト</Badge> : null}
             <Badge tone={priorityTone}>{taskPriorityLabels[task.priority]}</Badge>
             <Badge tone={statusTone}>{taskStatusLabels[task.status]}</Badge>
@@ -46,7 +50,6 @@ export function TaskCard({
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
             {project ? <ContextPill icon={<BriefcaseBusiness className="h-3.5 w-3.5" />} label={`案件: ${project.name}`} /> : null}
             {sourceBranchTitle ? <ContextPill icon={<GitBranch className="h-3.5 w-3.5" />} label={`大タスク: ${sourceBranchTitle}`} tone="blue" /> : null}
-            {assignee ? <ContextPill icon={<UserRound className="h-3.5 w-3.5" />} label={`担当: ${assignee.name}`} /> : null}
           </div>
         </div>
         <ChevronDown className={cn("mt-1 h-4 w-4 shrink-0 text-slate-400 transition", open && "rotate-180")} />
