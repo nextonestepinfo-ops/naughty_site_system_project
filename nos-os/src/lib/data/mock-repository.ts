@@ -558,6 +558,7 @@ export function createTask(input: Partial<Task>) {
 export function updateTask(id: string, input: Partial<Task>) {
   const index = mutableTasks.findIndex((task) => task.id === id);
   if (index < 0) return null;
+  const previous = mutableTasks[index];
   mutableTasks[index] = hydrateTask({ ...mutableTasks[index], ...input, updatedAt: new Date().toISOString() });
   const task = mutableTasks[index];
   const sourceInputChanged = input.sourceGoalTreeId !== undefined || input.sourceBranchId !== undefined;
@@ -569,6 +570,9 @@ export function updateTask(id: string, input: Partial<Task>) {
     });
   }
   mutableTasks[index] = hydrateTask(mutableTasks[index]);
+  if (previous.status !== "done" && mutableTasks[index].status === "done") {
+    createTaskCompletedAdminNotifications(mutableTasks[index]);
+  }
   return mutableTasks[index];
 }
 
@@ -630,6 +634,23 @@ function taskDueNoticeType(task: Task): Pick<AppNotification, "type" | "severity
 
 function autoNoticeId(taskId: string, type: AppNotification["type"], userId: string) {
   return `auto-${type}-${taskId}-${userId}`;
+}
+
+function createTaskCompletedAdminNotifications(task: Task) {
+  const assignee = betaEmployees().find((employee) => employee.id === task.primaryAssigneeId);
+  const project = mutableProjects.find((item) => item.id === task.projectId);
+  const now = new Date().toISOString();
+  mutableNotifications.unshift({
+    id: uid(`task-completed-${task.id}`),
+    userId: "",
+    type: "admin",
+    title: `タスク完了: ${task.title}`,
+    body: `${assignee?.name ?? "担当者"}さんが${project ? `「${project.name}」の` : ""}タスクを完了しました。必要なら日報や次の一手を確認してください。`,
+    severity: "success",
+    targetHref: `/tasks?taskId=${task.id}`,
+    readAt: null,
+    createdAt: now,
+  });
 }
 
 function taskDueNotice(task: Task, userId: string): AppNotification | null {

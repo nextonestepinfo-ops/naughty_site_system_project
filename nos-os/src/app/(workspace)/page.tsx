@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarCheck, CalendarDays, CalendarPlus, Check, CheckCircle2, Clock3, Download, FilePenLine, Mic, Sparkles, Users } from "lucide-react";
+import { AlertTriangle, CalendarCheck, CalendarDays, CalendarPlus, Check, CheckCircle2, ChevronDown, Clock3, Download, FilePenLine, Mic, Sparkles, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { GoalTreeBoard } from "@/components/domain/goal-tree-board";
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const session = useAppStore((state) => state.session);
   const [heroMode, setHeroMode] = useState<"personal" | "company">("personal");
+  const [expandedMetric, setExpandedMetric] = useState<"today" | "urgent" | "delayed" | null>(null);
   const dashboard = useScopedQuery<DashboardSummary>(["dashboard"], "/api/dashboard");
   const employees = useScopedQuery<Employee[]>(["employees"], "/api/employees");
   const projects = useScopedQuery<Project[]>(["projects"], "/api/projects");
@@ -48,6 +50,13 @@ export default function DashboardPage() {
   const heroGoogleCalendarPath = scopedHref(heroTask ? `/api/calendar/tasks/${heroTask.id}/google` : "/api/calendar/ics", session);
   const nextTask = plan.nextTasks[0];
   const homeCopy = homeModeCopy();
+  const metricTaskMap = {
+    today: dashboard.data.todayTasks,
+    urgent: dashboard.data.urgentTasks,
+    delayed: dashboard.data.delayedTasks,
+  };
+  const expandedMetricMeta = expandedMetric ? metricMeta[expandedMetric] : null;
+  const expandedMetricTasks = expandedMetric ? metricTaskMap[expandedMetric] : [];
 
   return (
     <>
@@ -156,9 +165,9 @@ export default function DashboardPage() {
       </section>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="今日" value={dashboard.data.todayTasks.length} helper="本日期限" icon={CalendarCheck} tone="blue" />
-        <MetricCard label="緊急" value={dashboard.data.urgentTasks.length} helper="優先度: 緊急" icon={AlertTriangle} tone="red" />
-        <MetricCard label="遅延" value={dashboard.data.delayedTasks.length} helper="期限超過" icon={Clock3} tone={dashboard.data.delayedTasks.length ? "red" : "green"} />
+        <HomeMetricTile label="今日" value={dashboard.data.todayTasks.length} helper="本日期限" icon={CalendarCheck} tone="blue" active={expandedMetric === "today"} onClick={() => setExpandedMetric((current) => (current === "today" ? null : "today"))} />
+        <HomeMetricTile label="緊急" value={dashboard.data.urgentTasks.length} helper="優先度: 緊急" icon={AlertTriangle} tone="red" active={expandedMetric === "urgent"} onClick={() => setExpandedMetric((current) => (current === "urgent" ? null : "urgent"))} />
+        <HomeMetricTile label="遅延" value={dashboard.data.delayedTasks.length} helper="期限超過" icon={Clock3} tone={dashboard.data.delayedTasks.length ? "red" : "green"} active={expandedMetric === "delayed"} onClick={() => setExpandedMetric((current) => (current === "delayed" ? null : "delayed"))} />
         <MetricCard
           label={session?.role === "admin" ? "出勤" : "有給"}
           value={session?.role === "admin" ? `${dashboard.data.employeeStatus.working}/${statusTotal}` : `${dashboard.data.leaveBalanceDays ?? "-"}日`}
@@ -167,6 +176,30 @@ export default function DashboardPage() {
           tone="green"
         />
       </section>
+
+      {expandedMetric && expandedMetricMeta ? (
+        <Card className="mt-3 border-2 border-[#E08F12]/25">
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <div>
+              <CardTitle>{expandedMetricMeta.title}</CardTitle>
+              <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">{expandedMetricMeta.description}</p>
+            </div>
+            <Link href={expandedMetricMeta.href} className="inline-flex min-h-11 items-center rounded-full bg-slate-100 px-3 text-xs font-extrabold text-[#0B1226] dark:bg-white/10 dark:text-white">
+              タスクで見る
+            </Link>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {expandedMetricTasks.length ? (
+              expandedMetricTasks.slice(0, 6).map((task) => (
+                <TaskCard key={task.id} task={task} project={task.projectId ? projectMap.get(task.projectId) : undefined} assignee={employeeMap.get(task.primaryAssigneeId)} />
+              ))
+            ) : (
+              <p className="rounded-panel bg-slate-50 p-4 text-sm font-bold text-slate-500 dark:bg-white/5 dark:text-slate-200">対象タスクはありません。</p>
+            )}
+            {expandedMetricTasks.length > 6 ? <p className="text-xs font-bold text-slate-500 dark:text-slate-300">ほか {expandedMetricTasks.length - 6} 件はタスク画面で確認できます。</p> : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="mt-5">
         <CardContent className="grid gap-4 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -451,6 +484,73 @@ function startOfDay(date: Date) {
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+const metricMeta = {
+  today: {
+    title: "今日やるタスク",
+    description: "本日期限のタスクです。まずここを空にすると一日が締まります。",
+    href: "/tasks?segment=today",
+  },
+  urgent: {
+    title: "緊急タスク",
+    description: "優先度が高いタスクです。管理者は担当者でさらに絞り込めます。",
+    href: "/tasks?segment=all&chip=high",
+  },
+  delayed: {
+    title: "遅延タスク",
+    description: "期限を過ぎたタスクです。今日やるか、期限を引き直してください。",
+    href: "/tasks?segment=all&due=overdue",
+  },
+} as const;
+
+function HomeMetricTile({
+  label,
+  value,
+  helper,
+  icon: Icon,
+  tone,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: string | number;
+  helper: string;
+  icon: LucideIcon;
+  tone: "blue" | "green" | "red";
+  active: boolean;
+  onClick: () => void;
+}) {
+  const toneClass = {
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200",
+    red: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-200",
+  }[tone];
+  const borderClass = {
+    blue: "border-l-blue-500",
+    green: "border-l-emerald-500",
+    red: "border-l-red-500",
+  }[tone];
+  return (
+    <button type="button" className="text-left" onClick={onClick} aria-expanded={active}>
+      <Card className={cn("border-l-4 transition", borderClass, active && "ring-2 ring-[#E08F12]/40")}>
+        <CardContent className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+            <p className="mt-2 text-2xl font-bold">{value}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">{helper}</p>
+            <p className="mt-2 inline-flex items-center gap-1 text-xs font-extrabold text-[#E08F12]">
+              {active ? "閉じる" : "中を見る"}
+              <ChevronDown className={cn("h-3.5 w-3.5 transition", active && "rotate-180")} />
+            </p>
+          </div>
+          <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-panel", toneClass)}>
+            <Icon className="h-5 w-5" />
+          </div>
+        </CardContent>
+      </Card>
+    </button>
+  );
 }
 
 function FocusSideItem({ label, title, tone }: { label: string; title: string; tone: "green" | "red" | "amber" }) {

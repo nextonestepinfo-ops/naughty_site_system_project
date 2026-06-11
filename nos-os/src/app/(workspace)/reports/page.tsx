@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, CheckCircle2, ClipboardCheck, FilePenLine, Loader2, Plus, Save, Trash2, UserRound } from "lucide-react";
+import { CalendarDays, CheckCircle2, ClipboardCheck, FilePenLine, History, Loader2, Plus, Save, Trash2, UserRound } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
@@ -53,6 +53,7 @@ export default function ReportsPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [autoCompletedText, setAutoCompletedText] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<"write" | "history">("write");
 
   const targetEmployeeId = session?.role === "admin" ? selectedEmployeeId || undefined : undefined;
   const reports = useScopedQuery<WorkReport[]>(["reports", period, selectedEmployeeId], "/api/reports", { period, targetEmployeeId });
@@ -103,6 +104,7 @@ export default function ReportsPage() {
     onSuccess: (report) => {
       setSavedAt(new Date().toISOString());
       setForm(formFromReport(report));
+      setMobileView("history");
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
   });
@@ -148,7 +150,7 @@ export default function ReportsPage() {
     <>
       <PageHeader
         title="日報・週報"
-        description="今日やったこと、詰まり、次にやることを短く残します。管理者はメンバー別に確認できます。"
+        description="書いた日報はこのページの「保存済みを見る」に残ります。管理者はメンバー別に確認できます。"
         kicker="REPORTS"
         actions={
           <Button
@@ -156,6 +158,8 @@ export default function ReportsPage() {
             onClick={() => {
               setForm(blankForm(period));
               setAutoCompletedText("");
+              setDetailOpen(true);
+              setMobileView("write");
             }}
           >
             <Plus className="h-4 w-4" />
@@ -164,22 +168,59 @@ export default function ReportsPage() {
         }
       />
 
-      <QuickReportCard
-        period={period}
-        form={form}
-        completedTaskLines={completedTaskLines}
-        suggestedCompletedText={suggestedCompletedText}
-        saved={Boolean(savedAt)}
-        saving={saveReport.isPending}
-        disabled={!currentEmployeeId}
-        onFormChange={setForm}
-        onImportCompleted={() => {
-          setForm((current) => ({ ...current, completedText: suggestedCompletedText }));
-          setAutoCompletedText(suggestedCompletedText);
-        }}
-        onSave={saveCurrentReport}
-        onDetail={() => setDetailOpen(true)}
-      />
+      <Card className="mb-4 lg:hidden">
+        <CardContent className="space-y-3 p-3">
+          <div className="grid grid-cols-2 rounded-[18px] bg-slate-100 p-1 dark:bg-white/10">
+            {([
+              ["write", "書く"],
+              ["history", "保存済みを見る"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                className={cn("h-11 rounded-[14px] text-sm font-extrabold text-slate-500 transition dark:text-slate-200", mobileView === value && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
+                onClick={() => setMobileView(value)}
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 rounded-[18px] bg-slate-100 p-1 dark:bg-white/10">
+            {(["daily", "weekly"] as WorkReportPeriod[]).map((item) => (
+              <button
+                key={item}
+                className={cn("h-11 rounded-[14px] text-sm font-extrabold text-slate-500 transition dark:text-slate-200", period === item && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
+                onClick={() => switchPeriod(item)}
+                type="button"
+              >
+                {periodLabels[item]}
+              </button>
+            ))}
+          </div>
+          <div className="rounded-panel bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-800 dark:bg-amber-400/15 dark:text-amber-100">
+            保存した日報は「保存済みを見る」に日付順で残ります。後からタップすると編集もできます。
+          </div>
+        </CardContent>
+      </Card>
+
+      {mobileView === "write" ? (
+        <QuickReportCard
+          period={period}
+          form={form}
+          completedTaskLines={completedTaskLines}
+          suggestedCompletedText={suggestedCompletedText}
+          saved={Boolean(savedAt)}
+          saving={saveReport.isPending}
+          disabled={!currentEmployeeId}
+          onFormChange={setForm}
+          onImportCompleted={() => {
+            setForm((current) => ({ ...current, completedText: suggestedCompletedText }));
+            setAutoCompletedText(suggestedCompletedText);
+          }}
+          onSave={saveCurrentReport}
+          onDetail={() => setDetailOpen(true)}
+        />
+      ) : null}
 
       <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className={cn(!detailOpen && "hidden lg:block")}>
@@ -317,11 +358,12 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        <div className="space-y-3">
+        <div className={cn("space-y-3", mobileView !== "history" && "hidden lg:block")}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-400">HISTORY</p>
-              <h2 className="text-xl font-extrabold text-[#0B1226] dark:text-white">最近の{periodLabels[period]}</h2>
+              <h2 className="text-xl font-extrabold text-[#0B1226] dark:text-white">保存済みの{periodLabels[period]}</h2>
+              <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">ここから過去の日報を確認・編集できます。</p>
             </div>
             <Badge tone="blue">{reports.data?.length ?? 0}件</Badge>
           </div>
@@ -336,6 +378,8 @@ export default function ReportsPage() {
                   setPeriod(report.period);
                   setForm(formFromReport(report));
                   setSavedAt(null);
+                  setDetailOpen(true);
+                  setMobileView("write");
                 }}
               />
             ))
@@ -382,6 +426,7 @@ function QuickReportCard({
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#E08F12]">QUICK REPORT</p>
             <h2 className="mt-1 text-xl font-extrabold text-[#0B1226] dark:text-white">1分日報</h2>
+            <p className="mt-1 text-xs font-bold text-slate-500 dark:text-slate-300">保存後は「保存済みを見る」に残ります。</p>
           </div>
           <Badge tone={period === "weekly" ? "blue" : "amber"}>{periodLabels[period]}</Badge>
         </div>
@@ -444,7 +489,12 @@ function QuickReportCard({
             詳しく書く
           </Button>
         </div>
-        {saved ? <p className="text-xs font-bold text-emerald-600 dark:text-emerald-300">保存しました</p> : null}
+        {saved ? (
+          <p className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-100">
+            <History className="h-3.5 w-3.5" />
+            保存済み一覧に入りました
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -23,6 +23,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { LoadingPanel } from "@/components/domain/loading";
 import { PageHeader } from "@/components/domain/page-header";
@@ -38,7 +39,7 @@ import type { Employee, GoalTree, Project, Task, TaskAssistantAction, TaskAssist
 import { cn, formatDate } from "@/lib/utils";
 
 type Segment = "today" | "week" | "all";
-type Chip = "all" | "mine" | "high" | "progress" | "hold";
+type Chip = "all" | "mine" | "high" | "progress" | "hold" | "overdue";
 type BranchOption = {
   value: string;
   treeId: string;
@@ -60,9 +61,11 @@ const priorities = Object.entries(taskPriorityLabels) as Array<[TaskPriority, st
 
 export default function TasksPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const session = useAppStore((state) => state.session);
   const [segment, setSegment] = useState<Segment>("today");
   const [chip, setChip] = useState<Chip>("mine");
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState("all");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [adding, setAdding] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
@@ -79,6 +82,7 @@ export default function TasksPage() {
   const goalTrees = useScopedQuery<GoalTree[]>(["goal-trees"], "/api/goal-trees");
   const assistantPlanPath = useScopedPath("/api/tasks/assistant-plan");
   const todayOrderKey = useMemo(() => `nos-os-today-task-order-${session?.employeeId ?? "all"}`, [session?.employeeId]);
+  const queryString = searchParams.toString();
 
   const employeeMap = useMemo(() => new Map((employees.data ?? []).map((employee) => [employee.id, employee])), [employees.data]);
   const projectMap = useMemo(() => new Map((projects.data ?? []).map((project) => [project.id, project])), [projects.data]);
@@ -138,6 +142,25 @@ export default function TasksPage() {
     void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
   }
 
+  useEffect(() => {
+    const params = new URLSearchParams(queryString);
+    const segmentParam = params.get("segment");
+    const chipParam = params.get("chip");
+    const dueParam = params.get("due");
+    const assigneeParam = params.get("assigneeId");
+
+    if (segmentParam === "today" || segmentParam === "week" || segmentParam === "all") setSegment(segmentParam);
+    if (chipParam === "all" || chipParam === "mine" || chipParam === "high" || chipParam === "progress" || chipParam === "hold" || chipParam === "overdue") {
+      setChip(chipParam);
+    } else if (dueParam === "overdue") {
+      setChip("overdue");
+      setSegment("all");
+    } else if (session?.role === "admin") {
+      setChip("all");
+    }
+    if (session?.role === "admin") setSelectedAssigneeId(assigneeParam || "all");
+  }, [queryString, session?.role]);
+
   const activeTasks = useMemo(() => (tasks.data ?? []).filter((task) => task.status !== "done"), [tasks.data]);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -163,10 +186,12 @@ export default function TasksPage() {
       if (chip === "high" && !["urgent", "high"].includes(task.priority)) return false;
       if (chip === "progress" && task.status !== "in_progress") return false;
       if (chip === "hold" && task.priority !== "hold") return false;
+      if (chip === "overdue" && distance >= 0) return false;
+      if (session?.role === "admin" && selectedAssigneeId !== "all" && ![task.primaryAssigneeId, ...task.assigneeIds].includes(selectedAssigneeId)) return false;
       return true;
     });
     return segment === "today" ? applyTodayOrder(filtered, todayOrder) : filtered;
-  }, [activeTasks, chip, segment, session?.employeeId, todayOrder]);
+  }, [activeTasks, chip, segment, selectedAssigneeId, session?.employeeId, session?.role, todayOrder]);
   const visibleTaskIds = useMemo(() => visibleTasks.map((task) => task.id), [visibleTasks]);
   const personalActiveTasks = useMemo(
     () => (session?.employeeId ? activeTasks.filter((task) => [task.primaryAssigneeId, ...task.assigneeIds].includes(session.employeeId)) : activeTasks),
@@ -383,6 +408,7 @@ export default function TasksPage() {
               ["high", "優先度高"],
               ["progress", "進行中"],
               ["hold", "保留"],
+              ["overdue", "超過"],
             ] as Array<[Chip, string]>).map(([value, label]) => (
               <button
                 key={value}
@@ -396,6 +422,19 @@ export default function TasksPage() {
               </button>
             ))}
           </div>
+          {session?.role === "admin" ? (
+            <label className="grid gap-1 text-xs font-extrabold text-slate-500 dark:text-slate-300">
+              担当者で絞り込み
+              <Select value={selectedAssigneeId} onChange={(event) => setSelectedAssigneeId(event.target.value)}>
+                <option value="all">全員のタスク</option>
+                {(employees.data ?? []).map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          ) : null}
         </CardContent>
       </Card>
 

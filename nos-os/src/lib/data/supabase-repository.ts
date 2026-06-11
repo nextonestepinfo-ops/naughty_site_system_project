@@ -634,6 +634,8 @@ export async function createTask(input: Partial<Task>) {
 export async function updateTask(id: string, input: Partial<Task>) {
   const normalized = dbId(id);
   if (!normalized) return null;
+  const previous = await getTaskById(normalized);
+  if (!previous) return null;
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.title !== undefined) patch.title = input.title;
   if (input.description !== undefined) patch.body = input.description;
@@ -660,6 +662,9 @@ export async function updateTask(id: string, input: Partial<Task>) {
       sourceGoalTreeId: sourceInputChanged ? input.sourceGoalTreeId : task.sourceGoalTreeId,
       sourceBranchId: sourceInputChanged ? input.sourceBranchId : task.sourceBranchId,
     });
+  }
+  if (previous.status !== "done" && task.status === "done") {
+    await createTaskCompletedAdminNotifications(task);
   }
   return getTaskById(normalized);
 }
@@ -1054,6 +1059,28 @@ function taskDueNoticeType(task: Task): Pick<AppNotification, "type" | "severity
 
 function autoNoticeId(taskId: string, type: AppNotification["type"], userId: string) {
   return stableUuid(`auto-notice:${type}:${taskId}:${userId}`);
+}
+
+async function createTaskCompletedAdminNotifications(task: Task) {
+  const { users, employees, projects } = await readCore();
+  const assignee = employees.find((employee) => employee.id === task.primaryAssigneeId);
+  const project = projects.find((item) => item.id === task.projectId);
+  const now = new Date().toISOString();
+  if (!users.some((user) => roleFrom(user.role) === "admin" && !deprecatedDemoEmails.has(user.email))) return;
+
+  await insertRows<NotificationRow>("notifications", [
+    {
+      id: stableUuid(`task-completed:${task.id}:${now}`),
+      user_id: null,
+      type: "admin",
+      title: `タスク完了: ${task.title}`,
+      body: `${assignee?.name ?? "担当者"}さんが${project ? `「${project.name}」の` : ""}タスクを完了しました。必要なら日報や次の一手を確認してください。`,
+      severity: "success",
+      target_href: `/tasks?taskId=${task.id}`,
+      read_at: null,
+      created_at: now,
+    },
+  ]);
 }
 
 function autoNoticeIdsForTask(taskId: string, userId: string) {
