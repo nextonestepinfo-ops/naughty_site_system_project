@@ -33,6 +33,10 @@ export async function changePassword(input: { userId?: string; currentPassword?:
   return repo().changePassword(input);
 }
 
+export async function resetUserPassword(userId: string, newPassword?: string) {
+  return repo().resetUserPassword(userId, newPassword);
+}
+
 export async function getLoginAccounts() {
   return repo().getLoginAccounts();
 }

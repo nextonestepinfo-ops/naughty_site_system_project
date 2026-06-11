@@ -18,7 +18,7 @@ import {
   tasks,
   users,
 } from "@/lib/data/mock";
-import { createPasswordSalt, hashPassword, passwordIsAcceptable, verifyPassword } from "@/lib/auth/password";
+import { createPasswordSalt, hashPassword, INITIAL_EMPLOYEE_PASSWORD, passwordIsAcceptable, verifyPassword } from "@/lib/auth/password";
 import { priorityOrder } from "@/lib/data/labels";
 import type {
   ActivityLog,
@@ -253,6 +253,15 @@ export function changePassword(input: { userId?: string; currentPassword?: strin
   const salt = createPasswordSalt();
   mutablePasswords.set(user.id, { salt, hash: hashPassword(input.newPassword ?? "", salt), mustChangePassword: false });
   return { ...betaUser(user), mustChangePassword: false };
+}
+
+export function resetUserPassword(userId: string, newPassword = INITIAL_EMPLOYEE_PASSWORD) {
+  if (!userId || !passwordIsAcceptable(newPassword)) return null;
+  const user = mutableUsers.find((item) => item.id === userId);
+  if (!user || hiddenEmployeeIds.has(user.employeeId)) return null;
+  const salt = createPasswordSalt();
+  mutablePasswords.set(user.id, { salt, hash: hashPassword(newPassword, salt), mustChangePassword: true });
+  return { ...betaUser(user), mustChangePassword: true };
 }
 
 export function getLoginAccounts(): LoginAccount[] {

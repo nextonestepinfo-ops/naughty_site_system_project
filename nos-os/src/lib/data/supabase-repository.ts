@@ -1,4 +1,4 @@
-import { createPasswordSalt, hashPassword, passwordIsAcceptable, verifyPassword } from "@/lib/auth/password";
+import { createPasswordSalt, hashPassword, INITIAL_EMPLOYEE_PASSWORD, passwordIsAcceptable, verifyPassword } from "@/lib/auth/password";
 import { priorityOrder } from "@/lib/data/labels";
 import { deleteRows, insertRows, newUuid, patchRows, selectOne, selectRows, stableUuid, upsertRows } from "@/lib/data/supabase-rest";
 import type {
@@ -434,6 +434,28 @@ export async function changePassword(input: { userId?: string; currentPassword?:
       password_hash: hashPassword(input.newPassword ?? "", salt),
       must_change_password: false,
       password_changed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  );
+  return row ? mapUser(row, employees) : null;
+}
+
+export async function resetUserPassword(userId: string, newPassword = INITIAL_EMPLOYEE_PASSWORD) {
+  const normalized = dbId(userId);
+  if (!normalized || !passwordIsAcceptable(newPassword)) return null;
+
+  const { users, employees } = await readCore();
+  if (!users.some((user) => user.id === normalized && !deprecatedDemoEmails.has(user.email))) return null;
+
+  const salt = createPasswordSalt();
+  const [row] = await patchRows<UserRow>(
+    "users",
+    { id: `eq.${normalized}` },
+    {
+      password_salt: salt,
+      password_hash: hashPassword(newPassword, salt),
+      must_change_password: true,
+      password_changed_at: null,
       updated_at: new Date().toISOString(),
     },
   );
