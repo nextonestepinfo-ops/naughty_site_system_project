@@ -12,12 +12,12 @@
 ## 現在のプロトタイプ
 
 - `index.html`
-  - 公開サイト側の静的プロトタイプ。
-  - 既存トップのロゴ面、キャスト前景、パララックス、グリッチ、RECカメラ表現を継承。
+  - 公開サイト側のV3プロトタイプ。
+  - `naughty_Webサイト-handoff.zip` のReact/Babelデザインを基準に、PC/スマホ両対応で表示。
 - `app.js`
-  - `../03_system_seed/naughty_site_data.json` を初期値として読み込む。
-  - 管理画面が保存した `localStorage` の内容があれば優先して表示する。
-- `styles.css`
-  - スマホ優先で、公開サイト用の固定レイアウトを定義。
+  - 既存CMSデータをV3デザイン用の `window.NTY` 形式へ変換するアダプター。
+  - 管理画面が保存した `localStorage` の内容があれば優先し、なければ `../03_system_seed/naughty_site_data.js` を使う。
+- `design/` / `site/`
+  - V3のデザインCSS、Reactコンポーネント、レスポンシブ指定、背景演出。
 
-ローカル確認時はプロジェクトルートでHTTPサーバーを起動し、`/04_site_rebuild/index.html` を開く。
+ローカル確認時はプロジェクトルートでHTTPサーバーを起動し、`/04_site_rebuild/index.html?v=v3` を開く。

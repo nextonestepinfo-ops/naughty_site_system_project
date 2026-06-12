@@ -3,191 +3,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>NAUGHTY | Concept Cafe</title>
-  <meta name="description" content="NAUGHTY is a little-devil concept cafe in Hiroshima. Check today's cast, schedule, interior, and access." />
+  <title>NAUGHTY | Concept Cafe — Hiroshima / Nagarekawa</title>
+  <meta name="description" content="NAUGHTY は広島・流川の little-devil concept cafe。本日の出勤、2週間の出勤予定、キャスト、店内、イベント、アクセス。" />
   <link rel="icon" href="assets/logo-naughty-white-circle.webp" type="image/webp" />
   <link rel="stylesheet" href="../auth-gate.css" />
   <script>document.documentElement.classList.add("auth-pending");</script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&family=Shippori+Mincho+B1:wght@500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=production-21" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho+B1:wght@400;500;600;700;800&display=swap" />
+
+  <link rel="stylesheet" href="design/naughty.css?v=v3" />
+  <link rel="stylesheet" href="site/naughty-responsive.css?v=v3" />
+  <link rel="stylesheet" href="site/site.css?v=v3" />
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0b0b0d;
+    }
+
+    .nty .loader {
+      position: fixed;
+    }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
-  <div class="site-shell nty">
-    <header class="nav">
-      <div class="left">
-        <span class="dot"></span>
-        <span id="nav-hours">OPEN 19:00-05:00</span>
-        <span>/ HIROSHIMA</span>
-      </div>
-      <a class="logo" href="#top" aria-label="NAUGHTY top">
-        <img src="../01_existing_site/assets/logo-naughty.webp" alt="NAUGHTY" />
-      </a>
-      <div class="right">
-        <a class="cta join-cta" href="recruit.html" aria-label="スタッフ募集">募集 <span>JOIN</span></a>
-        <a class="cta pink reserve" href="#now">TODAY <span>→</span></a>
-        <a class="menu-btn" href="#cast">
-          <img src="../01_existing_site/assets/icon-menu-devil.webp" alt="" />
-          <span>CAST</span>
-        </a>
-      </div>
-    </header>
+  <div id="root"></div>
 
-    <main>
-      <section class="fv" data-screen-label="01 First View" id="top">
-        <div class="fv-inner">
-          <div class="fv-headline">
-            <div class="fv-wordmark fv-wordmark-img" id="hero-stage">
-              <div class="hero-dotgrid" aria-hidden="true"></div>
-              <div class="hero-lines" id="hero-lines" aria-hidden="true">
-                <span class="hl hl-1"></span>
-                <span class="hl hl-2"></span>
-                <span class="hl hl-3"></span>
-              </div>
-              <div class="hero-bgtext" id="hero-bgtext" aria-hidden="true">
-                <span class="hero-bgtext-line">NAUGHTY</span>
-                <span class="hero-bgtext-line is-pink">GIRLS</span>
-              </div>
-              <div class="fv-cast-row" id="hero-cast"></div>
-              <div class="hero-dots" id="hero-dots" aria-hidden="true"></div>
-              <div class="hero-switch-fx" id="hero-switch-fx" aria-hidden="true"></div>
-            </div>
-          </div>
-
-          <aside class="fv-status" aria-label="shop status">
-            <span>OPEN</span>
-            <strong id="hero-hours">19:00-05:00</strong>
-            <small id="hero-status-summary">checking today's cast</small>
-          </aside>
-        </div>
-      </section>
-
-      <nav class="jump-nav" aria-label="pickup navigation">
-        <a class="jump-pill" href="#cast">
-          <span class="jp-text">CAST</span>
-          <span class="jp-arrow" aria-hidden="true">→</span>
-        </a>
-        <a class="jump-pill" href="#schedule">
-          <span class="jp-text">SCHEDULE</span>
-          <span class="jp-arrow" aria-hidden="true">→</span>
-        </a>
-      </nav>
-
-      <section class="now-section" id="now">
-        <div class="section-head compact">
-          <p class="section-kicker">TODAY</p>
-          <h2>本日の出勤</h2>
-          <span id="now-count">TODAY</span>
-        </div>
-        <div class="now-grid" id="now-grid"></div>
-      </section>
-
-      <section class="section schedule-section compact-schedule" id="schedule">
-        <details class="schedule-accordion">
-          <summary>
-            <span>
-              <small>SCHEDULE</small>
-              出勤スケジュールを見る
-            </span>
-            <b aria-hidden="true">+</b>
-          </summary>
-          <div class="schedule-panel">
-            <div class="day-tabs" id="day-tabs" role="tablist" aria-label="schedule days"></div>
-            <div class="schedule-list" id="schedule-list"></div>
-          </div>
-        </details>
-      </section>
-
-      <section class="talent-section" id="cast">
-        <div class="talent-bg" aria-hidden="true"></div>
-        <div class="talent-wrap">
-          <div class="talent-head section-head">
-            <p class="section-kicker">CAST DIAGRAM</p>
-            <h2>CAST MAP</h2>
-            <p>NAUGHTY GIRLS</p>
-          </div>
-          <div class="talent-icons" id="talent-icons" aria-label="cast map"></div>
-          <div class="talent-stage" id="talent-stage">
-            <button class="talent-nav talent-prev" type="button" data-talent-prev aria-label="previous cast">PREV</button>
-            <div class="talent-visual" id="talent-visual" aria-live="polite"></div>
-            <div class="talent-panel" id="talent-panel"></div>
-            <button class="talent-nav talent-next" type="button" data-talent-next aria-label="next cast">NEXT</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="inside-section" id="inside" aria-label="店内の雰囲気">
-        <article class="inside-scene inside-scene-counter reveal">
-          <img src="assets/interior/sample-interior-counter.webp" alt="黒とピンクのバーカウンター" width="1280" height="720" loading="lazy" decoding="async" />
-          <div class="inside-scene-copy">
-            <span>INSIDE 01 / COUNTER</span>
-            <h2>話せるカウンター席</h2>
-            <p>黒にピンクの光が浮かぶカウンターで、キャストとゆっくりお話ししながら夜を過ごせます。</p>
-          </div>
-          <div class="inside-scene-words" aria-hidden="true">
-            <b>TALK</b>
-            <b>COUNTER</b>
-            <b>NIGHT</b>
-          </div>
-        </article>
-        <article class="inside-scene inside-scene-play reveal">
-          <img src="assets/interior/sample-interior-darts.webp" alt="ダーツとフォトスポット" width="1280" height="720" loading="lazy" decoding="async" />
-          <div class="inside-scene-copy">
-            <span>INSIDE 02 / PLAY</span>
-            <h2>歌って、遊んで、写真を残す</h2>
-            <p>カラオケで盛り上がったり、ダーツで遊んだり、一緒に撮った写真をその日の記憶にできます。</p>
-          </div>
-          <div class="inside-scene-words" aria-hidden="true">
-            <b>KARAOKE</b>
-            <b>DARTS</b>
-            <b>PHOTO</b>
-          </div>
-        </article>
-      </section>
-
-      <section class="section event-section" id="events">
-        <div class="section-head">
-          <p class="section-kicker">EVENT</p>
-          <h2>イベント</h2>
-          <p>近日開催のイベント情報。</p>
-        </div>
-        <div class="event-list" id="event-list"></div>
-      </section>
-
-      <section class="section access-section" id="access">
-        <div class="section-head">
-          <p class="section-kicker">ACCESS</p>
-          <h2>アクセス</h2>
-          <p>営業時間、住所、SNSはこちら。</p>
-        </div>
-        <div class="access-layout">
-          <div class="map-panel">
-            <strong>NAUGHTY</strong>
-            <span>Hiroshima / Nagarekawa</span>
-          </div>
-          <dl class="shop-info">
-            <dt>営業時間</dt>
-            <dd id="access-hours"></dd>
-            <dt>住所</dt>
-            <dd id="access-address"></dd>
-            <dt>Instagram</dt>
-            <dd id="access-instagram"></dd>
-            <dt>支払い</dt>
-            <dd id="access-payment"></dd>
-          </dl>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <img src="assets/logo-naughty-white-circle.webp" alt="NAUGHTY" />
-      <p>2026 NAUGHTY</p>
-    </footer>
-  </div>
-
-    <script src="../03_system_seed/naughty_site_data.js?v=production-21"></script>
+  <script src="../03_system_seed/naughty_site_data.js?v=v3"></script>
   <script src="../auth-gate.js"></script>
-    <script src="app.js?v=production-21"></script>
+  <script src="site/image-slot.js?v=v3"></script>
+  <script src="app.js?v=v3"></script>
+
+  <script type="text/babel" src="design/decor.jsx?v=v3"></script>
+  <script type="text/babel" src="design/loading.jsx?v=v3"></script>
+  <script type="text/babel" src="design/scroll-accents.jsx?v=v3"></script>
+  <script type="text/babel" src="design/sections-top.jsx?v=v3"></script>
+  <script type="text/babel" src="site/patternshift.jsx?v=v3"></script>
+  <script type="text/babel" src="site/sections.jsx?v=v3"></script>
+  <script type="text/babel" src="site/app.jsx?v=v3"></script>
 </body>
 </html>
