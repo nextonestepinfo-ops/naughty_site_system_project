@@ -5863,3 +5863,226 @@ body::before {
     opacity: 1;
   }
 }
+
+/* ---- Production 21: one-pink flat pattern shift ---- */
+:root {
+  --site-pink: #ff2f78;
+  --pink: var(--site-pink);
+  --pink-2: var(--site-pink);
+  --pink-deep: var(--site-pink);
+  --violet: var(--site-pink);
+  --cyan: var(--site-pink);
+  --mint: var(--site-pink);
+  --gold: #fff8fb;
+  --text: #fff8fb;
+  --muted: #d8c8cf;
+  --soft: #210711;
+  --pattern-shift-x: 320px;
+  --pattern-shift-y: -180px;
+  --pattern-shift-rotate: -2deg;
+  --flat-dot-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Crect width='72' height='72' fill='none'/%3E%3Ccircle cx='9' cy='9' r='.64' fill='%23ff2f78' fill-opacity='.07'/%3E%3Ccircle cx='46' cy='46' r='.5' fill='%23ff2f78' fill-opacity='.035'/%3E%3C/svg%3E");
+  --flat-stripe-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cpath d='M-40 158L158-40M42 220L220 42' stroke='%23ff2f78' stroke-opacity='.14' stroke-width='14'/%3E%3Cpath d='M-22 92L92-22M110 204L204 110' stroke='%23ff2f78' stroke-opacity='.08' stroke-width='4'/%3E%3C/svg%3E");
+}
+
+body {
+  --mood-a: var(--site-pink);
+  --mood-b: var(--site-pink);
+  --mood-c: var(--site-pink);
+}
+
+body::before,
+.hero-dotgrid,
+.hero-dotgrid::after,
+.talent-icons,
+.now-section,
+.schedule-section,
+.talent-section,
+.inside-section,
+.event-section,
+.access-section,
+.recruit-hero {
+  background-image: var(--flat-dot-pattern) !important;
+  background-size: 72px 72px !important;
+}
+
+body::before {
+  inset: -24%;
+  opacity: 1 !important;
+  transform: translate3d(0, 0, 0) rotate(0deg);
+  will-change: transform;
+}
+
+.fv,
+.fv-wordmark-img,
+.recruit-hero {
+  background-color: var(--dark) !important;
+  background-image: var(--flat-dot-pattern), var(--flat-stripe-pattern) !important;
+  background-size: 72px 72px, 360px 360px !important;
+}
+
+.fv::before {
+  background-image: var(--flat-stripe-pattern) !important;
+  background-size: 360px 360px !important;
+  animation-duration: 34s !important;
+}
+
+.fv::after {
+  background-image: var(--flat-dot-pattern) !important;
+  background-size: 72px 72px !important;
+  animation-duration: 42s !important;
+}
+
+.section-transition,
+.scroll-mood-flash {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  animation: none !important;
+}
+
+.section-transition-stripes,
+.section-transition-lines,
+.section-transition-copy,
+.scroll-mood-flash::before,
+.scroll-mood-flash::after {
+  display: none !important;
+}
+
+.nav::before,
+.fv-status,
+.now-card,
+.schedule-card,
+.schedule-list article,
+.event-card,
+.shop-info,
+.map-panel,
+.talent-stage,
+.talent-panel-inner,
+.inside-scene,
+.inside-scene-copy,
+.recruit-card,
+.recruit-lead,
+.recruit-flow li,
+.footer,
+.cta,
+.jump-pill,
+.menu-btn,
+.talent-nav,
+.day-tab,
+.filter-chip,
+.talent-icon,
+.talent-icons,
+.talent-portrait,
+.now-chibi,
+summary b,
+.inside-scene-copy span {
+  border-color: var(--site-pink) !important;
+}
+
+.cta.pink,
+.cta.join-cta:hover,
+.jump-pill:hover,
+.menu-btn:hover,
+.talent-nav:hover,
+.day-tab.active,
+.filter-chip.active,
+.hero-dot.is-active,
+.status-badge,
+.event-card time,
+.talent-tags span,
+.talent-icon::before,
+.talent-icon.active {
+  background: var(--site-pink) !important;
+  border-color: var(--site-pink) !important;
+}
+
+.section-kicker,
+.talent-head p:not(.section-kicker),
+.nav .left,
+.nav .right,
+.talent-tags span,
+.status-badge,
+.event-card time,
+.shop-info dt,
+.cast-card h3 small,
+.now-card h3 small,
+.schedule-date,
+.access-tag {
+  color: var(--site-pink) !important;
+}
+
+.cta.pink,
+.cta.join-cta:hover,
+.jump-pill:hover,
+.menu-btn:hover,
+.talent-nav:hover,
+.day-tab.active,
+.filter-chip.active,
+.hero-dot.is-active,
+.status-badge,
+.event-card time,
+.talent-tags span,
+.talent-icon.active {
+  color: #fff !important;
+}
+
+.section-head h2,
+.talent-head h2,
+.scroll-mood-flash::after {
+  text-shadow: 5px 5px 0 var(--site-pink) !important;
+  -webkit-text-stroke-color: var(--site-pink) !important;
+}
+
+.hl,
+.hl-1,
+.hl-2,
+.hl-3,
+.hero-switch-fx::before,
+.talent-icons::before,
+.section-transition-lines i {
+  background: var(--site-pink) !important;
+  box-shadow: none !important;
+}
+
+html.is-pattern-shifting body::before {
+  animation: pattern-shift-field 980ms cubic-bezier(.55, 0, .22, 1) both;
+}
+
+html.is-pattern-shifting .fv,
+html.is-pattern-shifting .fv::before,
+html.is-pattern-shifting .fv::after,
+html.is-pattern-shifting .now-section,
+html.is-pattern-shifting .schedule-section,
+html.is-pattern-shifting .talent-section,
+html.is-pattern-shifting .inside-section,
+html.is-pattern-shifting .event-section,
+html.is-pattern-shifting .access-section,
+html.is-pattern-shifting .recruit-hero {
+  animation: pattern-shift-surface 980ms cubic-bezier(.55, 0, .22, 1) both !important;
+}
+
+@keyframes pattern-shift-field {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  46% {
+    transform: translate3d(var(--pattern-shift-x), var(--pattern-shift-y), 0) rotate(var(--pattern-shift-rotate));
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes pattern-shift-surface {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  46% {
+    background-position:
+      var(--pattern-shift-x) var(--pattern-shift-y),
+      var(--pattern-shift-y) var(--pattern-shift-x);
+  }
+  100% {
+    background-position: 0 0, 0 0;
+  }
+}

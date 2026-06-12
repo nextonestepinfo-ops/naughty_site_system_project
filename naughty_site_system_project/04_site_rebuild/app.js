@@ -24,6 +24,7 @@ let talentTimer = 0;
 let revealObserver = null;
 let activeScrollMood = "";
 let scrollMoodTimer = 0;
+let patternShiftTimer = 0;
 let heroGroups = [];
 let heroGroupIndex = 0;
 let heroTimer = 0;
@@ -73,14 +74,26 @@ const sectionLabels = {
   access: "ACCESS",
 };
 
+const SITE_PINK = "#ff2f78";
+
 const sectionMoods = {
-  top: ["#ff2f78", "#ff9bbc", "#fff8fb", "-8deg"],
-  now: ["#ff2f78", "#ffb3cf", "#fff8fb", "4deg"],
-  schedule: ["#ff5c98", "#ff7aa8", "#fff8fb", "10deg"],
-  cast: ["#ff2f78", "#ff9bbc", "#fff8fb", "-14deg"],
-  inside: ["#ff7aa8", "#ffb3cf", "#fff8fb", "8deg"],
-  events: ["#d92a64", "#ff2f78", "#fff8fb", "-4deg"],
-  access: ["#ff5c98", "#ff9bbc", "#ff2f78", "12deg"],
+  top: [SITE_PINK, SITE_PINK, SITE_PINK, "-8deg"],
+  now: [SITE_PINK, SITE_PINK, SITE_PINK, "4deg"],
+  schedule: [SITE_PINK, SITE_PINK, SITE_PINK, "10deg"],
+  cast: [SITE_PINK, SITE_PINK, SITE_PINK, "-14deg"],
+  inside: [SITE_PINK, SITE_PINK, SITE_PINK, "8deg"],
+  events: [SITE_PINK, SITE_PINK, SITE_PINK, "-4deg"],
+  access: [SITE_PINK, SITE_PINK, SITE_PINK, "12deg"],
+};
+
+const sectionShiftVectors = {
+  top: ["320px", "-180px", "-2deg"],
+  now: ["-280px", "210px", "2deg"],
+  schedule: ["360px", "160px", "-1.5deg"],
+  cast: ["-340px", "-220px", "2.5deg"],
+  inside: ["300px", "-260px", "-2deg"],
+  events: ["-360px", "180px", "1.5deg"],
+  access: ["280px", "240px", "-1deg"],
 };
 
 async function loadData() {
@@ -479,7 +492,7 @@ function renderTalentShowcase() {
   const todayShift = shiftForStaffToday(person.id);
   const status = todayShift?.status || person.workStatus || "off";
   const upcoming = upcomingShiftsForStaff(person.id, 1);
-  const accentColors = ["#ff3e7e", "#ff5f9c", "#ff8fb4", "#d92a64", "#ffb3cf"];
+  const accentColors = [SITE_PINK];
   section.style.setProperty("--talent-bg-image", `url("${heroPhoto(person)}")`);
   section.style.setProperty("--talent-accent", accentColors[activeTalentIndex % accentColors.length]);
 
@@ -584,12 +597,7 @@ function bindTabs() {
 }
 
 function bindSectionTransitions() {
-  const transition = $("#section-transition");
-  const label = $("#section-transition-label");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  if (!transition || !label || reduceMotion.matches) return;
-
-  let transitionTimer = 0;
 
   function targetFromLink(link) {
     const href = link.getAttribute("href") || "";
@@ -601,12 +609,6 @@ function bindSectionTransitions() {
     }
   }
 
-  function transitionLabel(target) {
-    const idLabel = target.id ? sectionLabels[target.id] : "";
-    const sectionLabel = target.dataset.screenLabel || target.querySelector(".section-kicker")?.textContent;
-    return (idLabel || sectionLabel || "NAUGHTY").trim().toUpperCase();
-  }
-
   document.addEventListener("click", (event) => {
     const link = event.target.closest('a[href^="#"]');
     if (!link || event.defaultPrevented) return;
@@ -616,42 +618,42 @@ function bindSectionTransitions() {
     if (!target) return;
 
     event.preventDefault();
-    window.clearTimeout(transitionTimer);
-    label.textContent = transitionLabel(target);
-    transition.classList.remove("is-active");
-    transition.getBoundingClientRect();
-    document.documentElement.classList.add("is-section-transitioning");
-    transition.classList.add("is-active");
+    if (!reduceMotion.matches) triggerPatternShift(target.id || "top");
 
     window.setTimeout(() => {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
       if (target.id) history.pushState(null, "", `#${target.id}`);
-    }, 310);
-
-    transitionTimer = window.setTimeout(() => {
-      transition.classList.remove("is-active");
-      document.documentElement.classList.remove("is-section-transitioning");
-    }, 1120);
+    }, reduceMotion.matches ? 0 : 80);
   });
+}
+
+function triggerPatternShift(sectionId) {
+  const vector = sectionShiftVectors[sectionId] || sectionShiftVectors.top;
+  const root = document.documentElement;
+  root.style.setProperty("--pattern-shift-x", vector[0]);
+  root.style.setProperty("--pattern-shift-y", vector[1]);
+  root.style.setProperty("--pattern-shift-rotate", vector[2]);
+  window.clearTimeout(patternShiftTimer);
+  root.classList.remove("is-pattern-shifting");
+  root.getBoundingClientRect();
+  root.classList.add("is-pattern-shifting");
+  patternShiftTimer = window.setTimeout(() => {
+    root.classList.remove("is-pattern-shifting");
+  }, 1040);
 }
 
 function applyScrollMood(sectionId, shouldFlash = true) {
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const mood = sectionMoods[sectionId] || sectionMoods.top;
-  const flash = $("#scroll-mood-flash");
   document.body.dataset.mood = sectionId;
   document.body.style.setProperty("--mood-a", mood[0]);
   document.body.style.setProperty("--mood-b", mood[1]);
   document.body.style.setProperty("--mood-c", mood[2]);
   document.body.style.setProperty("--mood-rotate", mood[3]);
 
-  if (!shouldFlash || reduceMotion || !flash) return;
+  if (!shouldFlash || reduceMotion) return;
   window.clearTimeout(scrollMoodTimer);
-  flash.dataset.label = sectionLabels[sectionId] || "NAUGHTY";
-  flash.classList.remove("is-active");
-  flash.getBoundingClientRect();
-  flash.classList.add("is-active");
-  scrollMoodTimer = window.setTimeout(() => flash.classList.remove("is-active"), 760);
+  scrollMoodTimer = window.setTimeout(() => triggerPatternShift(sectionId), 20);
 }
 
 function bindScrollMood() {
