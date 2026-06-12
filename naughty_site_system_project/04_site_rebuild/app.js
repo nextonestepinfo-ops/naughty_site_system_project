@@ -74,13 +74,13 @@ const sectionLabels = {
 };
 
 const sectionMoods = {
-  top: ["rgba(255, 62, 126, .28)", "rgba(84, 217, 232, .12)", "rgba(255, 248, 251, .06)", "-8deg"],
-  now: ["rgba(255, 62, 126, .22)", "rgba(244, 211, 106, .14)", "rgba(84, 217, 232, .1)", "4deg"],
-  schedule: ["rgba(84, 217, 232, .18)", "rgba(255, 122, 168, .16)", "rgba(255, 248, 251, .06)", "10deg"],
-  cast: ["rgba(255, 62, 126, .32)", "rgba(84, 217, 232, .2)", "rgba(141, 232, 212, .12)", "-14deg"],
-  inside: ["rgba(255, 122, 168, .18)", "rgba(244, 211, 106, .14)", "rgba(84, 217, 232, .12)", "8deg"],
-  events: ["rgba(118, 100, 220, .2)", "rgba(255, 62, 126, .2)", "rgba(244, 211, 106, .12)", "-4deg"],
-  access: ["rgba(84, 217, 232, .18)", "rgba(141, 232, 212, .16)", "rgba(255, 62, 126, .1)", "12deg"],
+  top: ["rgba(255, 62, 126, .24)", "rgba(255, 143, 180, .14)", "rgba(255, 248, 251, .07)", "-8deg"],
+  now: ["rgba(255, 62, 126, .22)", "rgba(255, 179, 207, .13)", "rgba(255, 248, 251, .07)", "4deg"],
+  schedule: ["rgba(255, 92, 152, .2)", "rgba(255, 122, 168, .15)", "rgba(255, 248, 251, .06)", "10deg"],
+  cast: ["rgba(255, 62, 126, .28)", "rgba(255, 143, 180, .17)", "rgba(255, 248, 251, .08)", "-14deg"],
+  inside: ["rgba(255, 122, 168, .18)", "rgba(255, 191, 215, .12)", "rgba(255, 248, 251, .07)", "8deg"],
+  events: ["rgba(216, 42, 100, .2)", "rgba(255, 62, 126, .18)", "rgba(255, 248, 251, .07)", "-4deg"],
+  access: ["rgba(255, 92, 152, .18)", "rgba(255, 143, 180, .14)", "rgba(255, 62, 126, .1)", "12deg"],
 };
 
 async function loadData() {
@@ -469,7 +469,7 @@ function renderTalentShowcase() {
   const todayShift = shiftForStaffToday(person.id);
   const status = todayShift?.status || person.workStatus || "off";
   const upcoming = upcomingShiftsForStaff(person.id, 1);
-  const accentColors = ["#54d9e8", "#ff5f9c", "#f4d36a", "#8de8d4", "#b09cff"];
+  const accentColors = ["#ff3e7e", "#ff5f9c", "#ff8fb4", "#d92a64", "#ffb3cf"];
   section.style.setProperty("--talent-bg-image", `url("${heroPhoto(person)}")`);
   section.style.setProperty("--talent-accent", accentColors[activeTalentIndex % accentColors.length]);
 
