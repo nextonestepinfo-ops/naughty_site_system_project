@@ -5780,3 +5780,86 @@ body::before {
     opacity: 1;
   }
 }
+
+/* ---- Production 20: flat solid motion, no translucent hero layers ---- */
+.fv {
+  background-color: var(--dark) !important;
+  background-image: var(--flat-dot-pattern), var(--flat-stripe-pattern) !important;
+  background-size: 36px 36px, 240px 240px !important;
+}
+
+.fv::before,
+.fv::after {
+  opacity: 1 !important;
+  background-color: var(--dark) !important;
+  mix-blend-mode: normal !important;
+  filter: none !important;
+}
+
+.fv::before {
+  background-image: var(--flat-stripe-pattern) !important;
+  background-size: 240px 240px !important;
+  transform: none !important;
+  animation: flat-bg-drift 26s linear infinite !important;
+}
+
+.fv::after {
+  background-image: var(--flat-dot-pattern) !important;
+  background-size: 36px 36px !important;
+  animation: flat-bg-drift 34s linear infinite reverse !important;
+}
+
+.scroll-mood-flash {
+  background-color: var(--dark) !important;
+  background-image: var(--flat-stripe-pattern) !important;
+  background-size: 240px 240px !important;
+}
+
+.scroll-mood-flash::before {
+  background-color: var(--pink) !important;
+  background-image: none !important;
+}
+
+.scroll-mood-flash::after {
+  color: var(--text) !important;
+  text-shadow: 5px 5px 0 var(--pink-deep) !important;
+}
+
+.scroll-mood-flash.is-active {
+  animation: scroll-mood-flash-shell 620ms steps(1, end) both !important;
+}
+
+.section-transition {
+  background-color: var(--dark) !important;
+  background-image: var(--flat-stripe-pattern) !important;
+}
+
+.section-transition.is-active {
+  animation: section-transition-shell 620ms steps(1, end) both !important;
+}
+
+@keyframes scroll-mood-flash-shell {
+  0%,
+  11%,
+  65%,
+  100% {
+    opacity: 0;
+  }
+  12%,
+  64% {
+    opacity: 1;
+  }
+}
+
+@keyframes section-transition-shell {
+  0%,
+  7%,
+  77%,
+  100% {
+    opacity: 0;
+  }
+  8%,
+  76% {
+    opacity: 1;
+  }
+}
