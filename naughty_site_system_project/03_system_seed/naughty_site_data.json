@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-05-31T14:15:00+09:00",
-  "assetVersion": 6,
+  "updatedAt": "2026-06-12T00:00:00+09:00",
+  "assetVersion": 13,
   "shop": {
     "name": "naughty",
     "displayName": "NAUGHTY",
@@ -27,46 +27,46 @@
   },
   "staff": [
     {
-      "id": "staff_004",
+      "id": "staff_001",
       "displayName": "なの",
       "romanName": "NANO",
       "role": "cast",
       "hourlyWage": 1300,
-      "profileText": "お客さまとゆっくり話すのが好きなキャストです。",
-      "shortComment": "カウンターで、ほんのり寄り道。",
+      "profileText": "月明かりのようにやわらかく、甘さと小悪魔感のバランスが魅力。",
+      "shortComment": "ふわっと話せる月明かりキャスト。",
       "photo": "assets/cast/cast-01.webp",
       "heroPhoto": "assets/cast/cast-01.webp",
       "heroRealPhoto": "assets/cast/cast-01.webp",
+      "portraitIcon": "assets/portraits/cast-01-face.webp",
       "tags": [
-        "bar",
-        "calm"
+        "moon",
+        "sweet",
+        "talk"
       ],
       "publicVisible": true,
       "workStatus": "working",
-      "sns": "nqno_7_",
-      "instagram": "nqno_7_",
-      "castOrder": 1
+      "sns": ""
     },
     {
-      "id": "staff_005",
+      "id": "staff_002",
       "displayName": "お嬢",
-      "romanName": "OJOU",
+      "romanName": "OJO",
       "role": "cast",
       "hourlyWage": 1350,
-      "profileText": "写真映えする衣装と小悪魔っぽい表情が魅力です。",
-      "shortComment": "甘さの中に、ちょっとだけいたずら。",
+      "profileText": "お姫さまっぽい空気と、距離の近いおしゃべりで夜を彩ります。",
+      "shortComment": "お姫感のある甘い空気。",
       "photo": "assets/cast/cast-02.webp",
       "heroPhoto": "assets/cast/cast-02.webp",
       "heroRealPhoto": "assets/cast/cast-02.webp",
+      "portraitIcon": "assets/portraits/cast-02-face.webp",
       "tags": [
+        "princess",
         "photo",
-        "pink"
+        "soft"
       ],
       "publicVisible": true,
-      "workStatus": "off",
-      "sns": "ox_1130",
-      "instagram": "ox_1130",
-      "castOrder": 2
+      "workStatus": "soon",
+      "sns": ""
     },
     {
       "id": "staff_003",
@@ -74,320 +74,166 @@
       "romanName": "MIYABI",
       "role": "cast",
       "hourlyWage": 1400,
-      "profileText": "イベントの日を盛り上げるのが得意なキャストです。",
-      "shortComment": "イベント日は少しだけテンション高め。",
+      "profileText": "落ち着いた美しさとシャープな表情が印象的なキャスト。",
+      "shortComment": "綺麗めの表情と落ち着き。",
       "photo": "assets/cast/cast-03.webp",
       "heroPhoto": "assets/cast/cast-03.webp",
       "heroRealPhoto": "assets/cast/cast-03.webp",
+      "portraitIcon": "assets/portraits/cast-03-face.webp",
       "tags": [
-        "event",
-        "music"
+        "elegant",
+        "night",
+        "style"
       ],
       "publicVisible": true,
       "workStatus": "scheduled",
-      "sns": "miyabi_chan3",
-      "instagram": "miyabi_chan3",
-      "castOrder": 3
+      "sns": ""
     },
     {
-      "id": "staff_006",
+      "id": "staff_004",
       "displayName": "れい",
       "romanName": "REI",
       "role": "cast",
-      "hourlyWage": 1300,
-      "profileText": "れいです。よろしくね。",
-      "shortComment": "夜にこっそり、会いにきて。",
+      "hourlyWage": 1350,
+      "profileText": "クールでも話しやすい、カウンター映えする存在感。",
+      "shortComment": "クールで話しやすい雰囲気。",
       "photo": "assets/cast/cast-04.webp",
       "heroPhoto": "assets/cast/cast-04.webp",
       "heroRealPhoto": "assets/cast/cast-04.webp",
-      "tags": [],
-      "publicVisible": true,
-      "workStatus": "off",
-      "sns": "reire1_0",
-      "instagram": "reire1_0",
-      "castOrder": 4
-    },
-    {
-      "id": "staff_007",
-      "displayName": "あこやえん",
-      "romanName": "EN",
-      "role": "cast",
-      "hourlyWage": 1300,
-      "profileText": "あこやえんです。よろしくね。",
-      "shortComment": "夜にこっそり、会いにきて。",
-      "photo": "assets/cast/cast-05.webp",
-      "heroPhoto": "assets/cast/cast-05.webp",
-      "heroRealPhoto": "assets/cast/cast-05.webp",
-      "tags": [],
-      "publicVisible": true,
-      "workStatus": "off",
-      "sns": "ennnn_nya",
-      "instagram": "ennnn_nya",
-      "castOrder": 5
-    },
-    {
-      "id": "staff_001",
-      "displayName": "めあ",
-      "romanName": "MEA",
-      "role": "cast",
-      "hourlyWage": 1300,
-      "profileText": "明るく話しやすい雰囲気のキャスト。初めての方にもやさしく対応します。",
-      "shortComment": "はじめての夜も、ふわっと楽しく。",
-      "photo": "assets/cast/cast-06.webp",
-      "heroPhoto": "assets/cast/cast-06.webp",
-      "heroRealPhoto": "assets/cast/cast-06.webp",
+      "portraitIcon": "assets/portraits/cast-04-face.webp",
       "tags": [
-        "friendly",
-        "talk"
+        "cool",
+        "bar",
+        "calm"
       ],
       "publicVisible": true,
       "workStatus": "working",
-      "sns": "mog_2yan",
-      "instagram": "mog_2yan",
-      "castOrder": 6
+      "sns": ""
     },
     {
-      "id": "staff_002",
+      "id": "staff_005",
+      "displayName": "あこやえん",
+      "romanName": "AKOYAEN",
+      "role": "cast",
+      "hourlyWage": 1300,
+      "profileText": "可愛い表情とやさしい空気で、初めての夜もふわっと楽しく。",
+      "shortComment": "可愛くてやさしいリボン感。",
+      "photo": "assets/cast/cast-05.webp",
+      "heroPhoto": "assets/cast/cast-05.webp",
+      "heroRealPhoto": "assets/cast/cast-05.webp",
+      "portraitIcon": "assets/portraits/cast-05-face.webp",
+      "tags": [
+        "ribbon",
+        "smile",
+        "cute"
+      ],
+      "publicVisible": true,
+      "workStatus": "scheduled",
+      "sns": ""
+    },
+    {
+      "id": "staff_006",
+      "displayName": "めあ",
+      "romanName": "MEA",
+      "role": "cast",
+      "hourlyWage": 1350,
+      "profileText": "ピンクの甘さと小悪魔っぽさをまとった、NAUGHTYらしいキャスト。",
+      "shortComment": "ピンクが似合う小悪魔ムード。",
+      "photo": "assets/cast/cast-06.webp",
+      "heroPhoto": "assets/cast/cast-06.webp",
+      "heroRealPhoto": "assets/cast/cast-06.webp",
+      "portraitIcon": "assets/portraits/cast-06-face.webp",
+      "tags": [
+        "pink",
+        "talk",
+        "photo"
+      ],
+      "publicVisible": true,
+      "workStatus": "working",
+      "sns": ""
+    },
+    {
+      "id": "staff_007",
       "displayName": "めしあ",
       "romanName": "MESHIA",
       "role": "cast",
-      "hourlyWage": 1350,
-      "profileText": "かわいい雰囲気と落ち着いた接客が得意です。",
-      "shortComment": "ゆっくり話せる、やさしい時間。",
+      "hourlyWage": 1400,
+      "profileText": "銀色の月のようなビジュアルと、ゆめっぽい余韻が魅力。",
+      "shortComment": "銀の月みたいな透明感。",
       "photo": "assets/cast/cast-07.webp",
       "heroPhoto": "assets/cast/cast-07.webp",
       "heroRealPhoto": "assets/cast/cast-07.webp",
+      "portraitIcon": "assets/portraits/cast-07-face.webp",
       "tags": [
-        "soft",
-        "drink"
+        "silver",
+        "dreamy",
+        "night"
       ],
       "publicVisible": true,
-      "workStatus": "soon",
-      "sns": "m_4aaaa",
-      "instagram": "m_4aaaa",
-      "castOrder": 7
+      "workStatus": "off",
+      "sns": ""
     }
   ],
   "products": [
     {
       "id": "prod_001",
-      "name": "キャスドリ",
-      "category": "cast",
-      "salePrice": 500,
-      "backAmount": 0,
-      "description": "",
+      "name": "通常ドリンク",
+      "category": "DRINK",
+      "salePrice": 1000,
+      "backAmount": 200,
+      "description": "初めての方にも選びやすい定番ドリンク。",
       "eventOnly": false,
-      "active": true,
-      "menuVisible": true
+      "active": true
     },
     {
       "id": "prod_002",
-      "name": "チェキ",
-      "category": "cast",
-      "salePrice": 400,
-      "backAmount": 400,
-      "description": "その日だけの思い出を写真で残せます。",
+      "name": "キャストドリンク",
+      "category": "CAST DRINK",
+      "salePrice": 1500,
+      "backAmount": 500,
+      "description": "推しキャストと乾杯できる人気メニュー。",
       "eventOnly": false,
-      "active": true,
-      "menuVisible": true
+      "active": true
     },
     {
       "id": "prod_003",
-      "name": "チェキ（落書き付き）",
-      "category": "cast",
-      "salePrice": 600,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
+      "name": "小悪魔ショット",
+      "category": "EVENT",
+      "salePrice": 2000,
+      "backAmount": 700,
+      "description": "イベント日や盛り上がりたい時の限定ショット。",
+      "eventOnly": true,
+      "active": true
     },
     {
       "id": "prod_004",
-      "name": "デジショ",
-      "category": "cast",
-      "salePrice": 500,
-      "backAmount": 0,
-      "description": "",
+      "name": "チェキ",
+      "category": "PHOTO",
+      "salePrice": 1200,
+      "backAmount": 400,
+      "description": "その日だけの思い出を写真で残せます。",
       "eventOnly": false,
-      "active": true,
-      "menuVisible": true
+      "active": true
     },
     {
       "id": "prod_005",
-      "name": "テキーラ／クライナー",
-      "category": "drink",
-      "salePrice": 1000,
-      "backAmount": 0,
-      "description": "",
+      "name": "はじめてセット",
+      "category": "FIRST VISIT",
+      "salePrice": 3500,
+      "backAmount": 800,
+      "description": "チャージ、ドリンク、チェキをまとめた初回来店向けセット。",
       "eventOnly": false,
-      "active": true,
-      "menuVisible": true
+      "active": true
     },
     {
       "id": "prod_006",
-      "name": "ロック",
-      "category": "drink",
-      "salePrice": 1000,
-      "backAmount": 0,
-      "description": "",
+      "name": "オリジナルシャンパン",
+      "category": "SPECIAL",
+      "salePrice": 15000,
+      "backAmount": 4000,
+      "description": "記念日やイベント向けの特別メニュー。",
       "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_007",
-      "name": "スラット",
-      "category": "drink",
-      "salePrice": 1200,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_008",
-      "name": "1800／ローズ／コカ",
-      "category": "drink",
-      "salePrice": 1500,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_009",
-      "name": "シャンメリー",
-      "category": "bottle",
-      "salePrice": 1250,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_010",
-      "name": "ブラシャン",
-      "category": "bottle",
-      "salePrice": 2250,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_011",
-      "name": "ポンフィリコ",
-      "category": "bottle",
-      "salePrice": 4200,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_012",
-      "name": "シャメイ",
-      "category": "bottle",
-      "salePrice": 4420,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_013",
-      "name": "リステル",
-      "category": "bottle",
-      "salePrice": 4400,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_014",
-      "name": "シンデレラ",
-      "category": "bottle",
-      "salePrice": 5960,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_015",
-      "name": "アルコールオリシャン",
-      "category": "bottle",
-      "salePrice": 7250,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_016",
-      "name": "マバム",
-      "category": "bottle",
-      "salePrice": 8400,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_017",
-      "name": "1688",
-      "category": "bottle",
-      "salePrice": 12640,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_018",
-      "name": "ボッテガスターダスト",
-      "category": "bottle",
-      "salePrice": 20000,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_019",
-      "name": "ノンアルオリシャン",
-      "category": "nonalc",
-      "salePrice": 5750,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
-    },
-    {
-      "id": "prod_020",
-      "name": "新ノンアルオリシャン",
-      "category": "nonalc",
-      "salePrice": 8150,
-      "backAmount": 0,
-      "description": "",
-      "eventOnly": false,
-      "active": true,
-      "menuVisible": true
+      "active": true
     }
   ],
   "events": [
@@ -438,15 +284,15 @@
   ],
   "shifts": [
     {
-      "date": "2026-05-31",
+      "date": "2026-06-12",
       "staffId": "staff_001",
       "status": "working",
       "start": "19:00",
       "end": "23:00",
-      "publicNote": "カウンター中心"
+      "publicNote": "出勤中"
     },
     {
-      "date": "2026-05-31",
+      "date": "2026-06-12",
       "staffId": "staff_002",
       "status": "soon",
       "start": "20:30",
@@ -454,7 +300,7 @@
       "publicNote": "20:30から"
     },
     {
-      "date": "2026-05-31",
+      "date": "2026-06-12",
       "staffId": "staff_003",
       "status": "scheduled",
       "start": "21:00",
@@ -462,7 +308,7 @@
       "publicNote": "深夜まで"
     },
     {
-      "date": "2026-05-31",
+      "date": "2026-06-12",
       "staffId": "staff_004",
       "status": "working",
       "start": "19:00",
@@ -470,95 +316,31 @@
       "publicNote": "出勤中"
     },
     {
-      "date": "2026-05-31",
-      "staffId": "staff_005",
-      "status": "off",
-      "start": "",
-      "end": "",
-      "publicNote": "休み"
-    },
-    {
-      "date": "2026-06-01",
-      "staffId": "staff_001",
-      "status": "scheduled",
-      "start": "19:00",
-      "end": "23:00",
-      "publicNote": "早めの時間"
-    },
-    {
-      "date": "2026-06-01",
-      "staffId": "staff_002",
-      "status": "off",
-      "start": "",
-      "end": "",
-      "publicNote": "休み"
-    },
-    {
-      "date": "2026-06-01",
-      "staffId": "staff_003",
-      "status": "scheduled",
-      "start": "21:00",
-      "end": "05:00",
-      "publicNote": "21時から"
-    },
-    {
-      "date": "2026-06-01",
-      "staffId": "staff_004",
-      "status": "working",
-      "start": "19:00",
-      "end": "05:00",
-      "publicNote": "出勤中"
-    },
-    {
-      "date": "2026-06-01",
+      "date": "2026-06-12",
       "staffId": "staff_005",
       "status": "scheduled",
       "start": "20:00",
       "end": "02:00",
-      "publicNote": "写真おすすめ"
-    },
-    {
-      "date": "2026-06-02",
-      "staffId": "staff_001",
-      "status": "off",
-      "start": "",
-      "end": "",
-      "publicNote": "休み"
-    },
-    {
-      "date": "2026-06-02",
-      "staffId": "staff_002",
-      "status": "scheduled",
-      "start": "20:00",
-      "end": "01:00",
       "publicNote": "20時から"
     },
     {
-      "date": "2026-06-02",
-      "staffId": "staff_003",
-      "status": "scheduled",
-      "start": "20:00",
-      "end": "05:00",
-      "publicNote": "深夜まで"
+      "date": "2026-06-12",
+      "staffId": "staff_006",
+      "status": "working",
+      "start": "19:00",
+      "end": "23:30",
+      "publicNote": "早めの時間"
     },
     {
-      "date": "2026-06-02",
-      "staffId": "staff_004",
+      "date": "2026-06-12",
+      "staffId": "staff_007",
       "status": "off",
       "start": "",
       "end": "",
       "publicNote": "休み"
     },
     {
-      "date": "2026-06-02",
-      "staffId": "staff_005",
-      "status": "scheduled",
-      "start": "19:00",
-      "end": "23:00",
-      "publicNote": "早めの時間"
-    },
-    {
-      "date": "2026-06-03",
+      "date": "2026-06-13",
       "staffId": "staff_001",
       "status": "scheduled",
       "start": "19:00",
@@ -566,15 +348,15 @@
       "publicNote": "19時から"
     },
     {
-      "date": "2026-06-03",
+      "date": "2026-06-13",
       "staffId": "staff_002",
-      "status": "scheduled",
-      "start": "21:00",
+      "status": "working",
+      "start": "19:30",
       "end": "05:00",
-      "publicNote": "21時から"
+      "publicNote": "出勤中"
     },
     {
-      "date": "2026-06-03",
+      "date": "2026-06-13",
       "staffId": "staff_003",
       "status": "off",
       "start": "",
@@ -582,56 +364,312 @@
       "publicNote": "休み"
     },
     {
-      "date": "2026-06-03",
+      "date": "2026-06-13",
       "staffId": "staff_004",
       "status": "scheduled",
-      "start": "19:00",
+      "start": "21:00",
       "end": "05:00",
-      "publicNote": "長め出勤"
+      "publicNote": "21時から"
     },
     {
-      "date": "2026-06-03",
+      "date": "2026-06-13",
       "staffId": "staff_005",
-      "status": "scheduled",
+      "status": "soon",
       "start": "20:00",
-      "end": "02:00",
+      "end": "01:00",
       "publicNote": "20時から"
     },
     {
-      "date": "2026-06-04",
-      "staffId": "staff_001",
+      "date": "2026-06-13",
+      "staffId": "staff_006",
       "status": "scheduled",
+      "start": "19:00",
+      "end": "23:00",
+      "publicNote": "カウンター中心"
+    },
+    {
+      "date": "2026-06-13",
+      "staffId": "staff_007",
+      "status": "working",
       "start": "20:00",
       "end": "03:00",
-      "publicNote": "20時から"
+      "publicNote": "出勤中"
     },
     {
-      "date": "2026-06-04",
-      "staffId": "staff_002",
+      "date": "2026-06-14",
+      "staffId": "staff_001",
       "status": "off",
       "start": "",
       "end": "",
       "publicNote": "休み"
     },
     {
-      "date": "2026-06-04",
+      "date": "2026-06-14",
+      "staffId": "staff_002",
+      "status": "scheduled",
+      "start": "20:00",
+      "end": "01:00",
+      "publicNote": "20時から"
+    },
+    {
+      "date": "2026-06-14",
       "staffId": "staff_003",
+      "status": "working",
+      "start": "19:00",
+      "end": "05:00",
+      "publicNote": "出勤中"
+    },
+    {
+      "date": "2026-06-14",
+      "staffId": "staff_004",
+      "status": "working",
+      "start": "19:00",
+      "end": "23:00",
+      "publicNote": "早めの時間"
+    },
+    {
+      "date": "2026-06-14",
+      "staffId": "staff_005",
+      "status": "scheduled",
+      "start": "21:00",
+      "end": "05:00",
+      "publicNote": "深夜まで"
+    },
+    {
+      "date": "2026-06-14",
+      "staffId": "staff_006",
+      "status": "soon",
+      "start": "20:30",
+      "end": "02:00",
+      "publicNote": "20:30から"
+    },
+    {
+      "date": "2026-06-14",
+      "staffId": "staff_007",
+      "status": "scheduled",
+      "start": "19:00",
+      "end": "01:00",
+      "publicNote": "月ムード"
+    },
+    {
+      "date": "2026-06-15",
+      "staffId": "staff_001",
+      "status": "working",
+      "start": "19:00",
+      "end": "23:00",
+      "publicNote": "出勤中"
+    },
+    {
+      "date": "2026-06-15",
+      "staffId": "staff_002",
+      "status": "soon",
+      "start": "20:30",
+      "end": "01:00",
+      "publicNote": "20:30から"
+    },
+    {
+      "date": "2026-06-15",
+      "staffId": "staff_003",
+      "status": "scheduled",
+      "start": "21:00",
+      "end": "05:00",
+      "publicNote": "深夜まで"
+    },
+    {
+      "date": "2026-06-15",
+      "staffId": "staff_004",
+      "status": "working",
+      "start": "19:00",
+      "end": "05:00",
+      "publicNote": "出勤中"
+    },
+    {
+      "date": "2026-06-15",
+      "staffId": "staff_005",
+      "status": "scheduled",
+      "start": "20:00",
+      "end": "02:00",
+      "publicNote": "20時から"
+    },
+    {
+      "date": "2026-06-15",
+      "staffId": "staff_006",
+      "status": "working",
+      "start": "19:00",
+      "end": "23:30",
+      "publicNote": "早めの時間"
+    },
+    {
+      "date": "2026-06-15",
+      "staffId": "staff_007",
+      "status": "off",
+      "start": "",
+      "end": "",
+      "publicNote": "休み"
+    },
+    {
+      "date": "2026-06-16",
+      "staffId": "staff_001",
+      "status": "scheduled",
+      "start": "19:00",
+      "end": "02:00",
+      "publicNote": "19時から"
+    },
+    {
+      "date": "2026-06-16",
+      "staffId": "staff_002",
+      "status": "working",
+      "start": "19:30",
+      "end": "05:00",
+      "publicNote": "出勤中"
+    },
+    {
+      "date": "2026-06-16",
+      "staffId": "staff_003",
+      "status": "off",
+      "start": "",
+      "end": "",
+      "publicNote": "休み"
+    },
+    {
+      "date": "2026-06-16",
+      "staffId": "staff_004",
       "status": "scheduled",
       "start": "21:00",
       "end": "05:00",
       "publicNote": "21時から"
     },
     {
-      "date": "2026-06-04",
+      "date": "2026-06-16",
+      "staffId": "staff_005",
+      "status": "soon",
+      "start": "20:00",
+      "end": "01:00",
+      "publicNote": "20時から"
+    },
+    {
+      "date": "2026-06-16",
+      "staffId": "staff_006",
+      "status": "scheduled",
+      "start": "19:00",
+      "end": "23:00",
+      "publicNote": "カウンター中心"
+    },
+    {
+      "date": "2026-06-16",
+      "staffId": "staff_007",
+      "status": "working",
+      "start": "20:00",
+      "end": "03:00",
+      "publicNote": "出勤中"
+    },
+    {
+      "date": "2026-06-17",
+      "staffId": "staff_001",
+      "status": "off",
+      "start": "",
+      "end": "",
+      "publicNote": "休み"
+    },
+    {
+      "date": "2026-06-17",
+      "staffId": "staff_002",
+      "status": "scheduled",
+      "start": "20:00",
+      "end": "01:00",
+      "publicNote": "20時から"
+    },
+    {
+      "date": "2026-06-17",
+      "staffId": "staff_003",
+      "status": "working",
+      "start": "19:00",
+      "end": "05:00",
+      "publicNote": "出勤中"
+    },
+    {
+      "date": "2026-06-17",
       "staffId": "staff_004",
+      "status": "working",
+      "start": "19:00",
+      "end": "23:00",
+      "publicNote": "早めの時間"
+    },
+    {
+      "date": "2026-06-17",
+      "staffId": "staff_005",
+      "status": "scheduled",
+      "start": "21:00",
+      "end": "05:00",
+      "publicNote": "深夜まで"
+    },
+    {
+      "date": "2026-06-17",
+      "staffId": "staff_006",
+      "status": "soon",
+      "start": "20:30",
+      "end": "02:00",
+      "publicNote": "20:30から"
+    },
+    {
+      "date": "2026-06-17",
+      "staffId": "staff_007",
       "status": "scheduled",
       "start": "19:00",
       "end": "01:00",
-      "publicNote": "19時から"
+      "publicNote": "月ムード"
     },
     {
-      "date": "2026-06-04",
+      "date": "2026-06-18",
+      "staffId": "staff_001",
+      "status": "working",
+      "start": "19:00",
+      "end": "23:00",
+      "publicNote": "出勤中"
+    },
+    {
+      "date": "2026-06-18",
+      "staffId": "staff_002",
+      "status": "soon",
+      "start": "20:30",
+      "end": "01:00",
+      "publicNote": "20:30から"
+    },
+    {
+      "date": "2026-06-18",
+      "staffId": "staff_003",
+      "status": "scheduled",
+      "start": "21:00",
+      "end": "05:00",
+      "publicNote": "深夜まで"
+    },
+    {
+      "date": "2026-06-18",
+      "staffId": "staff_004",
+      "status": "working",
+      "start": "19:00",
+      "end": "05:00",
+      "publicNote": "出勤中"
+    },
+    {
+      "date": "2026-06-18",
       "staffId": "staff_005",
+      "status": "scheduled",
+      "start": "20:00",
+      "end": "02:00",
+      "publicNote": "20時から"
+    },
+    {
+      "date": "2026-06-18",
+      "staffId": "staff_006",
+      "status": "working",
+      "start": "19:00",
+      "end": "23:30",
+      "publicNote": "早めの時間"
+    },
+    {
+      "date": "2026-06-18",
+      "staffId": "staff_007",
       "status": "off",
       "start": "",
       "end": "",
@@ -639,27 +677,5 @@
     }
   ],
   "sales": [],
-  "lastPaidAt": "",
-  "productCategories": [
-    {
-      "key": "cast",
-      "label": "キャスト",
-      "en": "CAST"
-    },
-    {
-      "key": "drink",
-      "label": "ドリンク",
-      "en": "DRINK"
-    },
-    {
-      "key": "bottle",
-      "label": "シャンパン・ボトル",
-      "en": "BOTTLE"
-    },
-    {
-      "key": "nonalc",
-      "label": "ノンアル",
-      "en": "NON-ALCOHOL"
-    }
-  ]
+  "lastPaidAt": ""
 }

@@ -24,9 +24,44 @@ let talentTimer = 0;
 let revealObserver = null;
 let activeScrollMood = "";
 let scrollMoodTimer = 0;
+let heroGroups = [];
+let heroGroupIndex = 0;
+let heroTimer = 0;
+let heroLayoutMode = "";
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+const CAST_PORTRAITS = [
+  "assets/cast/cast-01.webp",
+  "assets/cast/cast-02.webp",
+  "assets/cast/cast-03.webp",
+  "assets/cast/cast-04.webp",
+  "assets/cast/cast-05.webp",
+  "assets/cast/cast-06.webp",
+  "assets/cast/cast-07.webp"
+];
+
+const HERO_CAST_NAMES = ["なの", "お嬢", "みやび", "れい", "あこやえん", "めあ", "めしあ"];
+
+function castPortrait(index) {
+  return CAST_PORTRAITS[index % CAST_PORTRAITS.length];
+}
+
+const CAST_FIT = {
+  "cast-01.webp": { mobileScale: .94, desktopScale: 1.02 },
+  "cast-02.webp": { mobileScale: .9, desktopScale: 1 },
+  "cast-03.webp": { mobileScale: .92, desktopScale: 1.02 },
+  "cast-04.webp": { mobileScale: .92, desktopScale: 1.02 },
+  "cast-05.webp": { mobileScale: .94, desktopScale: 1.03 },
+  "cast-06.webp": { mobileScale: .9, desktopScale: 1 },
+  "cast-07.webp": { mobileScale: .95, desktopScale: 1.03 }
+};
+
+function heroCastFit(src) {
+  const filename = String(src).split("/").pop();
+  return CAST_FIT[filename] || { mobileScale: .94, desktopScale: 1 };
+}
 
 const sectionLabels = {
   top: "TOP",
@@ -55,6 +90,7 @@ async function loadData() {
   activeScheduleDate = getTodayDate();
   render();
   startTalentAuto();
+  restoreHashTarget();
 }
 
 async function loadSeedData() {
@@ -87,20 +123,14 @@ function asset(path, fallback = "") {
   return `${ASSET_ROOT}${path}`;
 }
 
-function esc(s) {
-  return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-}
-
-// Resolve a cast portrait. New data uses site-relative "assets/cast/..."
-// (served from this folder). Older data may use "assets/transparent/*.png".
+// Prefer optimized .webp for the transparent hero portraits.
+// Source data points at .png (e.g. "assets/transparent/real_01.png?v=...");
+// the build pipeline produces a matching .webp next to it.
 function heroPhoto(person) {
   const raw = person.heroRealPhoto || person.photo || person.heroPhoto || "";
-  if (!raw) return "";
-  if (/^https?:\/\//.test(raw)) return raw;
-  if (raw.startsWith("assets/cast/")) return raw;            // site-relative, already correct
+  if (raw.startsWith("assets/cast/") || raw.startsWith("assets/portraits/")) return raw;
   const webp = raw.replace(/\.png(\?|$)/i, ".webp$1");
-  if (webp.startsWith("assets/")) return webp;               // other site-relative assets
-  return asset(webp);                                        // legacy ../01_existing_site/ assets
+  return asset(webp);
 }
 
 function siteAsset(path, fallback = "") {
@@ -109,23 +139,11 @@ function siteAsset(path, fallback = "") {
   return `assets/${path}`;
 }
 
-function versionedAsset(src, version) {
-  if (!src) return src;
-  return src.includes("?") ? `${src}&v=${version}` : `${src}?v=${version}`;
-}
-
-function staffFaceIcon(staff) {
-  return versionedAsset(heroPhoto(staff), "face-20260609");
-}
-
-// vspo-style hero portraits: new full-body cast art in assets/cast/cast-0N.webp
-const CAST_PORTRAITS = [
-  "assets/cast/cast-01.webp","assets/cast/cast-02.webp","assets/cast/cast-03.webp",
-  "assets/cast/cast-04.webp","assets/cast/cast-05.webp","assets/cast/cast-06.webp",
-  "assets/cast/cast-07.webp"
-];
-function castPortrait(index) {
-  return CAST_PORTRAITS[index % CAST_PORTRAITS.length];
+function staffPortraitIcon(staff) {
+  const raw = staff.portraitIcon || "";
+  if (/^https?:\/\//.test(raw) || raw.startsWith("assets/")) return raw;
+  if (raw) return siteAsset(raw);
+  return heroPhoto(staff);
 }
 
 function dateKey(date) {
@@ -206,6 +224,18 @@ function compactText(text, maxLength = 58) {
   return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
 }
 
+function restoreHashTarget() {
+  if (!location.hash) return;
+  let target = null;
+  try {
+    target = document.querySelector(location.hash);
+  } catch {
+    return;
+  }
+  if (!target) return;
+  window.setTimeout(() => target.scrollIntoView({ block: "start" }), 120);
+}
+
 function renderHero() {
   const hours = siteData.shop.hours || "19:00-05:00";
   $("#hero-hours").textContent = hours;
@@ -221,89 +251,137 @@ function renderHero() {
   buildHeroCast();
 }
 
-/* ===== hero cast: 3 near-equal figures in front of the logo, rotated as groups ===== */
-let heroGroups = [];
-let heroGroupIndex = 0;
-let heroTimer = null;
-const HERO_PER_GROUP = 3;
+function heroMode() {
+  return window.matchMedia("(max-width:720px)").matches ? "mobile" : "desktop";
+}
+
+function shuffleItems(items) {
+  const shuffled = items.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 function buildHeroCast() {
   const stage = $("#hero-cast");
   if (!stage) return;
-  const cast = visibleStaff();
-  const people = cast.length
-    ? cast.map((p, i) => ({ name: p.displayName || "", roman: p.romanName || "", src: castPortrait(i) }))
-    : CAST_PORTRAITS.map((src) => ({ name: "", roman: "", src }));
 
-  // chunk into groups of 3
+  const people = CAST_PORTRAITS.map((src, index) => ({
+    name: HERO_CAST_NAMES[index] || "",
+    roman: "",
+    src,
+    fit: heroCastFit(src)
+  }));
+  const mode = heroMode();
+  const target = mode === "mobile" ? 2 : 3;
+  const shuffled = shuffleItems(people);
+
+  heroLayoutMode = mode;
   heroGroups = [];
-  for (let i = 0; i < people.length; i += HERO_PER_GROUP) heroGroups.push(people.slice(i, i + HERO_PER_GROUP));
+
+  if (people.length <= target) {
+    heroGroups = [shuffled];
+  } else {
+    for (let i = 0; i < shuffled.length; i += target) {
+      const group = shuffled.slice(i, i + target);
+      if (group.length < target) {
+        const used = new Set(group.map((person) => person.src));
+        const pool = shuffleItems(people.filter((person) => !used.has(person.src)));
+        while (group.length < target && pool.length) group.push(pool.shift());
+      }
+      heroGroups.push(group);
+    }
+  }
+
   if (!heroGroups.length) heroGroups = [[]];
 
-  // each group is a layer; figures positioned in near-equal slots
-  stage.innerHTML = heroGroups.map((group, gi) => {
-    const n = group.length;
-    const figs = group.map((person, idx) => {
-      // even horizontal distribution; center slot sits marginally forward (depth, not size)
-      const slotPct = n === 1 ? 50 : 50 + (idx - (n - 1) / 2) * (74 / Math.max(1, n));
-      const mid = (n - 1) / 2;
-      const depth = idx === Math.round(mid) ? "is-front" : "is-back";
+  stage.innerHTML = heroGroups.map((group, groupIndex) => {
+    const count = group.length;
+    const slots = mode === "mobile"
+      ? { 1: [50], 2: [30, 70], 3: [24, 50, 76] }
+      : { 1: [50], 2: [36, 64], 3: [29, 50, 71], 4: [20, 40, 60, 80] };
+    const figures = group.map((person, index) => {
+      const slot = (slots[count] && slots[count][index]) || 50;
+      const middle = (count - 1) / 2;
+      const depth = Math.abs(index - middle) < 1 ? "is-front" : "is-back";
+      const scale = mode === "mobile" ? person.fit.mobileScale : person.fit.desktopScale;
       return `
-        <span class="fv-cast-girl ${depth}" style="--x:${slotPct.toFixed(2)}%; --i:${idx}">
-          <img class="fv-cast-img" src="${person.src}" alt="${esc(person.name)}"
-               loading="${gi === 0 ? "eager" : "lazy"}" decoding="async" ${gi === 0 ? 'fetchpriority="high"' : ""} />
+        <span class="fv-cast-girl ${depth}" style="--x:${slot.toFixed(2)}%; --cast-scale:${scale}; --i:${index}">
+          <img
+            class="fv-cast-img"
+            src="${person.src}"
+            alt=""
+            loading="${groupIndex === 0 ? "eager" : "lazy"}"
+            decoding="async"
+            ${groupIndex === 0 ? 'fetchpriority="high"' : ""}
+          />
         </span>`;
     }).join("");
-    return `<div class="fv-cast-group ${gi === 0 ? "is-active" : ""}" data-group="${gi}">${figs}</div>`;
+    return `<div class="fv-cast-group ${groupIndex === 0 ? "is-active" : ""}" data-group="${groupIndex}" data-n="${count}">${figures}</div>`;
   }).join("");
 
-  // name labels + dots live in a sibling overlay
-  renderHeroMeta();
-
   heroGroupIndex = 0;
+  renderHeroMeta();
   startHeroRotate();
 }
 
 function renderHeroMeta() {
   const dots = $("#hero-dots");
   if (dots) {
-    dots.innerHTML = heroGroups.map((_, gi) =>
-      `<button class="hero-dot ${gi === 0 ? "is-active" : ""}" data-go="${gi}" aria-label="cast group ${gi + 1}"></button>`
+    dots.innerHTML = heroGroups.map((_, groupIndex) =>
+      `<button class="hero-dot ${groupIndex === 0 ? "is-active" : ""}" data-go="${groupIndex}" aria-label="cast group ${groupIndex + 1}"></button>`
     ).join("");
-    dots.querySelectorAll(".hero-dot").forEach(b =>
-      b.addEventListener("click", () => goHeroGroup(Number(b.dataset.go), true))
-    );
+    dots.querySelectorAll(".hero-dot").forEach((button) => {
+      button.addEventListener("click", () => goHeroGroup(Number(button.dataset.go), true));
+    });
   }
   updateHeroNames();
 }
 
 function updateHeroNames() {
   const label = $("#hero-names");
-  if (!label) return;
-  const group = heroGroups[heroGroupIndex] || [];
-  label.innerHTML = group.filter(p => p.name).map(p =>
-    `<span class="hero-name-chip"><b>${esc(p.name)}</b><i>${esc(p.roman)}</i></span>`
-  ).join("");
+  if (label) label.innerHTML = "";
 }
 
-function goHeroGroup(idx, manual) {
+function goHeroGroup(index, manual) {
   if (!heroGroups.length) return;
-  heroGroupIndex = (idx + heroGroups.length) % heroGroups.length;
-  $$("#hero-cast .fv-cast-group").forEach(g => {
-    const on = Number(g.dataset.group) === heroGroupIndex;
-    g.classList.toggle("is-active", on);
-    if (on) g.querySelectorAll(".fv-cast-girl").forEach(f => { f.style.animation = "none"; void f.offsetWidth; f.style.animation = ""; });
+  heroGroupIndex = (index + heroGroups.length) % heroGroups.length;
+
+  $$("#hero-cast .fv-cast-group").forEach((group) => {
+    const active = Number(group.dataset.group) === heroGroupIndex;
+    group.classList.toggle("is-active", active);
+    if (active) {
+      group.style.transform = "";
+      group.querySelectorAll(".fv-cast-girl").forEach((figure) => {
+        figure.style.animation = "none";
+        void figure.offsetWidth;
+        figure.style.animation = "";
+      });
+    }
   });
-  $$("#hero-dots .hero-dot").forEach(d => d.classList.toggle("is-active", Number(d.dataset.go) === heroGroupIndex));
+
+  $$("#hero-dots .hero-dot").forEach((dot) => {
+    dot.classList.toggle("is-active", Number(dot.dataset.go) === heroGroupIndex);
+  });
+
+  const fx = $("#hero-switch-fx");
+  if (fx) {
+    fx.classList.remove("is-playing");
+    void fx.offsetWidth;
+    fx.classList.add("is-playing");
+  }
+
   updateHeroNames();
   if (manual) startHeroRotate();
 }
 
 function startHeroRotate() {
-  clearInterval(heroTimer);
+  window.clearInterval(heroTimer);
   if (heroGroups.length < 2) return;
-  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  heroTimer = setInterval(() => goHeroGroup(heroGroupIndex + 1, false), 4600);
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  heroTimer = window.setInterval(() => goHeroGroup(heroGroupIndex + 1, false), 4600);
 }
 
 function statusBadge(status) {
@@ -330,8 +408,8 @@ function renderNow() {
 
   $("#now-grid").innerHTML = shifts.map((shift) => `
     <article class="now-card now-icon-card reveal">
-      <div class="now-face">
-        <img src="${staffFaceIcon(shift.staff)}" alt="${shift.staff.displayName}" loading="lazy" decoding="async" />
+      <div class="now-chibi">
+        <img src="${staffPortraitIcon(shift.staff)}" alt="${shift.staff.displayName}" loading="lazy" decoding="async" />
       </div>
       <div class="now-meta">
         ${statusBadge(shift.status)}
@@ -403,7 +481,7 @@ function renderTalentShowcase() {
       aria-label="${candidate.displayName || candidate.romanName || "cast"}"
       aria-selected="${index === activeTalentIndex}"
     >
-      <img src="${staffFaceIcon(candidate)}" alt="" loading="lazy" decoding="async" />
+      <img src="${staffPortraitIcon(candidate)}" alt="" loading="lazy" decoding="async" />
       <span>${candidate.romanName || candidate.displayName || ""}</span>
     </button>
   `).join("");
@@ -451,36 +529,6 @@ function renderEvents() {
   `).join("");
 }
 
-function renderMenu() {
-  const wrap = $("#menu-cats");
-  if (!wrap) return;
-  const cats = siteData.productCategories || [];
-  const products = (siteData.products || []).filter(p => p.active && p.menuVisible !== false);
-
-  // fall back: if no category metadata, group by raw category string
-  const groups = cats.length ? cats : [...new Set(products.map(p => p.category))].map(k => ({ key: k, label: k, en: "" }));
-
-  wrap.innerHTML = groups.map((cat, gi) => {
-    const items = products.filter(p => p.category === cat.key);
-    if (!items.length) return "";
-    return `
-      <div class="menu-cat reveal" style="--d:${gi * 0.06}s">
-        <div class="menu-cat-head">
-          <span class="menu-cat-en">${esc(cat.en || "")}</span>
-          <h3>${esc(cat.label)}</h3>
-        </div>
-        <ul class="menu-items">
-          ${items.map(p => `
-            <li class="menu-item">
-              <span class="mi-name">${esc(p.name)}</span>
-              <span class="mi-dot" aria-hidden="true"></span>
-              <span class="mi-price">¥${Number(p.salePrice).toLocaleString("ja-JP")}</span>
-            </li>`).join("")}
-        </ul>
-      </div>`;
-  }).join("");
-}
-
 function renderAccess() {
   $("#access-hours").textContent = siteData.shop.hours || "";
   $("#access-address").textContent = siteData.shop.address || "";
@@ -494,7 +542,6 @@ function render() {
   renderScheduleTabs();
   renderScheduleList();
   renderTalentShowcase();
-  renderMenu();
   renderEvents();
   renderAccess();
   observeRevealTargets();
@@ -569,12 +616,12 @@ function bindSectionTransitions() {
     window.setTimeout(() => {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
       if (target.id) history.pushState(null, "", `#${target.id}`);
-    }, 180);
+    }, 310);
 
     transitionTimer = window.setTimeout(() => {
       transition.classList.remove("is-active");
       document.documentElement.classList.remove("is-section-transitioning");
-    }, 500);
+    }, 1120);
   });
 }
 
@@ -589,8 +636,12 @@ function applyScrollMood(sectionId, shouldFlash = true) {
   document.body.style.setProperty("--mood-rotate", mood[3]);
 
   if (!shouldFlash || reduceMotion || !flash) return;
-  // on-scroll flash disabled (too loud); color mood still applies above.
-  return;
+  window.clearTimeout(scrollMoodTimer);
+  flash.dataset.label = sectionLabels[sectionId] || "NAUGHTY";
+  flash.classList.remove("is-active");
+  flash.getBoundingClientRect();
+  flash.classList.add("is-active");
+  scrollMoodTimer = window.setTimeout(() => flash.classList.remove("is-active"), 760);
 }
 
 function bindScrollMood() {
@@ -663,6 +714,10 @@ function bindHeroMotion() {
   const stage = $("#hero-stage");
   if (!stage) return;
   if (!window.matchMedia("(pointer: fine)").matches) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  const lines = stage.querySelector(".hero-lines");
+  const bgtext = stage.querySelector(".hero-bgtext");
 
   let targetX = 0;
   let targetY = 0;
@@ -672,16 +727,34 @@ function bindHeroMotion() {
 
   function updateFromPoint(x, y) {
     const rect = stage.getBoundingClientRect();
-    targetX = (((x - rect.left) / rect.width - .5) * 2) * .55;
-    targetY = (((y - rect.top) / rect.height - .5) * 2) * .45;
+    targetX = ((x - rect.left) / rect.width - .5) * 2;
+    targetY = ((y - rect.top) / rect.height - .5) * 2;
     startTick();
   }
 
   function tick() {
-    currentX += (targetX - currentX) * .09;
-    currentY += (targetY - currentY) * .09;
+    currentX += (targetX - currentX) * .08;
+    currentY += (targetY - currentY) * .08;
     stage.style.setProperty("--mx", currentX.toFixed(3));
     stage.style.setProperty("--my", currentY.toFixed(3));
+
+    if (bgtext) {
+      bgtext.style.transform =
+        `perspective(1100px) translate3d(${(-currentX * 34).toFixed(1)}px, ${(-currentY * 22).toFixed(1)}px, -120px) ` +
+        `rotateX(${(currentY * 4).toFixed(2)}deg) rotateY(${(-currentX * 6).toFixed(2)}deg) scale(1.06)`;
+    }
+
+    if (lines) {
+      lines.style.transform =
+        `perspective(1100px) translate3d(${(currentX * 12).toFixed(1)}px, ${(currentY * 8).toFixed(1)}px, -40px) ` +
+        `rotateY(${(currentX * 2).toFixed(2)}deg)`;
+    }
+
+    const activeGroup = stage.querySelector(".fv-cast-group.is-active");
+    if (activeGroup) {
+      activeGroup.style.transform = `translate(${(currentX * 10).toFixed(1)}px, ${(currentY * 6).toFixed(1)}px)`;
+    }
+
     if (Math.abs(targetX - currentX) > .002 || Math.abs(targetY - currentY) > .002) {
       frameId = requestAnimationFrame(tick);
     } else {
@@ -694,6 +767,18 @@ function bindHeroMotion() {
   }
 
   window.addEventListener("pointermove", (event) => updateFromPoint(event.clientX, event.clientY), { passive: true });
+}
+
+function bindHeroResize() {
+  let resizeTimer = 0;
+  window.addEventListener("resize", () => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => {
+      if (!siteData) return;
+      const nextMode = heroMode();
+      if (nextMode !== heroLayoutMode) buildHeroCast();
+    }, 120);
+  }, { passive: true });
 }
 
 function observeRevealTargets() {
@@ -727,4 +812,5 @@ bindTabs();
 bindScrollMood();
 bindTalentSwipe();
 bindHeroMotion();
+bindHeroResize();
 loadData();
