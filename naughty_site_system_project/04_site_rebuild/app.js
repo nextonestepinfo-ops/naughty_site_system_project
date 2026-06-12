@@ -1,447 +1,416 @@
-const STORAGE_KEY = "naughty.siteData.v1";
-const DATA_URL = "../03_system_seed/naughty_site_data.json";
-const ASSET_ROOT = "../01_existing_site/";
+/* NAUGHTY V3 CMS adapter.
+ * Reads the existing local CMS shape and exposes the handoff design's
+ * window.NTY contract without changing the admin system data model.
+ */
+(function () {
+  const STORAGE_KEY = "naughty.siteData.v1";
 
-const statusLabel = {
-  working: "出勤中",
-  scheduled: "出勤予定",
-  off: "休み",
-  hidden: "非表示"
-};
+  const DEFAULT_CAST = [
+    ["nano", "NANO", "なの", "静かに効く、いたずら担当。", "さりげなく隣に座るのに、気づけば目が離せない。", ["sweet", "counter"]],
+    ["ojo", "OJO", "お嬢", "気高く、あまく。", "上品さと小悪魔さの両方。今夜はどうする？", ["elegant", "vip"]],
+    ["miyabi", "MIYABI", "みやび", "夜のいちばん奥で待ってます。", "しっとりと雰囲気をつくる、長居したくなる存在。", ["mellow", "talk"]],
+    ["rei", "REI", "れい", "クールで話しやすい雰囲気。", "クールでも話しやすい、カウンター映えする存在感。", ["cool", "bar"]],
+    ["akoyaen", "AKOYAEN", "あこやえん", "笑わせる自信、あります。", "明るくてトーク上手。初めてでもすぐ打ち解けられる。", ["bright", "funny"]],
+    ["mea", "MEA", "めあ", "甘えん坊、ときどき小悪魔。", "距離の詰め方が上手。気づけばペースに巻き込まれてる。", ["cute", "sweet"]],
+    ["meshia", "MESHIA", "めしあ", "ふたりだけの秘密、つくりましょ。", "ミステリアスで目が離せない、今夜の主役。", ["mystery", "show"]]
+  ];
 
-const heroFallbackPhotos = [
-  "uploads/girl1_black_hair.png",
-  "uploads/girl2_silver_hair.png",
-  "uploads/girl3_dark_center.png",
-  "uploads/girl4_blonde.png",
-  "uploads/girl5_pink_hair.png"
-];
+  const DOW = ["日", "月", "火", "水", "木", "金", "土"];
+  const DOW_EN = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const STATUS_TO_TODAY = {
+    working: "now",
+    soon: "soon",
+    scheduled: "today",
+    today: "today"
+  };
+  const STATUS_LABEL = {
+    now: "出勤中",
+    soon: "まもなく",
+    today: "本日出勤",
+    off: "休み"
+  };
 
-let siteData = null;
-let heroOrder = [0, 1, 2, 3, 4];
-
-const heroLayout = [
-  { slot: 0, scale: 1.03, mobileScale: 1, z: 2, depth: "-36px", x: "-12px", y: "8px" },
-  { slot: 1, scale: 1, mobileScale: 1, z: 3, depth: "-18px", x: "-5px", y: "4px" },
-  { slot: 2, scale: .8, mobileScale: .82, z: 5, depth: "28px", x: "0px", y: "0px" },
-  { slot: 3, scale: 1.04, mobileScale: 1.06, z: 4, depth: "10px", x: "7px", y: "6px" },
-  { slot: 4, scale: .88, mobileScale: .88, z: 3, depth: "-24px", x: "12px", y: "10px" }
-];
-
-async function loadData() {
-  const fallback = await loadSeedData();
-  const saved = localStorage.getItem(STORAGE_KEY);
-  siteData = mergeSavedData(fallback, saved);
-  render();
-}
-
-async function loadSeedData() {
-  try {
-    const response = await fetch(DATA_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error(`Data load failed: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    if (window.NAUGHTY_SITE_DATA) {
-      return JSON.parse(JSON.stringify(window.NAUGHTY_SITE_DATA));
-    }
-    throw error;
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value || {}));
   }
-}
 
-function mergeSavedData(fallback, savedText) {
-  if (!savedText) return fallback;
-  const saved = JSON.parse(savedText);
-  const merged = { ...fallback, ...saved };
-  if (saved.assetVersion !== fallback.assetVersion) {
-    const savedStaff = new Map((saved.staff || []).map((staff) => [staff.id, staff]));
-    merged.shop = {
-      ...fallback.shop,
-      ...(saved.shop || {}),
-      displayName: fallback.shop.displayName,
-      concept: fallback.shop.concept
+  function readData() {
+    const fallback = clone(window.NAUGHTY_SITE_DATA || {});
+    let saved = null;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      saved = raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      saved = null;
+    }
+
+    if (!saved || typeof saved !== "object") return normalizeRaw(fallback);
+
+    return normalizeRaw({
+      ...fallback,
+      ...saved,
+      shop: { ...(fallback.shop || {}), ...(saved.shop || {}) },
+      staff: Array.isArray(saved.staff) ? saved.staff : fallback.staff,
+      shifts: Array.isArray(saved.shifts) ? saved.shifts : fallback.shifts,
+      events: Array.isArray(saved.events) ? saved.events : fallback.events,
+      products: Array.isArray(saved.products) ? saved.products : fallback.products,
+      materials: Array.isArray(saved.materials) ? saved.materials : fallback.materials
+    });
+  }
+
+  function normalizeRaw(data) {
+    return {
+      ...data,
+      shop: data.shop || {},
+      staff: Array.isArray(data.staff) ? data.staff : [],
+      shifts: Array.isArray(data.shifts) ? data.shifts : [],
+      events: Array.isArray(data.events) ? data.events : [],
+      products: Array.isArray(data.products) ? data.products : [],
+      materials: Array.isArray(data.materials) ? data.materials : []
     };
-    merged.staff = fallback.staff.map((seedStaff) => ({
-      ...seedStaff,
-      ...(savedStaff.get(seedStaff.id) || {}),
-      photo: seedStaff.photo,
-      heroPhoto: seedStaff.heroPhoto
+  }
+
+  function asset(path, fallback = "") {
+    const value = String(path || "").trim();
+    if (!value) return fallback;
+    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    if (value.startsWith("../")) return value;
+    if (value.startsWith("/")) return value;
+    if (value.startsWith("uploads/")) return `../01_existing_site/${value}`;
+    if (value.startsWith("assets/transparent/")) return `../01_existing_site/${value}`;
+    return value;
+  }
+
+  function dateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function parseDate(key) {
+    const parsed = new Date(`${key}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  function addDays(base, amount) {
+    const next = new Date(base);
+    next.setDate(base.getDate() + amount);
+    return next;
+  }
+
+  function displayHours(hours) {
+    const text = String(hours || "19:00-05:00").trim();
+    return text.replace(/\s*[—-]\s*/g, " — ");
+  }
+
+  function compactHours(hours) {
+    return displayHours(hours).replace(/\s*—\s*/g, "-");
+  }
+
+  function instagramHandle(raw) {
+    const handle = String(raw || "naughty_hiroshima").trim().replace(/^@/, "");
+    return handle || "naughty_hiroshima";
+  }
+
+  function instagramUrl(raw) {
+    const handle = instagramHandle(raw);
+    return `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+  }
+
+  function mapUrl(address) {
+    return `https://maps.google.com/?q=${encodeURIComponent(address || "広島市中区流川町")}`;
+  }
+
+  function visibleStaff(data) {
+    const staff = data.staff.filter((item) => item.publicVisible !== false);
+    if (staff.length) return staff;
+    return DEFAULT_CAST.map((item, index) => ({
+      id: item[0],
+      romanName: item[1],
+      displayName: item[2],
+      shortComment: item[3],
+      profileText: item[4],
+      tags: item[5],
+      publicVisible: true,
+      photo: `assets/cast/cast-0${index + 1}.webp`,
+      heroPhoto: `assets/cast/cast-0${index + 1}.webp`
     }));
-    merged.materials = fallback.materials;
-    merged.assetVersion = fallback.assetVersion;
   }
-  return merged;
-}
 
-function asset(path, fallback = "") {
-  if (!path) return fallback;
-  if (/^https?:\/\//.test(path)) return path;
-  return `${ASSET_ROOT}${path}`;
-}
+  function timeText(shift) {
+    if (!shift || shift.status === "off") return "未定";
+    if (!shift.start || !shift.end) return "未定";
+    return `${shift.start} — ${shift.end}`;
+  }
 
-function yen(value) {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: "JPY",
-    maximumFractionDigits: 0
-  }).format(Number(value || 0));
-}
+  function normalizeTodayStatus(shift) {
+    if (!shift || shift.status === "off") return "off";
+    return STATUS_TO_TODAY[shift.status] || "today";
+  }
 
-function dateLabel(dateText) {
-  const date = new Date(`${dateText}T00:00:00`);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-}
+  function buildShop(data) {
+    const shop = data.shop;
+    const handle = instagramHandle(shop.instagram);
+    const address = shop.address || "広島県広島市中区 流川町エリア";
+    const open = displayHours(shop.hours);
+    return {
+      name: shop.displayName || shop.name || "NAUGHTY",
+      reading: "ノーティ",
+      tagline: "little-devil concept cafe",
+      area: "HIROSHIMA / NAGAREKAWA",
+      areaJp: shop.areaJp || "広島・流川",
+      open,
+      openShort: compactHours(shop.hours),
+      address,
+      addressNote: shop.accessNote || "詳しい場所は Instagram / DM でご案内します",
+      instagram: `@${handle}`,
+      instagramUrl: instagramUrl(handle),
+      mail: shop.mail || "",
+      mapUrl: mapUrl(address),
+      pay: shop.payment || "現金 / 各種クレジット / 電子マネー",
+      holiday: shop.holiday || "不定休",
+      concept: shop.concept || "黒にピンクが一滴。広島・流川の小さなコンセプトカフェ「NAUGHTY」。"
+    };
+  }
 
-function dateKey(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+  function buildCast(data, staffList, days) {
+    return staffList.map((staff, index) => {
+      const fallback = DEFAULT_CAST[index % DEFAULT_CAST.length];
+      const img = asset(staff.heroPhoto || staff.photo, `assets/cast/cast-0${(index % 7) + 1}.webp`);
+      const today = days[0]?.entries.find((entry) => entry.castId === staff.id);
+      const next = nextShift(days, staff.id);
+      const todayStatus = today ? today.status : "off";
+      const badge = today
+        ? {
+            kind: "today",
+            label: STATUS_LABEL[todayStatus] || "本日出勤",
+            detail: `${days[0].month}/${days[0].d} ${days[0].dowEn} ${today.time.replace(" — ", "-")}`
+          }
+        : {
+            kind: "next",
+            label: "次回出勤",
+            detail: next || "調整中"
+          };
 
-function getShift(date, staffId) {
-  return siteData.shifts.find((shift) => shift.date === date && shift.staffId === staffId);
-}
-
-function getShiftDates() {
-  const sorted = [...new Set(siteData.shifts.map((shift) => shift.date))].sort();
-  const start = sorted[0] || dateKey(new Date());
-  const startDate = new Date(`${start}T00:00:00`);
-  return Array.from({ length: 14 }, (_, index) => {
-    const next = new Date(startDate);
-    next.setDate(startDate.getDate() + index);
-    return dateKey(next);
-  });
-}
-
-function visibleStaff() {
-  return siteData.staff.filter((staff) => staff.publicVisible);
-}
-
-function renderHero() {
-  document.getElementById("shop-name").textContent = siteData.shop.displayName;
-  document.getElementById("shop-hours").textContent = `OPEN ${siteData.shop.hours}`;
-  document.getElementById("shop-concept").textContent = siteData.shop.concept;
-
-  const heroCast = document.getElementById("hero-cast");
-  const people = visibleStaff().slice(0, 5);
-  while (people.length < 5) {
-    people.push({
-      id: `fallback_${people.length}`,
-      displayName: "",
-      heroPhoto: heroFallbackPhotos[people.length] || heroFallbackPhotos[0],
-      photo: heroFallbackPhotos[people.length] || heroFallbackPhotos[0]
+      return {
+        id: staff.id || fallback[0],
+        en: String(staff.romanName || fallback[1] || "CAST").toUpperCase(),
+        jp: staff.displayName || fallback[2],
+        img,
+        real: img,
+        card: asset(staff.photo || staff.portraitIcon || staff.heroPhoto, img),
+        catch: staff.shortComment || fallback[3],
+        comment: staff.profileText || staff.shortComment || fallback[4],
+        tags: Array.isArray(staff.tags) && staff.tags.length ? staff.tags.slice(0, 4) : fallback[5],
+        next: next || "調整中",
+        todayState: todayStatus,
+        todayTime: today ? today.time.replace(" — ", "-") : null,
+        badge
+      };
     });
   }
 
-  heroCast.innerHTML = people.map((person, index) => {
-    const layout = heroLayout[index] || heroLayout[0];
-    return `
-    <img
-      class="hero-person"
-      src="${asset(person.heroPhoto || person.photo)}"
-      alt=""
-      loading="eager"
-      decoding="async"
-      fetchpriority="${index === 2 ? "high" : "auto"}"
-      style="--slot:${layout.slot}; --cast-scale:${layout.scale}; --cast-mobile-scale:${layout.mobileScale}; --cast-z:${layout.z}; --cast-depth:${layout.depth}; --cast-shift-x:${layout.x}; --cast-y:${layout.y};"
-    />
-  `;
-  }).join("");
-}
-
-function renderToday() {
-  const todayList = document.getElementById("today-list");
-  const date = getShiftDates()[0];
-  const today = siteData.shifts
-    .filter((shift) => shift.date === date && shift.status !== "off")
-    .map((shift) => ({ ...shift, staff: siteData.staff.find((staff) => staff.id === shift.staffId) }))
-    .filter((shift) => shift.staff && shift.staff.publicVisible);
-
-  if (!today.length) {
-    todayList.innerHTML = `<p>本日の公開出勤は未登録です。</p>`;
-    return;
-  }
-
-  todayList.innerHTML = today.map((shift) => `
-    <article class="today-pill">
-      <img src="${asset(shift.staff.photo)}" alt="${shift.staff.displayName}" loading="lazy" decoding="async" />
-      <div>
-        <strong>${shift.staff.displayName}</strong>
-        <span>${dateLabel(shift.date)} ${shift.start || ""}-${shift.end || ""} / ${statusLabel[shift.status]}</span>
-      </div>
-    </article>
-  `).join("");
-}
-
-function renderCast() {
-  const grid = document.getElementById("cast-grid");
-  grid.innerHTML = visibleStaff().map((staff) => `
-    <article class="cast-card">
-      <div class="cast-photo">
-        <img src="${asset(staff.photo)}" alt="${staff.displayName}" loading="lazy" decoding="async" />
-      </div>
-      <div class="cast-meta">
-        <span class="status-badge ${staff.workStatus}">${statusLabel[staff.workStatus] || staff.workStatus}</span>
-        <h3>${staff.displayName}<small> / ${staff.romanName || ""}</small></h3>
-        <p>${staff.profileText}</p>
-        <div class="cast-tags">
-          ${(staff.tags || []).map((tag) => `<span>${tag}</span>`).join("")}
-        </div>
-      </div>
-    </article>
-  `).join("");
-}
-
-function renderMaterials() {
-  const grid = document.getElementById("material-grid");
-  if (!grid) return;
-  const materials = siteData.materials || [];
-  grid.innerHTML = materials.map((item, index) => `
-    <article class="material-card ${item.kind === "lineup" ? "wide" : ""}">
-      <div class="material-photo ${item.kind}">
-        <img src="${asset(item.image)}" alt="${item.title}" loading="lazy" decoding="async" />
-      </div>
-      <div class="material-meta">
-        <span>${String(index + 1).padStart(2, "0")}</span>
-        <h3>${item.title}</h3>
-        <p>${item.caption}</p>
-      </div>
-    </article>
-  `).join("");
-}
-
-function renderShift() {
-  const table = document.getElementById("shift-table");
-  const dates = getShiftDates();
-  table.style.gridTemplateColumns = `160px repeat(${dates.length}, minmax(92px, 1fr))`;
-
-  const header = [
-    `<div class="shift-cell head">CAST</div>`,
-    ...dates.map((date) => `<div class="shift-cell head"><b>${dateLabel(date)}</b><span>${date.slice(0, 4)}</span></div>`)
-  ].join("");
-
-  const rows = visibleStaff().map((staff) => {
-    const cells = dates.map((date) => {
-      const shift = getShift(date, staff.id);
-      if (!shift || shift.status === "off") {
-        return `<div class="shift-cell off">休み</div>`;
-      }
-      return `
-        <div class="shift-cell on">
-          <b>${statusLabel[shift.status]}</b>
-          <span>${shift.start}-${shift.end}</span>
-          <small>${shift.publicNote || ""}</small>
-        </div>
-      `;
-    }).join("");
-    return `<div class="shift-cell cast-head"><b>${staff.displayName}</b><span>${staff.romanName || ""}</span></div>${cells}`;
-  }).join("");
-
-  table.innerHTML = header + rows;
-}
-
-function renderMenu() {
-  const menu = document.getElementById("menu-grid");
-  menu.innerHTML = siteData.products.filter((product) => product.active).map((product) => `
-    <article class="menu-item">
-      <h3>${product.name}</h3>
-      <p>${product.category}</p>
-      <strong>${yen(product.salePrice)}</strong>
-      <div class="menu-tags">
-        ${product.eventOnly ? "<span>EVENT ONLY</span>" : "<span>REGULAR</span>"}
-      </div>
-    </article>
-  `).join("");
-}
-
-function renderEvents() {
-  const events = document.getElementById("event-list");
-  const visible = siteData.events.filter((event) => event.publicVisible);
-  events.innerHTML = visible.map((event) => `
-    <article class="event-item">
-      <p class="section-kicker">${event.date}</p>
-      <h3>${event.title}</h3>
-      <p>${event.summary}</p>
-    </article>
-  `).join("");
-}
-
-function renderAccess() {
-  document.getElementById("access-hours").textContent = siteData.shop.hours;
-  document.getElementById("access-address").textContent = siteData.shop.address;
-  document.getElementById("access-instagram").textContent = `@${siteData.shop.instagram}`;
-}
-
-function render() {
-  renderHero();
-  renderToday();
-  renderCast();
-  renderMaterials();
-  renderShift();
-  renderMenu();
-  renderEvents();
-  renderAccess();
-  observeRevealTargets();
-}
-
-function shuffleHero() {
-  heroOrder = heroOrder
-    .map((slot) => ({ slot, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map((item) => item.slot);
-
-  const heroCast = document.getElementById("hero-cast");
-  heroCast.classList.add("is-glitching");
-  setTimeout(() => {
-    renderHero();
-  }, 360);
-  setTimeout(() => {
-    heroCast.classList.remove("is-glitching");
-  }, 760);
-}
-
-function bindHeroParallax() {
-  const stage = document.getElementById("hero-stage");
-  if (!stage) return;
-  if (window.matchMedia("(pointer: coarse)").matches) return;
-  let targetX = 0;
-  let targetY = 0;
-  let currentX = 0;
-  let currentY = 0;
-  let frameId = 0;
-
-  function tick() {
-    currentX += (targetX - currentX) * .08;
-    currentY += (targetY - currentY) * .08;
-    stage.style.setProperty("--mx", currentX.toFixed(3));
-    stage.style.setProperty("--my", currentY.toFixed(3));
-    if (Math.abs(targetX - currentX) > .002 || Math.abs(targetY - currentY) > .002) {
-      frameId = requestAnimationFrame(tick);
-    } else {
-      frameId = 0;
+  function nextShift(days, staffId) {
+    for (const day of days) {
+      const entry = day.entries.find((item) => item.castId === staffId);
+      if (!entry) continue;
+      const when = day.isToday ? "本日" : `${day.month}/${day.d}(${day.dowJp})`;
+      const time = entry.time === "未定" ? "時間未定" : `${entry.time.split(" — ")[0]}〜`;
+      return `${when} ${time}`;
     }
+    return "";
   }
 
-  function startTick() {
-    if (!frameId) frameId = requestAnimationFrame(tick);
-  }
-
-  window.addEventListener("pointermove", (event) => {
-    const rect = stage.getBoundingClientRect();
-    targetX = (((event.clientX - rect.left) / rect.width - .5) * 2) * .55;
-    targetY = (((event.clientY - rect.top) / rect.height - .5) * 2) * .42;
-    startTick();
-  });
-  window.addEventListener("pointerleave", () => {
-    targetX = 0;
-    targetY = 0;
-    startTick();
-  });
-}
-
-function startMotionCanvas() {
-  const canvas = document.getElementById("motion-canvas");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  const dots = Array.from({ length: 34 }, (_, index) => ({
-    x: Math.random(),
-    y: Math.random(),
-    r: index % 5 === 0 ? 1.7 : .9,
-    vx: (Math.random() - .5) * .00022,
-    vy: (Math.random() - .5) * .00018,
-    phase: Math.random() * Math.PI * 2
-  }));
-
-  let width = 0;
-  let height = 0;
-  function resize() {
-    const scale = window.devicePixelRatio || 1;
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = Math.floor(width * scale);
-    canvas.height = Math.floor(height * scale);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  }
-
-  function frame(time) {
-    const pink = "rgba(255, 62, 126, .2)";
-    const alt = "rgba(255, 255, 255, .08)";
-    const pale = "rgba(146, 230, 209, .1)";
-    ctx.clearRect(0, 0, width, height);
-    ctx.lineWidth = 1;
-    dots.forEach((dot, index) => {
-      dot.x += dot.vx;
-      dot.y += dot.vy;
-      if (dot.x < -.05) dot.x = 1.05;
-      if (dot.x > 1.05) dot.x = -.05;
-      if (dot.y < -.05) dot.y = 1.05;
-      if (dot.y > 1.05) dot.y = -.05;
-      const x = dot.x * width;
-      const y = dot.y * height + Math.sin(time * .00045 + dot.phase) * 7;
-      ctx.fillStyle = index % 3 === 0 ? pink : pale;
-      ctx.beginPath();
-      ctx.arc(x, y, dot.r, 0, Math.PI * 2);
-      ctx.fill();
-      if (index % 4 === 0) {
-        const next = dots[(index + 7) % dots.length];
-        ctx.strokeStyle = alt;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(next.x * width, next.y * height);
-        ctx.stroke();
-      }
+  function buildDays(data, staffList) {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    const byDate = new Map();
+    data.shifts.forEach((shift) => {
+      if (!shift || !shift.date) return;
+      if (!byDate.has(shift.date)) byDate.set(shift.date, []);
+      byDate.get(shift.date).push(shift);
     });
-    ctx.strokeStyle = "rgba(255, 62, 126, .14)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < 3; i++) {
-      const y = height * (.2 + i * .22) + Math.sin(time * .00035 + i) * 8;
-      ctx.moveTo(-40, y);
-      ctx.bezierCurveTo(width * .24, y - 46, width * .58, y + 42, width + 40, y - 12);
-    }
-    ctx.stroke();
-    requestAnimationFrame(frame);
+
+    return Array.from({ length: 14 }, (_, idx) => {
+      const date = addDays(base, idx);
+      const key = dateKey(date);
+      const dow = date.getDay();
+      const dateShifts = byDate.get(key) || [];
+      const hasAnyShiftRecord = dateShifts.length > 0;
+      const entries = [];
+
+      staffList.forEach((staff, staffIndex) => {
+        const shift = dateShifts.find((item) => item.staffId === staff.id);
+        if (!shift && !hasAnyShiftRecord) {
+          entries.push({
+            castId: staff.id,
+            cast: null,
+            ci: staffIndex,
+            time: "未定",
+            status: "today"
+          });
+          return;
+        }
+        if (!shift || shift.status === "off") return;
+        entries.push({
+          castId: staff.id,
+          cast: null,
+          ci: staffIndex,
+          time: timeText(shift),
+          status: normalizeTodayStatus(shift)
+        });
+      });
+
+      const tbd = entries.length > 0 && entries.every((entry) => entry.time === "未定");
+      const closed = entries.length === 0;
+      return {
+        idx,
+        date,
+        key,
+        d: date.getDate(),
+        month: date.getMonth() + 1,
+        dow,
+        dowJp: DOW[dow],
+        dowEn: DOW_EN[dow],
+        isToday: idx === 0,
+        weekend: dow === 0 || dow === 5 || dow === 6,
+        entries,
+        tbd,
+        closed,
+        state: closed ? "closed" : tbd ? "tbd" : "open"
+      };
+    });
   }
 
-  resize();
-  window.addEventListener("resize", resize);
-  requestAnimationFrame(frame);
-}
-
-let revealObserver = null;
-
-function observeRevealTargets() {
-  const targets = document.querySelectorAll(
-    ".section-head, .today-pill, .concept-points span, .material-card, .cast-card, .shift-wrap, .menu-item, .event-item, .flow-list article, .map-panel, .shop-info"
-  );
-  if (!("IntersectionObserver" in window)) {
-    targets.forEach((target) => target.classList.add("is-visible"));
-    return;
-  }
-  if (!revealObserver) {
-    revealObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          revealObserver.unobserve(entry.target);
+  function attachCast(days, cast) {
+    const castByStaff = new Map(cast.map((item, index) => [item.id, { item, index }]));
+    days.forEach((day) => {
+      day.entries.forEach((entry) => {
+        const found = castByStaff.get(entry.castId);
+        if (found) {
+          entry.cast = found.item;
+          entry.ci = found.index;
         }
       });
-    }, { rootMargin: "0px 0px -12% 0px", threshold: .16 });
+      day.entries = day.entries.filter((entry) => entry.cast);
+    });
   }
-  targets.forEach((target) => {
-    if (!target.classList.contains("is-visible")) revealObserver.observe(target);
+
+  function buildToday(days) {
+    const order = { now: 0, soon: 1, today: 2 };
+    const list = (days[0]?.entries || [])
+      .filter((entry) => entry.status !== "off")
+      .map((entry) => ({ cast: entry.cast, time: entry.time, status: entry.status }))
+      .sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+    return {
+      list,
+      counts: {
+        now: list.filter((item) => item.status === "now").length,
+        soon: list.filter((item) => item.status === "soon").length,
+        total: list.length
+      }
+    };
+  }
+
+  function buildEvents(data) {
+    const items = data.events
+      .filter((event) => event.publicVisible !== false)
+      .slice(0, 3)
+      .map((event) => ({
+        date: event.date || "近日",
+        tag: event.tag || "EVENT",
+        title: event.title || "イベント",
+        desc: event.summary || event.description || "詳細は近日公開します。"
+      }));
+    return {
+      lead: "近日開催のイベント情報。",
+      note: "最新の開催スケジュールは Instagram で先行告知します。",
+      items
+    };
+  }
+
+  function buildInside(data) {
+    const materialImages = data.materials
+      .map((item) => asset(item.image))
+      .filter(Boolean);
+    return [
+      {
+        no: "INSIDE 01 / COUNTER",
+        title: "話せるカウンター席",
+        body: "黒にピンクの光が浮かぶカウンターで、キャストとゆっくりお話ししながら夜を過ごせます。",
+        tags: ["TALK", "COUNTER", "NIGHT"],
+        slot: "inside-counter",
+        placeholder: "カウンター写真をドロップ",
+        image: materialImages[0] || "assets/interior/sample-interior-counter.webp"
+      },
+      {
+        no: "INSIDE 02 / PLAY",
+        title: "歌って、遊んで、写真を残す",
+        body: "カラオケで盛り上がったり、ダーツで遊んだり、一緒に撮った写真をその日の記憶にできます。",
+        tags: ["KARAOKE", "DARTS", "PHOTO"],
+        slot: "inside-darts",
+        placeholder: "ダーツ / フォトスポット写真をドロップ",
+        image: materialImages[1] || "assets/interior/sample-interior-darts.webp"
+      }
+    ];
+  }
+
+  function buildNty() {
+    const data = readData();
+    const shop = buildShop(data);
+    const staffList = visibleStaff(data);
+    const days = buildDays(data, staffList);
+    const cast = buildCast(data, staffList, days);
+    attachCast(days, cast);
+    const today = buildToday(days);
+    const events = buildEvents(data);
+    const recruit = {
+      kicker: "JOIN US — 一緒に夜をつくる仲間を募集",
+      title: "いたずらっ子、募集中。",
+      sub: "未経験・体験入店OK。流川の小さなコンセプトカフェで、あなたらしく働けます。",
+      merits: [
+        { t: "未経験OK", d: "ほとんどのキャストが未経験スタート。研修とサポートあり。" },
+        { t: "自由シフト", d: "週1・短時間から相談可。学業や掛け持ちとも両立できます。" },
+        { t: "日払い対応", d: "急な出費にも安心。頑張りはその日にしっかり還元。" },
+        { t: "送り・衣装", d: "送りや衣装の貸し出しなど、働きやすい環境を用意。" }
+      ],
+      href: "recruit.html"
+    };
+    const sections = [
+      { id: "top", num: "00", en: "TOP", jp: "トップ", tone: "ink" },
+      { id: "today", num: "01", en: "TODAY", jp: "本日の出勤", tone: "pink" },
+      { id: "schedule", num: "02", en: "SCHEDULE", jp: "出勤予定", tone: "panel" },
+      { id: "cast", num: "03", en: "CAST", jp: "キャスト", tone: "ink" },
+      { id: "inside", num: "04", en: "INSIDE", jp: "店内紹介", tone: "panel" },
+      { id: "event", num: "05", en: "EVENT", jp: "イベント", tone: "pink" },
+      { id: "access", num: "06", en: "ACCESS", jp: "アクセス", tone: "ink" },
+      { id: "recruit", num: "07", en: "RECRUIT", jp: "採用情報", tone: "panel" }
+    ];
+
+    return {
+      shop,
+      venue: shop,
+      cast,
+      shifts: days,
+      schedule: { days },
+      todayList: today.list,
+      todayCounts: today.counts,
+      events,
+      event: events,
+      inside: buildInside(data),
+      recruit,
+      sections,
+      DOW,
+      DOW_EN,
+      raw: data
+    };
+  }
+
+  window.NTY_SOURCE_DATA = readData();
+  window.NTY = buildNty();
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === STORAGE_KEY) window.location.reload();
   });
-}
-
-window.addEventListener("storage", (event) => {
-  if (event.key === STORAGE_KEY) {
-    loadData();
-  }
-});
-
-bindHeroParallax();
-document.body.dataset.design = "vspark";
-startMotionCanvas();
-loadData();
+})();
