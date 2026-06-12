@@ -74,13 +74,13 @@ const sectionLabels = {
 };
 
 const sectionMoods = {
-  top: ["rgba(255, 62, 126, .24)", "rgba(255, 143, 180, .14)", "rgba(255, 248, 251, .07)", "-8deg"],
-  now: ["rgba(255, 62, 126, .22)", "rgba(255, 179, 207, .13)", "rgba(255, 248, 251, .07)", "4deg"],
-  schedule: ["rgba(255, 92, 152, .2)", "rgba(255, 122, 168, .15)", "rgba(255, 248, 251, .06)", "10deg"],
-  cast: ["rgba(255, 62, 126, .28)", "rgba(255, 143, 180, .17)", "rgba(255, 248, 251, .08)", "-14deg"],
-  inside: ["rgba(255, 122, 168, .18)", "rgba(255, 191, 215, .12)", "rgba(255, 248, 251, .07)", "8deg"],
-  events: ["rgba(216, 42, 100, .2)", "rgba(255, 62, 126, .18)", "rgba(255, 248, 251, .07)", "-4deg"],
-  access: ["rgba(255, 92, 152, .18)", "rgba(255, 143, 180, .14)", "rgba(255, 62, 126, .1)", "12deg"],
+  top: ["#ff2f78", "#ff9bbc", "#fff8fb", "-8deg"],
+  now: ["#ff2f78", "#ffb3cf", "#fff8fb", "4deg"],
+  schedule: ["#ff5c98", "#ff7aa8", "#fff8fb", "10deg"],
+  cast: ["#ff2f78", "#ff9bbc", "#fff8fb", "-14deg"],
+  inside: ["#ff7aa8", "#ffb3cf", "#fff8fb", "8deg"],
+  events: ["#d92a64", "#ff2f78", "#fff8fb", "-4deg"],
+  access: ["#ff5c98", "#ff9bbc", "#ff2f78", "12deg"],
 };
 
 async function loadData() {
@@ -233,7 +233,17 @@ function restoreHashTarget() {
     return;
   }
   if (!target) return;
-  window.setTimeout(() => target.scrollIntoView({ block: "start" }), 120);
+  const align = () => {
+    const top = target.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+  };
+  window.setTimeout(align, 120);
+  let attempts = 0;
+  const timer = window.setInterval(() => {
+    align();
+    attempts += 1;
+    if (attempts >= 14) window.clearInterval(timer);
+  }, 420);
 }
 
 function renderHero() {
@@ -806,6 +816,8 @@ function observeRevealTargets() {
 window.addEventListener("storage", (event) => {
   if (event.key === STORAGE_KEY) loadData();
 });
+
+window.addEventListener("hashchange", restoreHashTarget);
 
 bindSectionTransitions();
 bindTabs();
