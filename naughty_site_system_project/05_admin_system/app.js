@@ -1,6 +1,8 @@
 const STORAGE_KEY = "naughty.siteData.v1";
+const THEME_KEY = "naughty.admin.theme";
 const DATA_URL = "../03_system_seed/naughty_site_data.json";
 const ASSET_ROOT = "../01_existing_site/";
+const MORE_VIEWS = new Set(["site", "gallery", "menu", "events", "payroll"]);
 
 const statusLabel = {
   working: "出勤中",
@@ -16,6 +18,12 @@ let selectedMaterialId = "";
 let selectedDate = "";
 
 const $ = (selector) => document.querySelector(selector);
+
+try {
+  document.documentElement.dataset.theme = localStorage.getItem(THEME_KEY) || "dark";
+} catch {
+  document.documentElement.dataset.theme = "dark";
+}
 
 async function loadData() {
   const fallback = await loadSeedData();
@@ -79,6 +87,10 @@ function saveData(message = "保存しました") {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   renderAll();
   toast(message);
+}
+
+function statusText(status) {
+  return statusLabel[status] || "休み";
 }
 
 function toast(message) {
@@ -189,7 +201,7 @@ function renderDashboard() {
     <div class="status-row">
       <div>
         <strong>${staff.displayName}</strong>
-        <small>${statusLabel[staff.workStatus] || staff.workStatus}</small>
+        <small>${statusText(staff.workStatus)}</small>
       </div>
       <div class="status-buttons" data-staff="${staff.id}">
         <button type="button" data-status="working">出勤中</button>
@@ -263,7 +275,7 @@ function renderStaff() {
   $("#staff-list").innerHTML = data.staff.map((staff) => `
     <button class="list-item ${staff.id === selectedStaffId ? "active" : ""}" type="button" data-staff-select="${staff.id}">
       <img class="thumb" src="${asset(staff.photo)}" alt="" />
-      <span><strong>${staff.displayName}</strong><small>${staff.romanName || ""} / ${statusLabel[staff.workStatus]}</small></span>
+      <span><strong>${staff.displayName}</strong><small>${staff.romanName || ""} / ${statusText(staff.workStatus)}</small></span>
       <small>${staff.publicVisible ? "表示" : "非表示"}</small>
     </button>
   `).join("");
@@ -335,7 +347,7 @@ function renderShift() {
         <strong>${staff.displayName}</strong>
         <label>状態
           <select data-shift-field="status">
-            ${["working", "scheduled", "off"].map((status) => `<option value="${status}" ${shift.status === status ? "selected" : ""}>${statusLabel[status]}</option>`).join("")}
+            ${["working", "scheduled", "off"].map((status) => `<option value="${status}" ${shift.status === status ? "selected" : ""}>${statusText(status)}</option>`).join("")}
           </select>
         </label>
         <label>開始<input data-shift-field="start" type="time" value="${shift.start || ""}" /></label>
@@ -459,24 +471,152 @@ function formatDateTime(value) {
 }
 
 function bindNavigation() {
-  document.querySelectorAll(".nav-item").forEach((button) => {
+  document.querySelectorAll(".nav-item, .tab, .more-sheet [data-view]").forEach((button) => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("active"));
-      document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
-      button.classList.add("active");
-      $(`#view-${button.dataset.view}`).classList.add("active");
+      if (button.dataset.view === "more") {
+        toggleMoreSheet();
+        return;
+      }
+      setActiveView(button.dataset.view);
     });
+  });
+
+  $("#sheet-backdrop")?.addEventListener("click", () => {
+    closeMoreSheet();
+    closeEditSheet();
   });
 }
 
+function setActiveView(viewName) {
+  const view = $(`#view-${viewName}`);
+  if (!view) return;
+  document.querySelectorAll(".view").forEach((item) => item.classList.remove("active"));
+  view.classList.add("active");
+  document.querySelectorAll(".nav-item").forEach((item) => {
+    item.classList.toggle("active", item.dataset.view === viewName);
+  });
+  document.querySelectorAll(".tab").forEach((item) => {
+    const isMoreTab = item.dataset.view === "more" && MORE_VIEWS.has(viewName);
+    item.classList.toggle("active", item.dataset.view === viewName || isMoreTab);
+    if (item.dataset.view === "more") {
+      item.setAttribute("aria-expanded", "false");
+    }
+  });
+  closeMoreSheet();
+  closeEditSheet();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function toggleMoreSheet() {
+  const sheet = $("#more-sheet");
+  if (!sheet) return;
+  if (sheet.classList.contains("open")) {
+    closeMoreSheet();
+  } else {
+    openMoreSheet();
+  }
+}
+
+function openMoreSheet() {
+  const sheet = $("#more-sheet");
+  const backdrop = $("#sheet-backdrop");
+  const moreTab = document.querySelector('.tab[data-view="more"]');
+  if (!sheet || !backdrop) return;
+  closeEditSheet();
+  sheet.hidden = false;
+  backdrop.hidden = false;
+  requestAnimationFrame(() => {
+    sheet.classList.add("open");
+    backdrop.classList.add("open");
+  });
+  moreTab?.classList.add("active");
+  moreTab?.setAttribute("aria-expanded", "true");
+}
+
+function closeMoreSheet() {
+  const sheet = $("#more-sheet");
+  const backdrop = $("#sheet-backdrop");
+  const moreTab = document.querySelector('.tab[data-view="more"]');
+  if (!sheet || !backdrop) return;
+  sheet.classList.remove("open");
+  backdrop.classList.remove("open");
+  sheet.hidden = true;
+  backdrop.hidden = true;
+  moreTab?.setAttribute("aria-expanded", "false");
+  const activeView = document.querySelector(".view.active")?.id.replace("view-", "");
+  if (activeView && !MORE_VIEWS.has(activeView)) {
+    moreTab?.classList.remove("active");
+  }
+}
+
+function bindThemeToggle() {
+  const button = $("#theme-toggle");
+  if (!button) return;
+  button.addEventListener("click", () => {
+    const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = nextTheme;
+    localStorage.setItem(THEME_KEY, nextTheme);
+  });
+}
+
+function enhanceEditSheets() {
+  document.querySelectorAll(".edit-form").forEach((form) => {
+    form.classList.add("edit-sheet");
+    if (!form.querySelector(".sheet-bar")) {
+      const title = form.dataset.sheetTitle || "編集";
+      form.insertAdjacentHTML("afterbegin", `
+        <div class="sheet-bar">
+          <button class="sheet-close" type="button" data-sheet-close>キャンセル</button>
+          <strong class="sheet-title">${title}</strong>
+          <span aria-hidden="true"></span>
+        </div>
+      `);
+    }
+    if (!form.querySelector(".sheet-save")) {
+      form.insertAdjacentHTML("beforeend", `<button class="sheet-save" type="button" data-sheet-save>保存して公開サイトへ反映</button>`);
+    }
+  });
+}
+
+function openEditSheet(selector) {
+  if (!window.matchMedia("(max-width: 820px)").matches) return;
+  const form = typeof selector === "string" ? $(selector) : selector;
+  if (!form) return;
+  closeMoreSheet();
+  document.querySelectorAll(".edit-form.open").forEach((item) => item.classList.remove("open"));
+  form.classList.add("open");
+  document.body.classList.add("sheet-open");
+}
+
+function closeEditSheet() {
+  document.querySelectorAll(".edit-form.open").forEach((form) => form.classList.remove("open"));
+  document.body.classList.remove("sheet-open");
+}
+
 function bindActions() {
-  $("#save-button").addEventListener("click", () => saveData("公開サイトへ反映しました"));
+  $("#save-button").addEventListener("click", () => saveData("✓ 公開サイトに反映しました"));
 
   document.addEventListener("click", (event) => {
+    const closeSheetButton = event.target.closest("[data-sheet-close]");
+    if (closeSheetButton) {
+      event.preventDefault();
+      closeEditSheet();
+      return;
+    }
+
+    const sheetSaveButton = event.target.closest("[data-sheet-save]");
+    if (sheetSaveButton) {
+      event.preventDefault();
+      saveData("✓ 公開サイトに反映しました");
+      closeEditSheet();
+      return;
+    }
+
     const staffButton = event.target.closest("[data-staff-select]");
     if (staffButton) {
       selectedStaffId = staffButton.dataset.staffSelect;
       renderStaff();
+      openEditSheet("#staff-form");
       return;
     }
 
@@ -504,6 +644,7 @@ function bindActions() {
     if (productButton) {
       selectedProductId = productButton.dataset.productSelect;
       renderProducts();
+      openEditSheet("#product-form");
       return;
     }
 
@@ -511,6 +652,7 @@ function bindActions() {
     if (eventButton) {
       selectedEventId = eventButton.dataset.eventSelect;
       renderEvents();
+      openEditSheet("#event-form");
       return;
     }
 
@@ -518,6 +660,7 @@ function bindActions() {
     if (materialButton) {
       selectedMaterialId = materialButton.dataset.materialSelect;
       renderMaterialsAdmin();
+      openEditSheet("#material-form");
     }
   });
 
@@ -540,6 +683,7 @@ function bindActions() {
     data.staff.push(staff);
     selectedStaffId = staff.id;
     renderAll();
+    openEditSheet("#staff-form");
   });
 
   $("#add-product").addEventListener("click", () => {
@@ -555,6 +699,7 @@ function bindActions() {
     data.products.push(product);
     selectedProductId = product.id;
     renderAll();
+    openEditSheet("#product-form");
   });
 
   $("#add-event").addEventListener("click", () => {
@@ -568,6 +713,7 @@ function bindActions() {
     data.events.push(eventItem);
     selectedEventId = eventItem.id;
     renderAll();
+    openEditSheet("#event-form");
   });
 
   $("#add-material").addEventListener("click", () => {
@@ -581,6 +727,7 @@ function bindActions() {
     data.materials.push(material);
     selectedMaterialId = material.id;
     renderAll();
+    openEditSheet("#material-form");
   });
 
   $("#delete-material").addEventListener("click", (event) => {
@@ -594,7 +741,7 @@ function bindActions() {
   });
 
   $("#copy-public-url").addEventListener("click", async () => {
-  const url = new URL("../04_site_rebuild/index.html?v=v3", location.href).href;
+  const url = new URL("../04_site_rebuild/index.html?v=v6", location.href).href;
     try {
       await navigator.clipboard.writeText(url);
       toast("公開URLをコピーしました");
@@ -781,7 +928,7 @@ function applyPunch(status) {
     at: now.toISOString(),
     date: operationDate
   });
-  saveData(`${staff.displayName}を${statusLabel[status]}にしました`);
+  saveData(`${staff.displayName}を${statusText(status)}にしました`);
 }
 
 function downloadSalesCsv() {
@@ -848,6 +995,8 @@ function csvCell(value) {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
+bindThemeToggle();
+enhanceEditSheets();
 bindNavigation();
 bindActions();
 bindForms();
