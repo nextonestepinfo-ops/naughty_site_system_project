@@ -117,19 +117,26 @@ function FV({ variant, copy, fvStyle }) {
         raf = requestAnimationFrame(apply);
       } else {raf = 0;}
     };
+    // FV中心からの相対位置。±1 にクランプして「一定以上は傾かない」ようにする
+    const clamp = (v) => (v < -1 ? -1 : v > 1 ? 1 : v);
     const onMove = (e) => {
       const fv = root.closest(".fv") || root;
       const r = fv.getBoundingClientRect();
-      dx = ((e.clientX - r.left) / r.width - 0.5) * 2;
-      dy = ((e.clientY - r.top) / r.height - 0.5) * 2;
+      dx = clamp(((e.clientX - r.left) / r.width - 0.5) * 2);
+      dy = clamp(((e.clientY - r.top) / r.height - 0.5) * 2);
       if (!raf) raf = requestAnimationFrame(apply);
     };
+    // カーソルが画面外/ウィンドウ外へ出たら既定値（中立）へ戻す
     const onLeave = () => {dx = 0;dy = 0;if (!raf) raf = requestAnimationFrame(apply);};
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerleave", onLeave);
+    window.addEventListener("blur", onLeave);
+    document.addEventListener("mouseleave", onLeave);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("blur", onLeave);
+      document.removeEventListener("mouseleave", onLeave);
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);

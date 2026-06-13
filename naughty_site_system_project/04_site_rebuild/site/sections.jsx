@@ -180,6 +180,9 @@ function Schedule2() {
   const { days } = window.NTY.schedule;
   const last = days[13];
   const weeks = [days.slice(0, 7), days.slice(7, 14)];
+  // モバイルは「日付チップ＋選択日表示」。既定は今日(index 0)
+  const [sel, setSel] = useState(0);
+  const selDay = days[sel];
   return (
     <section className="section tone-panel" id="schedule" data-section-id="schedule" data-screen-label="02 Schedule">
       <Head num="02" en="Schedule / Next 14 days" jp="出勤予定" />
@@ -224,6 +227,48 @@ function Schedule2() {
         ))}
       </div>
 
+      {/* MOBILE — 日付チップ＋選択日（PCでは非表示） */}
+      <div className="cal-mobile">
+        <div className="cal-strip">
+          {days.map((d, i) => (
+            <button
+              key={d.idx}
+              className={`cal-chip st-${d.state} ${d.weekend ? "wknd" : ""} ${i === sel ? "on" : ""}`}
+              onClick={() => setSel(i)}
+              aria-label={`${d.month}/${d.d} ${d.dowEn}`}
+            >
+              <span className="cc-dow">{d.dowEn}</span>
+              <span className="cc-num">{d.d}</span>
+              <span className="cc-dot" />
+            </button>
+          ))}
+        </div>
+
+        <div className={`cal-day st-${selDay.state}`}>
+          <div className="cd-top">
+            <span className="cd-date">
+              {selDay.month}/{selDay.d}
+              <small>{selDay.dowEn}{selDay.isToday ? " ・本日" : ""}</small>
+            </span>
+            {selDay.closed ? (
+              <span className="cd-cnt off">休み</span>
+            ) : (
+              <span className="cd-cnt">{selDay.entries.length}人出勤</span>
+            )}
+          </div>
+          {!selDay.closed && (
+            <ul className="cd-list">
+              {selDay.entries.map(({ cast: c, time }) => (
+                <li key={c.en} className={time === "未定" ? "tbd" : ""}>
+                  <span className="cd-nm">{c.jp}</span>
+                  <span className="cd-tm">{time === "未定" ? "未定" : time.replace(" — ", "–")}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
       <div className="cal-note">※ 予定は変更になる場合があります。最新情報は Instagram をご確認ください。<br />※ 出勤キャスト・時間は後日 CMS（shifts データ）から編集できるようにします。</div>
     </section>
   );
@@ -244,7 +289,7 @@ function CastSection() {
 
   return (
     <section className="section tone-ink" id="cast" data-section-id="cast" data-screen-label="03 Cast">
-      <Head num="03" en="Cast / NAUGHTY GIRLS" jp="キャスト一覧・キャスト図" />
+      <Head num="03" en="Cast / NAUGHTY GIRLS" jp="キャスト一覧" />
 
       {/* THUMBNAIL RAIL */}
       <div className="cast-rail">
@@ -263,6 +308,7 @@ function CastSection() {
 
       {/* STAGE */}
       <div className="cast-stage">
+        <div className="cs-count">{String(active + 1).padStart(2, "0")}<span> / {String(cast.length).padStart(2, "0")}</span></div>
         <button className="cs-nav prev" onClick={() => move(-1)} aria-label="前のキャスト">PREV</button>
         <button className="cs-nav next" onClick={() => move(1)} aria-label="次のキャスト">NEXT</button>
 
@@ -284,7 +330,7 @@ function CastSection() {
           <p className="csi-catch">{cur.catch}</p>
           <p className="csi-comment">{cur.comment}</p>
           <div className="csi-tags">
-            {cur.tags.map((t) => <span key={t}>{t}</span>)}
+            {cur.tags.map((t) => <span key={t}>#{t}</span>)}
           </div>
         </div>
       </div>
