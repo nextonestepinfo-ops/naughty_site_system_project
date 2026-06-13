@@ -465,8 +465,8 @@ a {
 
 .small-action {
   min-width: 36px;
-  background: var(--pink-bg);
-  color: var(--pink-ink);
+  background: var(--fill);
+  color: var(--ink2);
 }
 
 .danger-action {
