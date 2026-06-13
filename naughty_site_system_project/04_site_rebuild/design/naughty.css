@@ -256,8 +256,8 @@
     translateY(-50%)
     translateZ(-520px)
     scale(1.18)
-    rotateY(calc(var(--mx) * 5deg))
-    rotateX(calc(var(--my) * -7deg));
+    rotateY(calc(var(--mx) * 8deg))
+    rotateX(calc(var(--my) * -11deg));
   /* The Z offset shifts the rotation pivot from the logo's own plane
      (z=-520) forward to z=+80 — the same point the cast row pivots around —
      so logo + cast tilt around a shared axis in 3D space without changing
@@ -458,8 +458,8 @@
   /* Pushed strongly forward — exaggerates parallax response too */
   transform: translateX(-50%)
     translateZ(80px)
-    rotateY(calc(var(--mx) * 5deg))
-    rotateX(calc(var(--my) * -7deg));
+    rotateY(calc(var(--mx) * 8deg))
+    rotateX(calc(var(--my) * -11deg));
   will-change: transform;
   backface-visibility: hidden;
   animation:

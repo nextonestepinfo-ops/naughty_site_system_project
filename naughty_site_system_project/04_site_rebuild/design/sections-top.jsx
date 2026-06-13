@@ -109,8 +109,8 @@ function FV({ variant, copy, fvStyle }) {
     if (!root) return;
     let raf = 0,tx = 0,ty = 0,dx = 0,dy = 0;
     const apply = () => {
-      tx += (dx - tx) * 0.08;
-      ty += (dy - ty) * 0.08;
+      tx += (dx - tx) * 0.12;
+      ty += (dy - ty) * 0.12;
       root.style.setProperty("--mx", tx.toFixed(3));
       root.style.setProperty("--my", ty.toFixed(3));
       if (Math.abs(dx - tx) > 0.001 || Math.abs(dy - ty) > 0.001) {
