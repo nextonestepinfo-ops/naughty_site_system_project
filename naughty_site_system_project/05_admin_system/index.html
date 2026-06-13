@@ -119,6 +119,20 @@
                 <button class="small-command" id="restore-backup" type="button">復元</button>
                 <input id="backup-file" type="file" accept="application/json" hidden />
               </div>
+              <div class="backup-manager">
+                <div class="panel-head compact-head">
+                  <h3>自動バックアップ</h3>
+                  <button class="small-action" id="create-local-backup" type="button">保存</button>
+                </div>
+                <label>履歴
+                  <select id="backup-history"></select>
+                </label>
+                <div class="backup-actions">
+                  <button class="small-command" id="restore-local-backup" type="button">履歴から復元</button>
+                  <button class="small-command" id="download-local-backup" type="button">履歴を書き出し</button>
+                </div>
+                <p class="mini-note" id="backup-status"></p>
+              </div>
               <div class="admin-preview">
                 <img src="../04_site_rebuild/assets/logo-naughty-white-circle.png" alt="" />
                 <strong id="preview-shop-name"></strong>
@@ -152,8 +166,28 @@
               <label>表示名<input id="staff-name" type="text" /></label>
               <label>ローマ字<input id="staff-roman" type="text" /></label>
               <label>紹介文<textarea id="staff-profile" rows="4"></textarea></label>
-              <label>写真パス<input id="staff-photo" type="text" /></label>
-              <label>トップ用写真<input id="staff-hero-photo" type="text" /></label>
+              <div class="image-field">
+                <div class="image-preview"><img id="staff-photo-preview" alt="" /></div>
+                <div class="image-controls">
+                  <strong>通常写真</strong>
+                  <span id="staff-photo-label">未設定</span>
+                  <button class="small-command" type="button" data-image-trigger="staff-photo-file">画像を選ぶ</button>
+                  <button class="small-command" type="button" data-image-clear="staff-photo">削除</button>
+                </div>
+                <input id="staff-photo" type="hidden" />
+                <input id="staff-photo-file" type="file" accept="image/*" hidden />
+              </div>
+              <div class="image-field">
+                <div class="image-preview"><img id="staff-hero-photo-preview" alt="" /></div>
+                <div class="image-controls">
+                  <strong>トップ用写真</strong>
+                  <span id="staff-hero-photo-label">未設定</span>
+                  <button class="small-command" type="button" data-image-trigger="staff-hero-photo-file">画像を選ぶ</button>
+                  <button class="small-command" type="button" data-image-clear="staff-hero-photo">削除</button>
+                </div>
+                <input id="staff-hero-photo" type="hidden" />
+                <input id="staff-hero-photo-file" type="file" accept="image/*" hidden />
+              </div>
               <label>時給<input id="staff-wage" type="number" min="0" step="50" /></label>
               <label>タグ<input id="staff-tags" type="text" /></label>
               <div class="segmented" id="staff-status-buttons">
@@ -185,7 +219,17 @@
               </div>
               <label>タイトル<input id="material-title" type="text" /></label>
               <label>説明<textarea id="material-caption" rows="4"></textarea></label>
-              <label>画像パス<input id="material-image" type="text" /></label>
+              <div class="image-field">
+                <div class="image-preview wide"><img id="material-image-preview" alt="" /></div>
+                <div class="image-controls">
+                  <strong>表示画像</strong>
+                  <span id="material-image-label">未設定</span>
+                  <button class="small-command" type="button" data-image-trigger="material-image-file">画像を選ぶ</button>
+                  <button class="small-command" type="button" data-image-clear="material-image">削除</button>
+                </div>
+                <input id="material-image" type="hidden" />
+                <input id="material-image-file" type="file" accept="image/*" hidden />
+              </div>
               <label>表示タイプ
                 <select id="material-kind">
                   <option value="photo">写真</option>
@@ -203,6 +247,28 @@
             <h1>シフト管理</h1>
           </div>
           <div class="date-strip" id="date-strip"></div>
+          <div class="panel shift-tools">
+            <div class="panel-head">
+              <h2>日別コピー・一括反映</h2>
+            </div>
+            <div class="tool-grid">
+              <label>コピー元
+                <select id="copy-shift-source"></select>
+              </label>
+              <button class="small-command" id="copy-shift-to-date" type="button">この日にコピー</button>
+              <label>状態
+                <select id="bulk-shift-status">
+                  <option value="working">出勤中</option>
+                  <option value="scheduled">本日出勤</option>
+                  <option value="off">休み</option>
+                </select>
+              </label>
+              <label>開始<input id="bulk-shift-start" type="time" value="19:00" /></label>
+              <label>終了<input id="bulk-shift-end" type="time" value="05:00" /></label>
+              <label>表示メモ<input id="bulk-shift-note" type="text" value="出勤予定" /></label>
+              <button class="small-command primary-command" id="apply-bulk-shift" type="button">全員へ反映</button>
+            </div>
+          </div>
           <div class="panel">
             <div class="panel-head">
               <h2 id="selected-date-title"></h2>
@@ -290,9 +356,15 @@
             </form>
             <div class="panel">
               <div class="panel-head">
-                <h2>CSV</h2>
+                <h2>CSV・期間表示</h2>
                 <button class="small-action" id="download-sales" type="button">⇩</button>
               </div>
+              <div class="filter-grid">
+                <label>月<input id="sales-month" type="month" /></label>
+                <label>開始<input id="sales-from" type="date" /></label>
+                <label>終了<input id="sales-to" type="date" /></label>
+              </div>
+              <p class="mini-note" id="sales-filter-summary"></p>
               <div class="sales-list" id="sales-list"></div>
             </div>
           </div>
@@ -308,6 +380,13 @@
               <h2>日給計算</h2>
               <button class="danger-action" id="mark-paid" type="button">支払確定</button>
             </div>
+            <div class="filter-grid">
+              <label>月<input id="payroll-month" type="month" /></label>
+              <label>開始<input id="payroll-from" type="date" /></label>
+              <label>終了<input id="payroll-to" type="date" /></label>
+              <button class="small-command primary-command" id="download-payroll" type="button">給与CSV</button>
+            </div>
+            <p class="mini-note" id="payroll-filter-summary"></p>
             <div class="payroll-table" id="payroll-table"></div>
           </div>
         </section>
@@ -348,6 +427,21 @@
       <button type="button" data-view="menu">メニュー</button>
       <button type="button" data-view="events">イベント</button>
       <button type="button" data-view="payroll">給与確認</button>
+    </div>
+  </div>
+
+  <div class="publish-modal" id="publish-preview-modal" hidden>
+    <div class="publish-panel" role="dialog" aria-modal="true" aria-labelledby="publish-preview-title">
+      <div class="panel-head">
+        <h2 id="publish-preview-title">保存前プレビュー</h2>
+        <button class="sheet-close" type="button" id="publish-preview-close">戻る</button>
+      </div>
+      <p class="mini-note">保存すると公開サイトに反映される変更です。内容を確認してから保存してください。</p>
+      <div class="diff-list" id="publish-diff-list"></div>
+      <div class="modal-actions">
+        <button class="small-command" type="button" id="publish-preview-cancel">修正する</button>
+        <button class="primary-action" type="button" id="publish-preview-confirm">保存して反映</button>
+      </div>
     </div>
   </div>
 

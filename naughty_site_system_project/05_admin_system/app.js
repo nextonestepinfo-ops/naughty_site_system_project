@@ -1,8 +1,12 @@
 const STORAGE_KEY = "naughty.siteData.v1";
 const THEME_KEY = "naughty.admin.theme";
+const BACKUP_KEY = "naughty.siteData.backups.v1";
+const BACKUP_LIMIT = 5;
 const DATA_URL = "../03_system_seed/naughty_site_data.json";
 const ASSET_ROOT = "../01_existing_site/";
 const MORE_VIEWS = new Set(["site", "gallery", "menu", "events", "payroll"]);
+const IMAGE_MAX_SIDE = 1400;
+const IMAGE_QUALITY = 0.86;
 
 const statusLabel = {
   working: "出勤中",
@@ -16,6 +20,8 @@ let selectedProductId = "";
 let selectedEventId = "";
 let selectedMaterialId = "";
 let selectedDate = "";
+let lastSavedSnapshot = null;
+let pendingPreviewMessage = "";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -29,6 +35,7 @@ async function loadData() {
   const fallback = await loadSeedData();
   const saved = localStorage.getItem(STORAGE_KEY);
   data = normalizeData(mergeSavedData(fallback, saved));
+  lastSavedSnapshot = clone(data);
   selectedStaffId = data.staff[0]?.id || "";
   selectedProductId = data.products[0]?.id || "";
   selectedEventId = data.events[0]?.id || "";
@@ -56,13 +63,16 @@ function mergeSavedData(fallback, savedText) {
   const merged = { ...fallback, ...saved };
   if (saved.assetVersion !== fallback.assetVersion) {
     const savedStaff = new Map((saved.staff || []).map((staff) => [staff.id, staff]));
+    const fallbackStaffIds = new Set((fallback.staff || []).map((staff) => staff.id));
     merged.staff = fallback.staff.map((seedStaff) => ({
       ...seedStaff,
       ...(savedStaff.get(seedStaff.id) || {}),
-      photo: seedStaff.photo,
-      heroPhoto: seedStaff.heroPhoto
-    }));
-    merged.materials = fallback.materials;
+      photo: uploadedImage(savedStaff.get(seedStaff.id)?.photo) ? savedStaff.get(seedStaff.id).photo : seedStaff.photo,
+      heroPhoto: uploadedImage(savedStaff.get(seedStaff.id)?.heroPhoto) ? savedStaff.get(seedStaff.id).heroPhoto : seedStaff.heroPhoto
+    })).concat((saved.staff || []).filter((staff) => !fallbackStaffIds.has(staff.id)));
+    merged.materials = (saved.materials || []).some((item) => uploadedImage(item.image))
+      ? saved.materials
+      : fallback.materials;
     merged.assetVersion = fallback.assetVersion;
   }
   return merged;
@@ -82,15 +92,46 @@ function normalizeData(next) {
   };
 }
 
-function saveData(message = "保存しました") {
+function clone(value) {
+  return JSON.parse(JSON.stringify(value || {}));
+}
+
+function saveData(message = "保存しました", options = {}) {
+  if (options.preview) {
+    openPublishPreview(message);
+    return;
+  }
+  commitData(message);
+}
+
+function commitData(message = "保存しました") {
+  const stored = readStoredData();
+  if (stored) {
+    pushLocalBackup(stored, "自動保存前");
+  }
   data.updatedAt = new Date().toISOString();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    trimBackupsForSpace();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      toast("保存容量が不足しています。バックアップを書き出して画像を減らしてください。");
+      return;
+    }
+  }
+  lastSavedSnapshot = clone(data);
   renderAll();
   toast(message);
 }
 
 function statusText(status) {
   return statusLabel[status] || "休み";
+}
+
+function uploadedImage(value) {
+  return /^data:image\//i.test(String(value || ""));
 }
 
 function toast(message) {
@@ -103,7 +144,8 @@ function toast(message) {
 
 function asset(path) {
   if (!path) return "../01_existing_site/assets/cast/g1.png";
-  if (/^https?:\/\//.test(path)) return path;
+  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  if (String(path).startsWith("../") || String(path).startsWith("/")) return path;
   return `${ASSET_ROOT}${path}`;
 }
 
@@ -252,6 +294,7 @@ function renderSiteSettings() {
       <strong>${value}</strong>
     </div>
   `).join("");
+  renderBackupStatus();
 }
 
 function renderSitePreviewOnly() {
@@ -290,6 +333,8 @@ function renderStaff() {
   $("#staff-hero-photo").value = staff.heroPhoto || "";
   $("#staff-wage").value = staff.hourlyWage || 0;
   $("#staff-tags").value = (staff.tags || []).join(", ");
+  renderImagePreview("staff-photo", staff.photo);
+  renderImagePreview("staff-hero-photo", staff.heroPhoto);
   document.querySelectorAll("#staff-status-buttons button").forEach((button) => {
     button.classList.toggle("active", button.dataset.status === staff.workStatus);
   });
@@ -317,6 +362,7 @@ function renderMaterialsAdmin() {
   $("#material-caption").value = item.caption || "";
   $("#material-image").value = item.image || "";
   $("#material-kind").value = item.kind || "photo";
+  renderImagePreview("material-image", item.image);
   $("#material-preview").innerHTML = item.image
     ? `<img src="${asset(item.image)}" alt="" /><span>${item.title || ""}</span>`
     : `<span>画像パスを入力</span>`;
@@ -325,6 +371,7 @@ function renderMaterialsAdmin() {
 function renderMaterialPreviewOnly() {
   const item = getMaterial();
   if (!item) return;
+  renderImagePreview("material-image", item.image);
   $("#material-preview").innerHTML = item.image
     ? `<img src="${asset(item.image)}" alt="" /><span>${item.title || ""}</span>`
     : `<span>画像パスを入力</span>`;
@@ -340,6 +387,7 @@ function renderShift() {
     </button>
   `).join("");
   $("#selected-date-title").textContent = selectedDate;
+  renderShiftTools(dates);
   $("#shift-editor").innerHTML = data.staff.map((staff) => {
     const shift = getOrCreateShift(selectedDate, staff.id);
     return `
@@ -400,12 +448,16 @@ function renderSales() {
     .filter((product) => product.active)
     .map((product) => `<option value="${product.id}">${product.name} ${yen(product.salePrice)}</option>`).join("");
 
-  if (!data.sales.length) {
-    $("#sales-list").innerHTML = `<div class="sale-row"><strong>売上未登録</strong><small>CSV出力できます</small></div>`;
+  const range = getFilterRange("sales");
+  const sales = getSalesInRange(range);
+  $("#sales-filter-summary").textContent = filterSummary(range, `${sales.length}件 / ${yen(sales.reduce((sum, sale) => sum + Number(sale.total || 0), 0))}`);
+
+  if (!sales.length) {
+    $("#sales-list").innerHTML = `<div class="sale-row"><strong>対象期間の売上なし</strong><small>期間を変えるか売上を登録してください</small></div>`;
     return;
   }
 
-  $("#sales-list").innerHTML = data.sales.slice().reverse().map((sale) => {
+  $("#sales-list").innerHTML = sales.slice().reverse().map((sale) => {
     const staff = data.staff.find((item) => item.id === sale.staffId);
     const product = data.products.find((item) => item.id === sale.productId);
     return `
@@ -421,7 +473,9 @@ function renderSales() {
 }
 
 function renderPayroll() {
-  const rows = computePayroll();
+  const range = getFilterRange("payroll");
+  const rows = computePayroll(range);
+  $("#payroll-filter-summary").textContent = filterSummary(range, `合計 ${yen(rows.reduce((sum, row) => sum + row.total, 0))}`);
   $("#payroll-table").innerHTML = rows.map((row) => `
     <div class="pay-row">
       <strong>${row.staff.displayName}</strong>
@@ -433,14 +487,14 @@ function renderPayroll() {
   `).join("");
 }
 
-function computePayroll() {
+function computePayroll(range = null) {
   return data.staff.map((staff) => {
     const hours = data.shifts
-      .filter((shift) => shift.staffId === staff.id && shift.status !== "off")
+      .filter((shift) => shift.staffId === staff.id && shift.status !== "off" && inDateRange(shift.date, range))
       .reduce((sum, shift) => sum + shiftHours(shift), 0);
     const basePay = Math.floor(hours * Number(staff.hourlyWage || 0));
     const backPay = data.sales
-      .filter((sale) => sale.staffId === staff.id)
+      .filter((sale) => sale.staffId === staff.id && inDateRange(dateKeyFromValue(sale.createdAt), range))
       .reduce((sum, sale) => sum + Number(sale.backTotal || 0), 0);
     return { staff, hours, basePay, backPay, total: basePay + backPay };
   });
@@ -468,6 +522,260 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function renderImagePreview(fieldId, value) {
+  const preview = $(`#${fieldId}-preview`);
+  const label = $(`#${fieldId}-label`);
+  if (preview) {
+    if (value) {
+      preview.src = asset(value);
+    } else {
+      preview.removeAttribute("src");
+    }
+  }
+  if (label) label.textContent = imageLabel(value);
+}
+
+function imageLabel(value) {
+  const text = String(value || "").trim();
+  if (!text) return "未設定";
+  if (uploadedImage(text)) return "アップロード済み";
+  return text.split("/").pop() || "設定済み";
+}
+
+function renderShiftTools(dates) {
+  const source = $("#copy-shift-source");
+  if (!source) return;
+  const currentValue = source.value;
+  source.innerHTML = dates.map((date) => `
+    <option value="${date}" ${date === selectedDate ? "disabled" : ""}>${dateLabel(date)} ${date}</option>
+  `).join("");
+  const selectedIndex = dates.indexOf(selectedDate);
+  const fallback = dates[selectedIndex - 1] || dates[selectedIndex + 1] || dates.find((date) => date !== selectedDate) || "";
+  source.value = currentValue && currentValue !== selectedDate ? currentValue : fallback;
+}
+
+function dateKeyFromValue(value) {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return String(value);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return dateKey(parsed);
+}
+
+function monthRange(monthValue) {
+  if (!monthValue) return null;
+  const [year, month] = monthValue.split("-").map(Number);
+  if (!year || !month) return null;
+  const start = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDate = new Date(year, month, 0);
+  return { from: start, to: dateKey(endDate) };
+}
+
+function getFilterRange(prefix) {
+  const from = $(`#${prefix}-from`)?.value || "";
+  const to = $(`#${prefix}-to`)?.value || "";
+  if (from || to) return { from: from || "0000-01-01", to: to || "9999-12-31" };
+  return monthRange($(`#${prefix}-month`)?.value || "");
+}
+
+function inDateRange(dateValue, range) {
+  if (!range) return true;
+  const key = dateKeyFromValue(dateValue);
+  if (!key) return false;
+  return key >= range.from && key <= range.to;
+}
+
+function filterSummary(range, suffix) {
+  const prefix = range ? `${range.from} - ${range.to}` : "全期間";
+  return `${prefix} / ${suffix}`;
+}
+
+function getSalesInRange(range = getFilterRange("sales")) {
+  return data.sales.filter((sale) => inDateRange(dateKeyFromValue(sale.createdAt), range));
+}
+
+function initializeDateFilters() {
+  const month = dateKey(new Date()).slice(0, 7);
+  ["sales", "payroll"].forEach((prefix) => {
+    const monthInput = $(`#${prefix}-month`);
+    if (monthInput && !monthInput.value) monthInput.value = month;
+  });
+}
+
+function readStoredData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getLocalBackups() {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    const backups = raw ? JSON.parse(raw) : [];
+    return Array.isArray(backups) ? backups : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalBackups(backups) {
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(backups.slice(0, BACKUP_LIMIT)));
+}
+
+function pushLocalBackup(snapshot, label = "手動バックアップ") {
+  if (!snapshot || !snapshot.staff) return false;
+  const backup = {
+    id: id("backup"),
+    createdAt: new Date().toISOString(),
+    label,
+    data: clone(snapshot)
+  };
+  const backups = [backup, ...getLocalBackups()].slice(0, BACKUP_LIMIT);
+  try {
+    writeLocalBackups(backups);
+    renderBackupStatus();
+    return true;
+  } catch {
+    try {
+      writeLocalBackups(backups.slice(0, 1));
+      renderBackupStatus();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function trimBackupsForSpace() {
+  const backups = getLocalBackups();
+  try {
+    writeLocalBackups(backups.slice(0, 1));
+  } catch {
+    try {
+      localStorage.removeItem(BACKUP_KEY);
+    } catch {
+      // ignore storage cleanup failure
+    }
+  }
+}
+
+function renderBackupStatus() {
+  const select = $("#backup-history");
+  const status = $("#backup-status");
+  if (!select || !status) return;
+  const backups = getLocalBackups();
+  select.innerHTML = backups.length
+    ? backups.map((backup) => `<option value="${backup.id}">${formatDateTime(backup.createdAt)} / ${backup.label}</option>`).join("")
+    : `<option value="">履歴なし</option>`;
+  status.textContent = backups.length
+    ? `ブラウザ内に${backups.length}世代保存中。端末変更やブラウザ削除にはJSON書き出しで備えてください。`
+    : "まだ自動バックアップ履歴はありません。保存時に自動で作成されます。";
+}
+
+function selectedLocalBackup() {
+  const backupId = $("#backup-history")?.value;
+  return getLocalBackups().find((backup) => backup.id === backupId);
+}
+
+function openPublishPreview(message) {
+  pendingPreviewMessage = message;
+  const modal = $("#publish-preview-modal");
+  const list = $("#publish-diff-list");
+  if (!modal || !list) {
+    commitData(message);
+    return;
+  }
+  const changes = summarizePublishChanges(lastSavedSnapshot || {}, data);
+  list.innerHTML = changes.map((item) => `
+    <div class="diff-item">
+      <strong>${item.title}</strong>
+      <span>${item.detail}</span>
+    </div>
+  `).join("");
+  modal.hidden = false;
+  document.body.classList.add("sheet-open");
+}
+
+function closePublishPreview() {
+  $("#publish-preview-modal").hidden = true;
+  document.body.classList.remove("sheet-open");
+  pendingPreviewMessage = "";
+}
+
+function summarizePublishChanges(before, after) {
+  const changes = [];
+  const shopFields = ["displayName", "concept", "hours", "address", "instagram"];
+  const changedShop = shopFields.filter((field) => !sameValue(before.shop?.[field], after.shop?.[field]));
+  if (changedShop.length) {
+    changes.push({ title: "店舗情報", detail: `${changedShop.length}項目を更新します` });
+  }
+
+  const staffDiff = diffById(before.staff || [], after.staff || [], ["displayName", "romanName", "profileText", "photo", "heroPhoto", "hourlyWage", "tags", "publicVisible", "workStatus"]);
+  if (staffDiff.changed || staffDiff.added || staffDiff.removed) {
+    changes.push({ title: "スタッフ", detail: `追加${staffDiff.added} / 更新${staffDiff.changed} / 削除${staffDiff.removed}` });
+  }
+
+  const materialDiff = diffById(before.materials || [], after.materials || [], ["title", "caption", "image", "kind"]);
+  if (materialDiff.changed || materialDiff.added || materialDiff.removed) {
+    changes.push({ title: "ギャラリー", detail: `追加${materialDiff.added} / 更新${materialDiff.changed} / 削除${materialDiff.removed}` });
+  }
+
+  const shiftDiff = diffByComposite(before.shifts || [], after.shifts || [], (item) => `${item.date}:${item.staffId}`, ["status", "start", "end", "publicNote"]);
+  if (shiftDiff.changed || shiftDiff.added || shiftDiff.removed) {
+    changes.push({ title: "シフト", detail: `追加${shiftDiff.added} / 更新${shiftDiff.changed} / 削除${shiftDiff.removed}` });
+  }
+
+  const eventDiff = diffById(before.events || [], after.events || [], ["date", "title", "summary", "publicVisible"]);
+  if (eventDiff.changed || eventDiff.added || eventDiff.removed) {
+    changes.push({ title: "イベント", detail: `追加${eventDiff.added} / 更新${eventDiff.changed} / 削除${eventDiff.removed}` });
+  }
+
+  const productDiff = diffById(before.products || [], after.products || [], ["name", "category", "salePrice", "backAmount", "eventOnly", "active"]);
+  if (productDiff.changed || productDiff.added || productDiff.removed) {
+    changes.push({ title: "メニュー", detail: `追加${productDiff.added} / 更新${productDiff.changed} / 削除${productDiff.removed}` });
+  }
+
+  if ((before.sales || []).length !== (after.sales || []).length) {
+    changes.push({ title: "売上", detail: `${(before.sales || []).length}件から${(after.sales || []).length}件へ変更します` });
+  }
+
+  if (!changes.length) {
+    changes.push({ title: "変更なし", detail: "公開サイトに見える変更はありません。バックアップだけ更新できます。" });
+  }
+  return changes;
+}
+
+function diffById(beforeItems, afterItems, fields) {
+  return diffByComposite(beforeItems, afterItems, (item) => item.id, fields);
+}
+
+function diffByComposite(beforeItems, afterItems, keyFn, fields) {
+  const before = new Map(beforeItems.map((item) => [keyFn(item), item]));
+  const after = new Map(afterItems.map((item) => [keyFn(item), item]));
+  let added = 0;
+  let removed = 0;
+  let changed = 0;
+  after.forEach((item, key) => {
+    if (!before.has(key)) {
+      added += 1;
+      return;
+    }
+    const prev = before.get(key);
+    if (fields.some((field) => !sameValue(prev?.[field], item?.[field]))) changed += 1;
+  });
+  before.forEach((_, key) => {
+    if (!after.has(key)) removed += 1;
+  });
+  return { added, removed, changed };
+}
+
+function sameValue(left, right) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
 function bindNavigation() {
@@ -594,9 +902,31 @@ function closeEditSheet() {
 }
 
 function bindActions() {
-  $("#save-button").addEventListener("click", () => saveData("✓ 公開サイトに反映しました"));
+  $("#save-button").addEventListener("click", () => saveData("✓ 公開サイトに反映しました", { preview: true }));
+
+  $("#publish-preview-close").addEventListener("click", closePublishPreview);
+  $("#publish-preview-cancel").addEventListener("click", closePublishPreview);
+  $("#publish-preview-confirm").addEventListener("click", () => {
+    const message = pendingPreviewMessage || "✓ 公開サイトに反映しました";
+    closePublishPreview();
+    commitData(message);
+  });
 
   document.addEventListener("click", (event) => {
+    const imageTrigger = event.target.closest("[data-image-trigger]");
+    if (imageTrigger) {
+      event.preventDefault();
+      $(`#${imageTrigger.dataset.imageTrigger}`)?.click();
+      return;
+    }
+
+    const imageClear = event.target.closest("[data-image-clear]");
+    if (imageClear) {
+      event.preventDefault();
+      clearImageField(imageClear.dataset.imageClear);
+      return;
+    }
+
     const closeSheetButton = event.target.closest("[data-sheet-close]");
     if (closeSheetButton) {
       event.preventDefault();
@@ -607,8 +937,8 @@ function bindActions() {
     const sheetSaveButton = event.target.closest("[data-sheet-save]");
     if (sheetSaveButton) {
       event.preventDefault();
-      saveData("✓ 公開サイトに反映しました");
       closeEditSheet();
+      saveData("✓ 公開サイトに反映しました", { preview: true });
       return;
     }
 
@@ -761,6 +1091,9 @@ function bindActions() {
     renderShift();
   });
 
+  $("#copy-shift-to-date").addEventListener("click", copyShiftToSelectedDate);
+  $("#apply-bulk-shift").addEventListener("click", applyBulkShift);
+
   $("#add-sale").addEventListener("click", () => {
     const staffId = $("#sale-staff").value;
     const productId = $("#sale-product").value;
@@ -782,9 +1115,19 @@ function bindActions() {
   });
 
   $("#download-sales").addEventListener("click", downloadSalesCsv);
+  $("#download-payroll").addEventListener("click", downloadPayrollCsv);
   $("#download-backup").addEventListener("click", downloadBackupJson);
   $("#restore-backup").addEventListener("click", () => $("#backup-file").click());
   $("#backup-file").addEventListener("change", restoreBackupJson);
+  $("#create-local-backup").addEventListener("click", () => {
+    if (pushLocalBackup(data, "手動バックアップ")) {
+      toast("ブラウザ内バックアップを作成しました");
+    } else {
+      toast("バックアップを作成できませんでした。JSONを書き出してください。");
+    }
+  });
+  $("#restore-local-backup").addEventListener("click", restoreSelectedLocalBackup);
+  $("#download-local-backup").addEventListener("click", downloadSelectedLocalBackup);
 
   $("#mark-paid").addEventListener("click", () => {
     if (!confirm("未払給与と売上バックの集計をリセットします。")) return;
@@ -877,6 +1220,116 @@ function bindForms() {
     renderOperations();
     renderMaterialPreviewOnly();
   });
+
+  bindImageUpload("staff-photo-file", "staff-photo", () => $("#staff-form").dispatchEvent(new Event("input", { bubbles: true })));
+  bindImageUpload("staff-hero-photo-file", "staff-hero-photo", () => $("#staff-form").dispatchEvent(new Event("input", { bubbles: true })));
+  bindImageUpload("material-image-file", "material-image", () => $("#material-form").dispatchEvent(new Event("input", { bubbles: true })));
+
+  ["sales-month", "sales-from", "sales-to"].forEach((idName) => {
+    $(`#${idName}`).addEventListener("input", renderSales);
+  });
+  ["payroll-month", "payroll-from", "payroll-to"].forEach((idName) => {
+    $(`#${idName}`).addEventListener("input", renderPayroll);
+  });
+}
+
+function bindImageUpload(fileInputId, targetInputId, onUpdate) {
+  const input = $(`#${fileInputId}`);
+  const target = $(`#${targetInputId}`);
+  if (!input || !target) return;
+  input.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file);
+      target.value = dataUrl;
+      onUpdate();
+      renderImagePreview(targetInputId, dataUrl);
+      toast("画像を読み込みました。保存前プレビューで確認してください。");
+    } catch {
+      toast("画像を読み込めませんでした");
+    } finally {
+      event.target.value = "";
+    }
+  });
+}
+
+function clearImageField(targetInputId) {
+  const target = $(`#${targetInputId}`);
+  if (!target) return;
+  target.value = "";
+  const form = target.closest("form");
+  target.dispatchEvent(new Event("input", { bubbles: true }));
+  form?.dispatchEvent(new Event("input", { bubbles: true }));
+  renderImagePreview(targetInputId, "");
+  toast("画像を未設定にしました");
+}
+
+function fileToCompressedDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("not image"));
+      return;
+    }
+    const reader = new FileReader();
+    reader.addEventListener("error", reject);
+    reader.addEventListener("load", () => {
+      const image = new Image();
+      image.addEventListener("error", reject);
+      image.addEventListener("load", () => {
+        const scale = Math.min(1, IMAGE_MAX_SIDE / Math.max(image.naturalWidth, image.naturalHeight));
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", IMAGE_QUALITY));
+      });
+      image.src = String(reader.result || "");
+    });
+    reader.readAsDataURL(file);
+  });
+}
+
+function copyShiftToSelectedDate() {
+  const sourceDate = $("#copy-shift-source").value;
+  if (!sourceDate || !selectedDate || sourceDate === selectedDate) {
+    toast("コピー元日を選んでください");
+    return;
+  }
+  data.staff.forEach((staff) => {
+    const source = getShift(sourceDate, staff.id) || { status: "off", start: "", end: "", publicNote: "お休み" };
+    const target = getOrCreateShift(selectedDate, staff.id);
+    target.status = source.status || "off";
+    target.start = source.start || "";
+    target.end = source.end || "";
+    target.publicNote = source.publicNote || "";
+  });
+  renderShift();
+  renderDashboard();
+  renderPayroll();
+  toast(`${dateLabel(sourceDate)}のシフトを${dateLabel(selectedDate)}へコピーしました`);
+}
+
+function applyBulkShift() {
+  const status = $("#bulk-shift-status").value;
+  const isOff = status === "off";
+  const start = isOff ? "" : $("#bulk-shift-start").value;
+  const end = isOff ? "" : $("#bulk-shift-end").value;
+  const note = isOff ? "お休み" : ($("#bulk-shift-note").value || statusText(status));
+  data.staff.forEach((staff) => {
+    const shift = getOrCreateShift(selectedDate, staff.id);
+    shift.status = status;
+    shift.start = start;
+    shift.end = end;
+    shift.publicNote = note;
+  });
+  renderShift();
+  renderDashboard();
+  renderPayroll();
+  toast(`${dateLabel(selectedDate)}の全員分を一括反映しました`);
 }
 
 function updateShiftFromInput(event) {
@@ -933,7 +1386,8 @@ function applyPunch(status) {
 
 function downloadSalesCsv() {
   const header = ["createdAt", "staff", "product", "qty", "salePrice", "backAmount", "total", "backTotal"];
-  const rows = data.sales.map((sale) => {
+  const range = getFilterRange("sales");
+  const rows = getSalesInRange(range).map((sale) => {
     const staff = data.staff.find((item) => item.id === sale.staffId);
     const product = data.products.find((item) => item.id === sale.productId);
     return [
@@ -952,9 +1406,34 @@ function downloadSalesCsv() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `naughty_sales_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `naughty_sales_${rangeName(range)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadPayrollCsv() {
+  const range = getFilterRange("payroll");
+  const header = ["staff", "hours", "basePay", "backPay", "total"];
+  const rows = computePayroll(range).map((row) => [
+    row.staff.displayName,
+    row.hours.toFixed(2),
+    row.basePay,
+    row.backPay,
+    row.total
+  ]);
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `naughty_payroll_${rangeName(range)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function rangeName(range) {
+  if (!range) return new Date().toISOString().slice(0, 10);
+  return `${range.from}_${range.to}`;
 }
 
 function downloadBackupJson() {
@@ -968,6 +1447,34 @@ function downloadBackupJson() {
   toast("バックアップを書き出しました");
 }
 
+function downloadSelectedLocalBackup() {
+  const backup = selectedLocalBackup();
+  if (!backup) {
+    toast("書き出す履歴がありません");
+    return;
+  }
+  const blob = new Blob([JSON.stringify(backup.data, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `naughty_backup_${backup.createdAt.slice(0, 10)}_${backup.id}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  toast("履歴バックアップを書き出しました");
+}
+
+function restoreSelectedLocalBackup() {
+  const backup = selectedLocalBackup();
+  if (!backup) {
+    toast("復元する履歴がありません");
+    return;
+  }
+  if (!confirm(`${formatDateTime(backup.createdAt)} のバックアップを復元しますか？`)) return;
+  data = normalizeData(clone(backup.data));
+  resetSelections();
+  commitData("履歴バックアップを復元しました");
+}
+
 function restoreBackupJson(event) {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -975,11 +1482,7 @@ function restoreBackupJson(event) {
   reader.addEventListener("load", () => {
     try {
       data = normalizeData(JSON.parse(String(reader.result || "{}")));
-      selectedStaffId = data.staff[0]?.id || "";
-      selectedProductId = data.products[0]?.id || "";
-      selectedEventId = data.events[0]?.id || "";
-      selectedMaterialId = data.materials[0]?.id || "";
-      selectedDate = shiftDates()[0] || "";
+      resetSelections();
       saveData("バックアップを復元しました");
     } catch {
       toast("復元できませんでした");
@@ -990,6 +1493,14 @@ function restoreBackupJson(event) {
   reader.readAsText(file);
 }
 
+function resetSelections() {
+  selectedStaffId = data.staff[0]?.id || "";
+  selectedProductId = data.products[0]?.id || "";
+  selectedEventId = data.events[0]?.id || "";
+  selectedMaterialId = data.materials[0]?.id || "";
+  selectedDate = shiftDates()[0] || "";
+}
+
 function csvCell(value) {
   const text = String(value ?? "");
   return `"${text.replace(/"/g, '""')}"`;
@@ -997,6 +1508,7 @@ function csvCell(value) {
 
 bindThemeToggle();
 enhanceEditSheets();
+initializeDateFilters();
 bindNavigation();
 bindActions();
 bindForms();

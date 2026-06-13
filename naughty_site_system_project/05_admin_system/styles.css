@@ -481,12 +481,35 @@ a {
   margin-top: 12px;
 }
 
+.backup-manager {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  background: var(--fill);
+}
+
+.compact-head {
+  margin-bottom: 0;
+}
+
+.compact-head h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+
 .small-command {
   min-height: 44px;
 }
 
 .compact-field,
-.edit-form label {
+.edit-form label,
+.tool-grid label,
+.filter-grid label,
+.backup-manager label {
   display: grid;
   gap: 6px;
   color: var(--muted);
@@ -498,6 +521,10 @@ a {
 .edit-form input,
 .edit-form textarea,
 .edit-form select,
+.tool-grid input,
+.tool-grid select,
+.filter-grid input,
+.backup-manager select,
 .shift-row input,
 .shift-row select {
   width: 100%;
@@ -519,6 +546,88 @@ a {
   min-height: 88px;
   resize: vertical;
   line-height: 1.7;
+}
+
+.image-field {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  background: var(--fill);
+}
+
+.image-preview {
+  width: 96px;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--av1), var(--av2));
+}
+
+.image-preview.wide {
+  aspect-ratio: 4 / 3;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.image-preview img:not([src]),
+.image-preview img[src=""] {
+  display: none;
+}
+
+.image-controls {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.image-controls strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.image-controls span,
+.mini-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.image-controls .small-command {
+  width: 100%;
+}
+
+.tool-grid,
+.filter-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.tool-grid {
+  grid-template-columns: minmax(150px, 1fr) auto repeat(4, minmax(120px, 1fr)) auto;
+  align-items: end;
+}
+
+.filter-grid {
+  grid-template-columns: repeat(3, minmax(120px, 1fr)) auto;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.primary-command {
+  background: var(--pink);
+  color: var(--on-pink);
+  box-shadow: 0 8px 22px rgba(255, 92, 144, .22);
 }
 
 .switch {
@@ -882,12 +991,72 @@ span.thumb {
   box-shadow: var(--sh);
   transform: translateY(120%);
   opacity: 0;
+  pointer-events: none;
   transition: .25s ease;
 }
 
 .toast.show {
   transform: translateY(0);
   opacity: 1;
+  pointer-events: auto;
+}
+
+.publish-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, .52);
+}
+
+.publish-modal[hidden] {
+  display: none !important;
+}
+
+.publish-panel {
+  width: min(620px, 100%);
+  max-height: min(760px, calc(100svh - 36px));
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid var(--card-bd);
+  border-radius: 20px;
+  background: var(--card);
+  box-shadow: var(--ring);
+}
+
+.diff-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.diff-item {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  background: var(--fill);
+}
+
+.diff-item strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.diff-item span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .tabbar,
@@ -938,6 +1107,11 @@ span.thumb {
 
   .pay-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .tool-grid,
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1196,6 +1370,12 @@ span.thumb {
     right: 14px;
     bottom: 88px;
   }
+
+  .publish-panel {
+    align-self: end;
+    max-height: calc(100svh - 28px);
+    border-radius: 20px 20px 0 0;
+  }
 }
 
 @media (max-width: 430px) {
@@ -1245,5 +1425,17 @@ span.thumb {
   .sale-row,
   .pay-row {
     grid-template-columns: 1fr;
+  }
+
+  .image-field,
+  .tool-grid,
+  .filter-grid,
+  .modal-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .image-preview {
+    width: 100%;
+    max-width: 180px;
   }
 }
