@@ -469,25 +469,25 @@ html, body { background: #0b0b0d; }
   }
   .fv-mcast .mc-group {
     position: absolute; inset: 0; opacity: 0;
-    transition: opacity .7s var(--ease-out);
+    transition: opacity .28s var(--ease-out);
   }
   .fv-mcast .mc-group.on { opacity: 1; }
+  /* 全員 left:50% を基準に、左右対称の vw オフセットで配置 → アートの幅差に
+     依存せず並びが固定される（中央=最前面 z3、左右=背面 z2）。 */
   .fv-mcast .mc-fig {
-    position: absolute; bottom: 0; width: auto; max-width: none;
+    position: absolute; bottom: 0; left: 50%; width: auto; max-width: none;
     object-fit: contain; object-position: bottom center;
     filter: drop-shadow(0 18px 30px rgba(0,0,0,.5));
-    animation: mc-rise .9s var(--ease-out) both;
+    transform: translateX(-50%);
+    animation: mc-fade .5s var(--ease-out) both;
   }
-  /* 全員ほぼ同じ身長感に統一（サイズはキャストごとに変えない）。
-     左右は背面(z2)、中央が最前面(z3)。 */
-  .fv-mcast .mc-group.n3 .mc-fig { height: 78%; }
-  .fv-mcast .mc-group.n3 .mc-fig.pos-0 { left: -6%;  z-index: 2; }
-  .fv-mcast .mc-group.n3 .mc-fig.pos-1 { left: 50%; transform: translateX(-50%); z-index: 3; }
-  .fv-mcast .mc-group.n3 .mc-fig.pos-2 { right: -6%; z-index: 2; }
-  /* 2人組も同じ身長感で並べる */
-  .fv-mcast .mc-group.n2 .mc-fig { height: 82%; }
-  .fv-mcast .mc-group.n2 .mc-fig.pos-0 { left: 2%;  z-index: 2; }
-  .fv-mcast .mc-group.n2 .mc-fig.pos-1 { right: 2%; z-index: 3; }
+  .fv-mcast .mc-group.n3 .mc-fig { height: 74%; }
+  .fv-mcast .mc-group.n3 .mc-fig.pos-0 { transform: translateX(calc(-50% - 27vw)); z-index: 2; }
+  .fv-mcast .mc-group.n3 .mc-fig.pos-1 { transform: translateX(-50%); z-index: 3; }
+  .fv-mcast .mc-group.n3 .mc-fig.pos-2 { transform: translateX(calc(-50% + 27vw)); z-index: 2; }
+  .fv-mcast .mc-group.n2 .mc-fig { height: 80%; }
+  .fv-mcast .mc-group.n2 .mc-fig.pos-0 { transform: translateX(calc(-50% - 16vw)); z-index: 2; }
+  .fv-mcast .mc-group.n2 .mc-fig.pos-1 { transform: translateX(calc(-50% + 16vw)); z-index: 3; }
 
   /* 切替時のノイズ演出（デスクトップと同じ cast-noise を再利用） */
   .fv-mcast::after {
@@ -514,9 +514,8 @@ html, body { background: #0b0b0d; }
   64% { opacity: 1; }
   76% { opacity: .5; }
 }
-@media (max-width: 820px) {
-  .fv-mcast .mc-group.n3 .mc-fig.pos-1 { animation-name: mc-rise-center; }
-}
+/* mobile cast: 透明度だけのフェード（transform は配置用に保持） */
+@keyframes mc-fade { from { opacity: 0; } }
 @keyframes mc-rise-center {
   from { opacity: 0; transform: translateX(-50%) translateY(18px) scale(.98); }
   to { opacity: 1; transform: translateX(-50%); }
@@ -585,6 +584,29 @@ html, body { background: #0b0b0d; }
   .nty .cal-head { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 16px; }
   .nty .cal-range { font-size: 17px; }
   .nty .cal-legend { gap: 16px; }
+
+  /* カレンダー/リスト 切替トグル */
+  .nty .cal-switch { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.04); }
+  .nty .cal-switch button { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; padding: 8px 18px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-3); }
+  .nty .cal-switch button.on { background: var(--pink); color: #fff; }
+
+  /* 月カレンダー（既定） */
+  .nty .cm-dow { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 8px; }
+  .nty .cm-dow span { text-align: center; font-family: var(--f-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-3); }
+  .nty .cm-dow .sat, .nty .cm-dow .sun { color: var(--pink-2); }
+  .nty .cm-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px; }
+  .nty .cm-cell { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--line-soft); border-radius: 10px; background: rgba(18,18,22,.55); color: var(--ink); cursor: pointer; }
+  .nty .cm-cell.blank { border: 0; background: transparent; cursor: default; }
+  .nty .cm-n { font-family: var(--f-display); font-weight: 700; font-size: 15px; line-height: 1; }
+  .nty .cm-dot { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+  .nty .cm-cell.st-open .cm-dot { background: var(--pink); }
+  .nty .cm-cell.st-tbd .cm-dot { background: #caa24a; }
+  .nty .cm-cell.st-closed .cm-dot { background: #4a4a52; }
+  .nty .cm-cell.wknd .cm-n { color: var(--pink-2); }
+  .nty .cm-cell.today { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink); }
+  .nty .cm-cell.on { background: var(--pink); border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink); }
+  .nty .cm-cell.on .cm-n { color: #fff; }
+  .nty .cm-cell.on .cm-dot { background: #fff; }
 
   .nty .cal-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
   .nty .cal-strip::-webkit-scrollbar { height: 4px; }

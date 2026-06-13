@@ -180,9 +180,16 @@ function Schedule2() {
   const { days } = window.NTY.schedule;
   const last = days[13];
   const weeks = [days.slice(0, 7), days.slice(7, 14)];
-  // モバイルは「日付チップ＋選択日表示」。既定は今日(index 0)
+  // モバイル：カレンダー(月表示)⇄リスト を切替。既定=カレンダー。選択日は今日(index 0)
   const [sel, setSel] = useState(0);
+  const [calView, setCalView] = useState("month");
   const selDay = days[sel];
+  // 月表示用グリッド（曜日揃え）。先頭は days[0] の曜日ぶん空セル、末尾は週を埋める
+  const DOW = ["日", "月", "火", "水", "木", "金", "土"];
+  const cells = [...Array(days[0].dow).fill(null), ...days];
+  while (cells.length % 7) cells.push(null);
+  const calWeeks = [];
+  for (let i = 0; i < cells.length; i += 7) calWeeks.push(cells.slice(i, i + 7));
   return (
     <section className="section tone-panel" id="schedule" data-section-id="schedule" data-screen-label="02 Schedule">
       <Head num="02" en="Schedule / Next 14 days" jp="出勤予定" />
@@ -227,22 +234,56 @@ function Schedule2() {
         ))}
       </div>
 
-      {/* MOBILE — 日付チップ＋選択日（PCでは非表示） */}
+      {/* MOBILE — カレンダー/リスト切替（PCでは非表示） */}
       <div className="cal-mobile">
-        <div className="cal-strip">
-          {days.map((d, i) => (
-            <button
-              key={d.idx}
-              className={`cal-chip st-${d.state} ${d.weekend ? "wknd" : ""} ${i === sel ? "on" : ""}`}
-              onClick={() => setSel(i)}
-              aria-label={`${d.month}/${d.d} ${d.dowEn}`}
-            >
-              <span className="cc-dow">{d.dowEn}</span>
-              <span className="cc-num">{d.d}</span>
-              <span className="cc-dot" />
-            </button>
-          ))}
+        <div className="cal-switch" role="tablist">
+          <button className={calView === "month" ? "on" : ""} onClick={() => setCalView("month")}>カレンダー</button>
+          <button className={calView === "list" ? "on" : ""} onClick={() => setCalView("list")}>リスト</button>
         </div>
+
+        {calView === "month" ? (
+          <div className="cal-month">
+            <div className="cm-dow">
+              {DOW.map((d, i) => (
+                <span key={d} className={i === 0 ? "sun" : i === 6 ? "sat" : ""}>{d}</span>
+              ))}
+            </div>
+            {calWeeks.map((w, wi) => (
+              <div className="cm-week" key={wi}>
+                {w.map((d, di) =>
+                  d ? (
+                    <button
+                      key={d.idx}
+                      className={`cm-cell st-${d.state} ${d.isToday ? "today" : ""} ${d.idx === sel ? "on" : ""} ${d.weekend ? "wknd" : ""}`}
+                      onClick={() => setSel(d.idx)}
+                      aria-label={`${d.month}/${d.d}`}
+                    >
+                      <span className="cm-n">{d.d}</span>
+                      <span className="cm-dot" />
+                    </button>
+                  ) : (
+                    <span className="cm-cell blank" key={`b${wi}-${di}`} />
+                  )
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="cal-strip">
+            {days.map((d, i) => (
+              <button
+                key={d.idx}
+                className={`cal-chip st-${d.state} ${d.weekend ? "wknd" : ""} ${i === sel ? "on" : ""}`}
+                onClick={() => setSel(i)}
+                aria-label={`${d.month}/${d.d} ${d.dowEn}`}
+              >
+                <span className="cc-dow">{d.dowEn}</span>
+                <span className="cc-num">{d.d}</span>
+                <span className="cc-dot" />
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className={`cal-day st-${selDay.state}`}>
           <div className="cd-top">
