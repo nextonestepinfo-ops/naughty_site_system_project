@@ -3,13 +3,15 @@ const THEME_KEY = "naughty.admin.theme";
 const BACKUP_KEY = "naughty.siteData.backups.v1";
 const BACKUP_LIMIT = 5;
 const DATA_URL = "../03_system_seed/naughty_site_data.json";
-const ASSET_ROOT = "../01_existing_site/";
+const ASSET_ROOT = "../04_site_rebuild/";
+const LEGACY_ASSET_ROOT = "../01_existing_site/";
 const MORE_VIEWS = new Set(["site", "gallery", "menu", "events", "payroll"]);
 const IMAGE_MAX_SIDE = 1400;
 const IMAGE_QUALITY = 0.86;
 
 const statusLabel = {
   working: "出勤中",
+  soon: "まもなく",
   scheduled: "予定",
   off: "休み"
 };
@@ -75,7 +77,22 @@ function mergeSavedData(fallback, savedText) {
       : fallback.materials;
     merged.assetVersion = fallback.assetVersion;
   }
-  return merged;
+  return hydrateStaffImages(merged, fallback);
+}
+
+function hydrateStaffImages(next, fallback) {
+  const seedStaff = new Map((fallback.staff || []).map((staff) => [staff.id, staff]));
+  return {
+    ...next,
+    staff: (next.staff || []).map((staff) => {
+      const seed = seedStaff.get(staff.id) || {};
+      return {
+        ...staff,
+        photo: staff.photo || seed.photo || "",
+        heroPhoto: staff.heroPhoto || seed.heroPhoto || staff.photo || seed.photo || ""
+      };
+    })
+  };
 }
 
 function normalizeData(next) {
@@ -146,6 +163,7 @@ function asset(path) {
   if (!path) return "../01_existing_site/assets/cast/g1.png";
   if (/^(https?:|data:|blob:)/i.test(path)) return path;
   if (String(path).startsWith("../") || String(path).startsWith("/")) return path;
+  if (String(path).startsWith("uploads/") || String(path).startsWith("assets/transparent/")) return `${LEGACY_ASSET_ROOT}${path}`;
   return `${ASSET_ROOT}${path}`;
 }
 
@@ -479,10 +497,10 @@ function renderPayroll() {
   $("#payroll-table").innerHTML = rows.map((row) => `
     <div class="pay-row">
       <strong>${row.staff.displayName}</strong>
-      <span>${row.hours.toFixed(2)}h</span>
-      <span>${yen(row.basePay)}</span>
-      <span>${yen(row.backPay)}</span>
-      <b>${yen(row.total)}</b>
+      <span data-label="勤務時間">${row.hours.toFixed(2)}h</span>
+      <span data-label="時給分">${yen(row.basePay)}</span>
+      <span data-label="バック">${yen(row.backPay)}</span>
+      <b data-label="合計">${yen(row.total)}</b>
     </div>
   `).join("");
 }
