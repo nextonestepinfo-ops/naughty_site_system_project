@@ -1,6 +1,6 @@
 (function () {
-  const AUTH_KEY = "naughty.auth.v1";
-  const PASS_HASH = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4";
+  const AUTH_KEY = "naughty.auth.v2";
+  const PASS_HASH = "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0";
   const script = document.currentScript;
   const redirect = script?.dataset.redirect || "";
 
@@ -20,7 +20,7 @@
   };
 
   const sha256 = async (value) => {
-    if (!window.crypto?.subtle) return value === "1234" ? PASS_HASH : "";
+    if (!window.crypto?.subtle) return value === "0000" ? PASS_HASH : "";
     const bytes = new TextEncoder().encode(value);
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
