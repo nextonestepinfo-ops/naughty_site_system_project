@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NAUGHTY デモ確認フォーム</title>
+  <link rel="stylesheet" href="../auth-gate.css" />
+  <script>document.documentElement.classList.add("auth-pending");</script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f9;
+      --card: #fff;
+      --ink: #1c1c22;
+      --sub: #666773;
+      --muted: #9a9aa4;
+      --line: #ececf1;
+      --fill: #f3f3f6;
+      --pink: #ff3f86;
+      --pink-soft: #fff0f6;
+      --shadow: 0 1px 2px rgba(20, 20, 30, .04), 0 10px 28px rgba(20, 20, 30, .08);
+      --radius: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans JP", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+    }
+
+    a {
+      color: var(--pink);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .page {
+      width: min(100%, 760px);
+      margin: 0 auto;
+      padding: 22px 16px 120px;
+    }
+
+    .hero {
+      padding: 18px 0 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .brand img {
+      width: 46px;
+      height: 46px;
+      object-fit: contain;
+    }
+
+    .brand span {
+      color: var(--pink);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .18em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.22;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 14px 0 0;
+      color: var(--sub);
+      font-size: 15px;
+    }
+
+    .notice {
+      margin-top: 18px;
+      padding: 14px 15px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--card);
+      color: var(--sub);
+      font-size: 13px;
+    }
+
+    .section {
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .section-head {
+      margin-bottom: 14px;
+    }
+
+    .kicker {
+      margin: 0 0 4px;
+      color: var(--pink);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .18em;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    fieldset,
+    .field {
+      min-width: 0;
+      margin: 0;
+      padding: 16px 0;
+      border: 0;
+      border-top: 1px solid var(--line);
+    }
+
+    fieldset:first-of-type,
+    .field:first-of-type {
+      border-top: 0;
+    }
+
+    legend,
+    .field-title {
+      display: block;
+      width: 100%;
+      margin: 0 0 10px;
+      padding: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .choices {
+      display: grid;
+      gap: 9px;
+    }
+
+    .choice {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 46px;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--fill);
+      font-size: 15px;
+      font-weight: 500;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .choice input {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      accent-color: var(--pink);
+      flex: 0 0 auto;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="email"] {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--fill);
+      color: var(--ink);
+      font: inherit;
+      resize: vertical;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 94px;
+    }
+
+    textarea:focus,
+    input[type="text"]:focus,
+    input[type="email"]:focus {
+      border-color: rgba(255, 63, 134, .45);
+      box-shadow: 0 0 0 4px rgba(255, 63, 134, .11);
+      background: #fff;
+    }
+
+    .links {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .links a {
+      display: block;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--fill);
+      color: var(--ink);
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .links small {
+      display: block;
+      margin-top: 2px;
+      color: var(--sub);
+      font-weight: 500;
+    }
+
+    .actions {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      border-top: 1px solid rgba(0, 0, 0, .08);
+      background: rgba(255, 255, 255, .92);
+      backdrop-filter: blur(18px);
+    }
+
+    .action-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: min(100%, 760px);
+      margin: 0 auto;
+    }
+
+    button {
+      min-height: 50px;
+      border: 0;
+      border-radius: 14px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--pink);
+      color: #fff;
+    }
+
+    .secondary {
+      background: #1d1d24;
+      color: #fff;
+    }
+
+    .ghost {
+      margin-top: 10px;
+      width: 100%;
+      min-height: 42px;
+      background: transparent;
+      color: var(--sub);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .output {
+      margin-top: 10px;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      color: var(--sub);
+    }
+
+    .toast {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: calc(92px + env(safe-area-inset-bottom));
+      z-index: 20;
+      max-width: 520px;
+      margin: auto;
+      padding: 12px 14px;
+      border-radius: 999px;
+      background: #1d1d24;
+      color: #fff;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (min-width: 680px) {
+      .page {
+        padding-top: 34px;
+      }
+
+      h1 {
+        font-size: 40px;
+      }
+
+      .choices {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .choice.span {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div class="brand">
+        <img src="../04_site_rebuild/assets/logo-naughty.png" alt="NAUGHTY" />
+        <span>DEMO HEARING</span>
+      </div>
+      <h1>NAUGHTY デモ確認フォーム</h1>
+      <p class="lead">スマホからチェックと短文で回答できます。入力後は「回答をコピー」または「共有」から、そのままLINE・メール等でご返信ください。</p>
+      <div class="notice">このフォームは回答を自動送信しません。入力内容はこの端末に一時保存されます。最後にコピーまたは共有をお願いします。</div>
+      <div class="links" aria-label="確認URL">
+        <a href="../04_site_rebuild/index.html?v=v8">公開サイトを確認<small>お客様向けページ</small></a>
+        <a href="../05_admin_system/index.html?v=admin-redesign-3">管理画面を確認<small>確認用パスワード: 0000</small></a>
+      </div>
+    </header>
+
+    <form id="hearing-form">
+      <section class="section">
+        <div class="section-head">
+          <p class="kicker">WEBSITE</p>
+          <h2>サイト・TOPについて</h2>
+        </div>
+
+        <fieldset data-title="全体印象">
+          <legend>1. 全体印象</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="site_overall" value="このままでOK" />このままでOK</label>
+            <label class="choice"><input type="radio" name="site_overall" value="一部修正" />一部修正</label>
+            <label class="choice"><input type="radio" name="site_overall" value="大きく変更" />大きく変更</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="TOPのテイスト">
+          <legend>2. TOPのテイスト</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="top_taste" value="現状の雰囲気" />現状の雰囲気</label>
+            <label class="choice"><input type="radio" name="top_taste" value="かわいい" />かわいい</label>
+            <label class="choice"><input type="radio" name="top_taste" value="クール" />クール</label>
+            <label class="choice"><input type="radio" name="top_taste" value="高級感" />高級感</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="TOP背景">
+          <legend>3. TOP背景</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="top_bg" value="ロゴ背景" />ロゴ背景</label>
+            <label class="choice"><input type="radio" name="top_bg" value="写真背景" />写真背景</label>
+            <label class="choice"><input type="radio" name="top_bg" value="無地" />無地</label>
+            <label class="choice"><input type="radio" name="top_bg" value="その他" />その他</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="TOPに出す人数">
+          <legend>4. TOPに出す人数</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="top_count" value="1名" />1名</label>
+            <label class="choice"><input type="radio" name="top_count" value="2〜3名" />2〜3名</label>
+            <label class="choice"><input type="radio" name="top_count" value="4名以上" />4名以上</label>
+            <label class="choice"><input type="radio" name="top_count" value="未定" />未定</label>
+          </div>
+        </fieldset>
+
+        <label class="field" data-title="TOPに出すキャスト名">
+          <span class="field-title">5. TOPに出すキャスト名</span>
+          <textarea name="top_cast_names" placeholder="例: 〇〇さん、△△さん。未定の場合は空欄でOKです。"></textarea>
+        </label>
+
+        <fieldset data-title="キャスト写真">
+          <legend>6. キャスト写真</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="cast_photos" value="後日提出" />後日提出</label>
+            <label class="choice"><input type="radio" name="cast_photos" value="仮配置でOK" />仮配置でOK</label>
+            <label class="choice"><input type="radio" name="cast_photos" value="相談したい" />相談したい</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="出勤カレンダー">
+          <legend>7. 出勤カレンダー</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="calendar" value="OK" />OK</label>
+            <label class="choice"><input type="radio" name="calendar" value="表示を調整したい" />表示を調整したい</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="色・ロゴの濃さ">
+          <legend>8. 色・ロゴの濃さ</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="color_logo" value="OK" />OK</label>
+            <label class="choice"><input type="radio" name="color_logo" value="濃く" />濃く</label>
+            <label class="choice"><input type="radio" name="color_logo" value="薄く" />薄く</label>
+            <label class="choice"><input type="radio" name="color_logo" value="相談" />相談</label>
+          </div>
+        </fieldset>
+
+        <label class="field" data-title="サイトで気になる箇所">
+          <span class="field-title">9. サイトで気になる箇所</span>
+          <textarea name="site_notes" placeholder="気になる箇所、修正したい箇所があればご記入ください。"></textarea>
+        </label>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <p class="kicker">CMS / OPERATION</p>
+          <h2>管理画面・今後の運用について</h2>
+        </div>
+
+        <fieldset data-title="CMSの使いやすさ">
+          <legend>1. CMSの使いやすさ</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="cms_usability" value="OK" />OK</label>
+            <label class="choice"><input type="radio" name="cms_usability" value="少し調整" />少し調整</label>
+            <label class="choice"><input type="radio" name="cms_usability" value="操作説明が必要" />操作説明が必要</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="更新したい項目">
+          <legend>2. 更新したい項目</legend>
+          <div class="choices">
+            <label class="choice"><input type="checkbox" name="cms_update_items" value="キャスト" />キャスト</label>
+            <label class="choice"><input type="checkbox" name="cms_update_items" value="シフト" />シフト</label>
+            <label class="choice"><input type="checkbox" name="cms_update_items" value="イベント" />イベント</label>
+            <label class="choice"><input type="checkbox" name="cms_update_items" value="写真" />写真</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="売上・給与機能">
+          <legend>3. 売上・給与機能</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="payroll" value="使う予定" />使う予定</label>
+            <label class="choice"><input type="radio" name="payroll" value="未定" />未定</label>
+            <label class="choice"><input type="radio" name="payroll" value="詳細確認したい" />詳細確認したい</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="外部保存化">
+          <legend>4. 外部保存化</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="external_storage" value="Supabase方針でOK" />Supabase方針でOK</label>
+            <label class="choice"><input type="radio" name="external_storage" value="詳細説明希望" />詳細説明希望</label>
+            <label class="choice"><input type="radio" name="external_storage" value="保留" />保留</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-title="Supabaseアカウント">
+          <legend>5. Supabaseアカウント</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="supabase_account" value="用意できる" />用意できる</label>
+            <label class="choice"><input type="radio" name="supabase_account" value="作成サポート希望" />作成サポート希望</label>
+          </div>
+        </fieldset>
+
+        <label class="field" data-title="管理者メールアドレス">
+          <span class="field-title">6. 管理者メールアドレス</span>
+          <input type="email" name="admin_email" placeholder="例: name@example.com" autocomplete="email" />
+        </label>
+
+        <fieldset data-title="バックアップ頻度">
+          <legend>7. バックアップ頻度</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="backup_frequency" value="保存ごと" />保存ごと</label>
+            <label class="choice"><input type="radio" name="backup_frequency" value="毎日" />毎日</label>
+            <label class="choice"><input type="radio" name="backup_frequency" value="月次締め時" />月次締め時</label>
+          </div>
+        </fieldset>
+
+        <label class="field" data-title="納品前に確認したいこと">
+          <span class="field-title">8. 納品前に確認したいこと</span>
+          <textarea name="delivery_questions" placeholder="納品前に確認したいことがあればご記入ください。"></textarea>
+        </label>
+
+        <label class="field" data-title="その他ご要望">
+          <span class="field-title">9. その他ご要望</span>
+          <textarea name="other_requests" placeholder="その他のご要望をご記入ください。"></textarea>
+        </label>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <p class="kicker">CONTACT</p>
+          <h2>ご回答者情報</h2>
+        </div>
+        <label class="field" data-title="ご回答者名">
+          <span class="field-title">ご回答者名</span>
+          <input type="text" name="respondent" placeholder="お名前または店舗ご担当者名" autocomplete="name" />
+        </label>
+        <label class="field" data-title="連絡メモ">
+          <span class="field-title">連絡メモ</span>
+          <textarea name="contact_note" placeholder="連絡方法や補足があればご記入ください。"></textarea>
+        </label>
+        <p class="output" id="save-status">入力内容はこの端末に一時保存されます。</p>
+      </section>
+    </form>
+  </main>
+
+  <div class="actions">
+    <div class="action-inner">
+      <button class="primary" id="copy-answer" type="button">回答をコピー</button>
+      <button class="secondary" id="share-answer" type="button">共有する</button>
+    </div>
+    <button class="ghost" id="clear-form" type="button">入力内容をクリア</button>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="../auth-gate.js?v=0000"></script>
+  <script>
+    (() => {
+      const form = document.querySelector("#hearing-form");
+      const toast = document.querySelector("#toast");
+      const status = document.querySelector("#save-status");
+      const storageKey = "naughty.client.hearing.v1";
+
+      const showToast = (message) => {
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => toast.classList.remove("show"), 1800);
+      };
+
+      const save = () => {
+        const values = {};
+        form.querySelectorAll("input, textarea").forEach((field) => {
+          if (field.type === "radio") {
+            if (field.checked) values[field.name] = field.value;
+            return;
+          }
+          if (field.type === "checkbox") {
+            values[field.name] = values[field.name] || [];
+            if (field.checked) values[field.name].push(field.value);
+            return;
+          }
+          values[field.name] = field.value;
+        });
+        localStorage.setItem(storageKey, JSON.stringify(values));
+        status.textContent = "入力内容をこの端末に保存しました。";
+      };
+
+      const restore = () => {
+        try {
+          const values = JSON.parse(localStorage.getItem(storageKey) || "{}");
+          form.querySelectorAll("input, textarea").forEach((field) => {
+            const value = values[field.name];
+            if (field.type === "radio") {
+              field.checked = value === field.value;
+              return;
+            }
+            if (field.type === "checkbox") {
+              field.checked = Array.isArray(value) && value.includes(field.value);
+              return;
+            }
+            field.value = value || "";
+          });
+        } catch {
+          localStorage.removeItem(storageKey);
+        }
+      };
+
+      const readBlock = (block) => {
+        const title = block.dataset.title;
+        if (block.matches("fieldset")) {
+          const checked = [...block.querySelectorAll("input:checked")].map((item) => item.value);
+          return `${title}: ${checked.length ? checked.join(" / ") : "未回答"}`;
+        }
+        const field = block.querySelector("input, textarea");
+        return `${title}: ${field?.value.trim() || "未回答"}`;
+      };
+
+      const buildAnswer = () => {
+        const website = [...document.querySelectorAll(".section:nth-of-type(1) [data-title]")].map(readBlock);
+        const cms = [...document.querySelectorAll(".section:nth-of-type(2) [data-title]")].map(readBlock);
+        const contact = [...document.querySelectorAll(".section:nth-of-type(3) [data-title]")].map(readBlock);
+        return [
+          "NAUGHTY デモ確認フォーム 回答",
+          `回答日時: ${new Date().toLocaleString("ja-JP")}`,
+          "",
+          "【サイト・TOPについて】",
+          ...website,
+          "",
+          "【管理画面・今後の運用について】",
+          ...cms,
+          "",
+          "【ご回答者情報】",
+          ...contact
+        ].join("\n");
+      };
+
+      const copyAnswer = async () => {
+        const answer = buildAnswer();
+        try {
+          await navigator.clipboard.writeText(answer);
+          showToast("回答をコピーしました");
+        } catch {
+          const area = document.createElement("textarea");
+          area.value = answer;
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand("copy");
+          area.remove();
+          showToast("回答をコピーしました");
+        }
+      };
+
+      const shareAnswer = async () => {
+        const answer = buildAnswer();
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: "NAUGHTY デモ確認フォーム", text: answer });
+            return;
+          } catch (error) {
+            if (error.name === "AbortError") return;
+          }
+        }
+        await copyAnswer();
+        location.href = `mailto:?subject=${encodeURIComponent("NAUGHTY デモ確認フォーム回答")}&body=${encodeURIComponent(answer)}`;
+      };
+
+      const clearForm = () => {
+        if (!confirm("入力内容をクリアしますか？")) return;
+        form.reset();
+        localStorage.removeItem(storageKey);
+        status.textContent = "入力内容をクリアしました。";
+        showToast("クリアしました");
+      };
+
+      restore();
+      form.addEventListener("input", save);
+      document.querySelector("#copy-answer").addEventListener("click", copyAnswer);
+      document.querySelector("#share-answer").addEventListener("click", shareAnswer);
+      document.querySelector("#clear-form").addEventListener("click", clearForm);
+    })();
+  </script>
+</body>
+</html>
