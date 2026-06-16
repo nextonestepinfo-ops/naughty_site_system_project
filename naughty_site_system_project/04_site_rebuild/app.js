@@ -140,13 +140,19 @@
 
   function timeText(shift) {
     if (!shift || shift.status === "off") return "未定";
-    if (!shift.start || !shift.end) return "未定";
+    if (shift.status === "working" && shift.start && !shift.end) return `${shift.start} — 出勤中`;
+    if (shift.status === "working" && !shift.start) return "出勤中";
+    if (!shift.start || !shift.end) return shift.publicNote || "未定";
     return `${shift.start} — ${shift.end}`;
   }
 
   function normalizeTodayStatus(shift) {
     if (!shift || shift.status === "off") return "off";
     return STATUS_TO_TODAY[shift.status] || "today";
+  }
+
+  function statusLabelForStaff(status) {
+    return STATUS_LABEL[STATUS_TO_TODAY[status] || status] || "本日出勤";
   }
 
   function buildShop(data) {
@@ -241,7 +247,15 @@
       const entries = [];
 
       staffList.forEach((staff, staffIndex) => {
-        const shift = dateShifts.find((item) => item.staffId === staff.id);
+        let shift = dateShifts.find((item) => item.staffId === staff.id);
+        if (idx === 0 && staff.workStatus && staff.workStatus !== "off") {
+          shift = {
+            ...(shift || {}),
+            staffId: staff.id,
+            status: staff.workStatus,
+            publicNote: shift?.publicNote || statusLabelForStaff(staff.workStatus)
+          };
+        }
         if (!shift && !hasAnyShiftRecord) {
           entries.push({
             castId: staff.id,

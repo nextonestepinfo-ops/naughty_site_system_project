@@ -10,16 +10,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=admin-vnext-20260616" />
+  <link rel="stylesheet" href="styles.css?v=admin-vnext-qr-20260616" />
 </head>
 <body>
   <div class="admin-app">
     <header class="admin-header">
-      <a class="admin-brand" href="../04_site_rebuild/index.html?v=vnext-mvp-20260616">
+      <a class="admin-brand" href="../04_site_rebuild/index.html?v=vnext-qr-20260616">
         <img src="../04_site_rebuild/assets/logo-naughty-white-circle.png" alt="naughty" />
       </a>
       <div class="header-actions">
-        <a class="icon-link" href="../04_site_rebuild/index.html?v=vnext-mvp-20260616" aria-label="公開サイトを開く" title="公開サイト">
+        <a class="icon-link" href="../04_site_rebuild/index.html?v=vnext-qr-20260616" aria-label="公開サイトを開く" title="公開サイト">
           <span aria-hidden="true">↗</span>
         </a>
         <button class="tbtn" id="theme-toggle" type="button" aria-label="テーマ切替" title="テーマ切替">
@@ -73,12 +73,12 @@
                 <button class="op-button break" id="clock-scheduled" type="button">予定</button>
                 <button class="op-button out" id="clock-out" type="button">退勤</button>
               </div>
-              <p class="help-text">スマホ運用想定の大きいボタン。QR打刻に置き換えやすい構成です。</p>
+              <p class="help-text">店舗共通QRは1つだけ。従業員は同じQRをスマホで読み取り、出勤/退勤を打刻します。</p>
             </div>
             <div class="panel site-sync-panel">
               <div class="panel-head">
                 <h2>公開サイト反映</h2>
-                <a class="mini-link" href="../04_site_rebuild/index.html?v=vnext-mvp-20260616">開く</a>
+                <a class="mini-link" href="../04_site_rebuild/index.html?v=vnext-qr-20260616">開く</a>
               </div>
               <div class="sync-list" id="site-sync-list"></div>
             </div>
@@ -101,7 +101,7 @@
             <form class="panel edit-form" id="site-form" data-sheet-title="店舗情報">
               <div class="panel-head">
                 <h2>店舗情報</h2>
-                <a class="mini-link" href="../04_site_rebuild/index.html?v=vnext-mvp-20260616">確認</a>
+                <a class="mini-link" href="../04_site_rebuild/index.html?v=vnext-qr-20260616">確認</a>
               </div>
               <label>表示名<input id="shop-display-name" type="text" /></label>
               <label>コンセプト<textarea id="shop-concept-input" rows="4"></textarea></label>
@@ -163,6 +163,23 @@
                   <input type="checkbox" id="staff-visible" />
                   <span>Web表示</span>
                 </label>
+              </div>
+              <div class="staff-account-card">
+                <div class="staff-account-head">
+                  <div>
+                    <span>従業員ID</span>
+                    <strong id="staff-account-title">未作成</strong>
+                  </div>
+                  <em id="staff-account-state">メール不要</em>
+                </div>
+                <div class="staff-account-meta" id="staff-account-summary"></div>
+                <div class="account-actions">
+                  <button class="small-command primary-command" id="create-staff-account" type="button">IDを作成</button>
+                  <button class="small-command" id="copy-staff-login" type="button">ログイン情報コピー</button>
+                  <button class="small-command" id="reset-staff-account-password" type="button">0000に戻す</button>
+                  <button class="small-command" id="copy-staff-attendance-qr" type="button">共通QRコピー</button>
+                </div>
+                <p class="mini-note">キャスト登録と同じ画面で、従業員ログインID・初期パスワード・店舗共通QRをまとめて扱えます。</p>
               </div>
               <label>表示名<input id="staff-name" type="text" /></label>
               <label>ローマ字<input id="staff-roman" type="text" /></label>
@@ -226,16 +243,21 @@
               <label>初期パスワード<input id="account-password" type="text" autocomplete="off" placeholder="例: 0000" /></label>
               <label>内部メール<input id="account-internal-email" type="text" readonly /></label>
               <p class="mini-note">従業員には内部メールを見せません。画面上はログインIDとパスワードだけで使えます。</p>
+              <div class="common-qr-card">
+                <span>店舗共通勤怠QR</span>
+                <strong id="common-qr-code">NTY-HQ-2026</strong>
+                <small id="common-qr-url"></small>
+              </div>
               <div class="account-actions">
                 <button class="small-command primary-command" id="reset-account-password" type="button">パスワード再発行</button>
                 <button class="small-command" id="copy-employee-login" type="button">ログイン情報コピー</button>
-                <button class="small-command" id="copy-attendance-qr" type="button">勤怠QR URLコピー</button>
+                <button class="small-command" id="copy-attendance-qr" type="button">共通QR URLコピー</button>
                 <button class="danger-action" id="suspend-account" type="button">停止</button>
                 <button class="small-command" id="activate-account" type="button">復帰</button>
               </div>
               <div class="supabase-note">
                 <strong>Supabase本番移行メモ</strong>
-                <span>本番では create-employee Edge Function が同じログインIDを内部メールに変換してAuthユーザーを作成します。</span>
+                <span>本番では create-employee Edge Function が同じログインIDを内部メールに変換してAuthユーザーを作成します。勤怠QRは店舗共通の1件を全員で使います。</span>
               </div>
             </form>
           </div>
@@ -496,8 +518,8 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="../03_system_seed/naughty_site_data.js?v=vnext-mvp-20260616"></script>
+  <script src="../03_system_seed/naughty_site_data.js?v=vnext-qr-20260616"></script>
   <script src="../auth-gate.js"></script>
-  <script src="app.js?v=admin-vnext-20260616"></script>
+  <script src="app.js?v=admin-vnext-qr-20260616"></script>
 </body>
 </html>

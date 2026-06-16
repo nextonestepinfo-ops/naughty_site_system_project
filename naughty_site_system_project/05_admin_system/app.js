@@ -126,18 +126,19 @@ function normalizeAccounts(accounts, staff) {
 function normalizeQrCheckpoints(checkpoints) {
   const list = checkpoints.filter((item) => item && item.code).map((item) => ({
     id: item.id || id("qr"),
-    label: item.label || "店舗QR",
+    label: item.label || "店舗共通QR",
     code: String(item.code),
-    isActive: item.isActive !== false,
+    isActive: true,
     createdAt: item.createdAt || new Date().toISOString()
   }));
-  return list.length ? list : [{
+  const primary = list.find((item) => item.isActive) || list[0] || {
     id: "qr_main",
-    label: "店舗固定QR",
+    label: "店舗共通QR",
     code: "NTY-HQ-2026",
     isActive: true,
     createdAt: "2026-06-16T00:00:00+09:00"
-  }];
+  };
+  return [{ ...primary, id: primary.id || "qr_main", label: "店舗共通QR", isActive: true }];
 }
 
 function clone(value) {
@@ -293,6 +294,21 @@ function getAccount() {
   return data.accounts.find((account) => account.id === selectedAccountId) || data.accounts[0];
 }
 
+function getStaffAccount(staffId = selectedStaffId) {
+  return data.accounts.find((account) => account.staffId === staffId && account.isActive)
+    || data.accounts.find((account) => account.staffId === staffId)
+    || null;
+}
+
+function primaryQrCheckpoint() {
+  return data.qrCheckpoints[0] || {
+    id: "qr_main",
+    label: "店舗共通QR",
+    code: "NTY-HQ-2026",
+    isActive: true
+  };
+}
+
 function getProduct() {
   return data.products.find((product) => product.id === selectedProductId) || data.products[0];
 }
@@ -363,7 +379,7 @@ function renderDashboard() {
 
 function renderOperations() {
   const operationDate = businessDateKey(new Date());
-  const activeQr = data.qrCheckpoints.filter((item) => item.isActive).length;
+  const checkpoint = primaryQrCheckpoint();
   $("#operation-date").textContent = `営業日 ${operationDate}`;
   $("#operation-staff").innerHTML = data.staff.map((staff) => `
     <option value="${staff.id}" ${staff.id === selectedStaffId ? "selected" : ""}>${staff.displayName}</option>
@@ -373,7 +389,8 @@ function renderOperations() {
     ["公開メニュー", `${data.products.filter((product) => product.active).length}件`],
     ["ギャラリー", `${data.materials.length}件`],
     ["従業員ID", `${data.accounts.filter((account) => account.isActive).length}件`],
-    ["勤怠QR", `${activeQr}件 / 15分切り捨て`],
+    ["勤怠QR", `${checkpoint.code} / 店舗共通1件`],
+    ["サイト勤怠反映", `${data.staff.filter((staff) => staff.workStatus === "working").length}名が出勤中`],
     ["イベント", `${data.events.filter((event) => event.publicVisible).length}件`],
     ["売上登録", `${data.sales.length}件`],
     ["最終保存", data.updatedAt ? formatDateTime(data.updatedAt) : "未保存"]
@@ -400,10 +417,13 @@ function renderAccounts() {
         <small>${account.isActive ? "有効" : "停止中"}</small>
       </button>
     `;
-  }).join("") : `<div class="empty-note">スタッフを選んで「作成」を押すと、メール不要のログインIDを発行できます。</div>`;
+  }).join("") : `<div class="empty-note">スタッフ編集からキャスト追加と同時に、メール不要のログインIDを発行できます。</div>`;
 
   const staffOptions = data.staff.map((staff) => `<option value="${staff.id}">${staff.displayName}</option>`).join("");
   $("#account-staff").innerHTML = staffOptions;
+  const checkpoint = primaryQrCheckpoint();
+  $("#common-qr-code").textContent = checkpoint.code;
+  $("#common-qr-url").textContent = employeePortalUrl({ qr: checkpoint.code });
   const account = getAccount();
   if (!account) {
     const staff = getStaff();
@@ -465,13 +485,16 @@ function renderSitePreviewOnly() {
 
 
 function renderStaff() {
-  $("#staff-list").innerHTML = data.staff.map((staff) => `
-    <button class="list-item ${staff.id === selectedStaffId ? "active" : ""}" type="button" data-staff-select="${staff.id}">
-      <img class="thumb" src="${asset(staff.photo)}" alt="" />
-      <span><strong>${staff.displayName}</strong><small>${staff.romanName || ""} / ${statusText(staff.workStatus)}</small></span>
-      <small>${staff.publicVisible ? "表示" : "非表示"}</small>
-    </button>
-  `).join("");
+  $("#staff-list").innerHTML = data.staff.map((staff) => {
+    const account = getStaffAccount(staff.id);
+    return `
+      <button class="list-item ${staff.id === selectedStaffId ? "active" : ""}" type="button" data-staff-select="${staff.id}">
+        <img class="thumb" src="${asset(staff.photo)}" alt="" />
+        <span><strong>${staff.displayName}</strong><small>${staff.romanName || ""} / ${statusText(staff.workStatus)}</small></span>
+        <small>${staff.publicVisible ? "表示" : "非表示"} / ${account ? "ID有" : "ID未"}</small>
+      </button>
+    `;
+  }).join("");
 
   const staff = getStaff();
   if (!staff) return;
@@ -488,6 +511,34 @@ function renderStaff() {
   document.querySelectorAll("#staff-status-buttons button").forEach((button) => {
     button.classList.toggle("active", button.dataset.status === staff.workStatus);
   });
+  renderStaffAccount(staff);
+}
+
+function renderStaffAccount(staff) {
+  const title = $("#staff-account-title");
+  if (!title || !staff) return;
+  const account = getStaffAccount(staff.id);
+  const checkpoint = primaryQrCheckpoint();
+  const suggested = uniqueLoginId(suggestedLoginId(staff));
+  $("#staff-account-state").textContent = account ? (account.isActive ? "有効" : "停止中") : "未作成";
+  title.textContent = account?.loginId || suggested;
+  $("#staff-account-summary").innerHTML = [
+    ["ログインID", account?.loginId || suggested],
+    ["パスワード", account?.password || makeInitialPassword()],
+    ["紐づけ", staff.displayName || "新規スタッフ"],
+    ["共通QR", checkpoint.code]
+  ].map(([label, value]) => `
+    <div>
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `).join("");
+
+  $("#create-staff-account").textContent = account ? (account.isActive ? "作成済み" : "復帰") : "IDを作成";
+  $("#create-staff-account").disabled = Boolean(account?.isActive);
+  $("#copy-staff-login").disabled = !account;
+  $("#reset-staff-account-password").disabled = !account;
+  $("#copy-staff-attendance-qr").disabled = false;
 }
 
 function renderMaterialsAdmin() {
@@ -1193,7 +1244,25 @@ function bindActions() {
       if (row) {
         const staff = data.staff.find((item) => item.id === row.dataset.staff);
         if (staff) {
-          staff.workStatus = statusButton.dataset.status;
+          const status = statusButton.dataset.status;
+          const today = businessDateKey(new Date());
+          const shift = getOrCreateShift(today, staff.id);
+          const roundedTime = timeKey(floorDateToQuarter(new Date()));
+          staff.workStatus = status;
+          shift.status = status;
+          if (status === "working") {
+            shift.start = shift.start || roundedTime;
+            shift.publicNote = "出勤中";
+          }
+          if (status === "scheduled") {
+            shift.start = shift.start || "19:00";
+            shift.end = shift.end || "05:00";
+            shift.publicNote = "出勤予定";
+          }
+          if (status === "off") {
+            shift.end = roundedTime;
+            shift.publicNote = "退勤済";
+          }
           saveData("勤務ステータスを更新しました");
         }
         return;
@@ -1249,6 +1318,8 @@ function bindActions() {
     };
     data.staff.push(staff);
     selectedStaffId = staff.id;
+    const account = createLinkedAccountForStaff(staff);
+    if (account) selectedAccountId = account.id;
     renderAll();
     openEditSheet("#staff-form");
   });
@@ -1259,6 +1330,10 @@ function bindActions() {
   $("#copy-attendance-qr").addEventListener("click", copyAttendanceQrUrl);
   $("#suspend-account").addEventListener("click", () => setAccountActive(false));
   $("#activate-account").addEventListener("click", () => setAccountActive(true));
+  $("#create-staff-account").addEventListener("click", createStaffAccountFromStaffForm);
+  $("#copy-staff-login").addEventListener("click", copyStaffLoginInfo);
+  $("#reset-staff-account-password").addEventListener("click", resetStaffAccountPassword);
+  $("#copy-staff-attendance-qr").addEventListener("click", copyAttendanceQrUrl);
 
   $("#add-product").addEventListener("click", () => {
     const product = {
@@ -1409,6 +1484,7 @@ function bindForms() {
   $("#staff-form").addEventListener("input", () => {
     const staff = getStaff();
     if (!staff) return;
+    const previousName = staff.displayName;
     staff.publicVisible = $("#staff-visible").checked;
     staff.displayName = $("#staff-name").value;
     staff.romanName = $("#staff-roman").value;
@@ -1417,7 +1493,13 @@ function bindForms() {
     staff.heroPhoto = $("#staff-hero-photo").value;
     staff.hourlyWage = Number($("#staff-wage").value || 0);
     staff.tags = $("#staff-tags").value.split(",").map((tag) => tag.trim()).filter(Boolean);
+    const account = getStaffAccount(staff.id);
+    if (account && (!account.displayName || account.displayName === previousName || account.displayName === "新規スタッフ")) {
+      account.displayName = staff.displayName || account.loginId;
+    }
     renderDashboard();
+    renderOperations();
+    renderStaffAccount(staff);
   });
 
   $("#staff-visible").addEventListener("change", () => $("#staff-form").dispatchEvent(new Event("input")));
@@ -1425,7 +1507,25 @@ function bindForms() {
     const button = event.target.closest("[data-status]");
     if (!button) return;
     const staff = getStaff();
-    staff.workStatus = button.dataset.status;
+    const status = button.dataset.status;
+    const today = businessDateKey(new Date());
+    const shift = getOrCreateShift(today, staff.id);
+    const roundedTime = timeKey(floorDateToQuarter(new Date()));
+    staff.workStatus = status;
+    shift.status = status;
+    if (status === "working") {
+      shift.start = shift.start || roundedTime;
+      shift.publicNote = "出勤中";
+    }
+    if (status === "scheduled") {
+      shift.start = shift.start || "19:00";
+      shift.end = shift.end || "05:00";
+      shift.publicNote = "出勤予定";
+    }
+    if (status === "off") {
+      shift.end = roundedTime;
+      shift.publicNote = "退勤済";
+    }
     renderAll();
   });
 
@@ -1555,6 +1655,32 @@ function uniqueLoginId(baseValue, currentAccountId = "") {
   return `${base}${Date.now().toString(36).slice(-4)}`;
 }
 
+function createLinkedAccountForStaff(staff, options = {}) {
+  if (!staff) return null;
+  const existing = getStaffAccount(staff.id);
+  if (existing && options.reuseExisting !== false) {
+    if (options.activate) existing.isActive = true;
+    existing.displayName = existing.displayName || staff.displayName || existing.loginId;
+    existing.updatedAt = new Date().toISOString();
+    return existing;
+  }
+  const loginId = uniqueLoginId(options.loginId || suggestedLoginId(staff), options.currentAccountId || "");
+  const account = {
+    id: id("acct"),
+    role: "employee",
+    staffId: staff.id,
+    displayName: options.displayName || staff.displayName || loginId,
+    loginId,
+    internalEmail: internalEmailForLogin(loginId),
+    password: options.password || makeInitialPassword(),
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    lastPasswordResetAt: ""
+  };
+  data.accounts.push(account);
+  return account;
+}
+
 function createEmployeeAccount(event) {
   event?.preventDefault();
   const staffId = $("#account-staff").value || selectedStaffId || data.staff[0]?.id || "";
@@ -1562,20 +1688,13 @@ function createEmployeeAccount(event) {
   const existing = data.accounts.find((account) => account.staffId === staffId && account.isActive);
   if (existing && !confirm(`${staff?.displayName || "このスタッフ"}には有効なアカウントがあります。追加で作成しますか？`)) return;
 
-  const loginId = uniqueLoginId($("#account-login-id").value || suggestedLoginId(staff));
-  const account = {
-    id: id("acct"),
-    role: "employee",
-    staffId,
-    displayName: $("#account-name").value || staff?.displayName || loginId,
-    loginId,
-    internalEmail: internalEmailForLogin(loginId),
-    password: $("#account-password").value || makeInitialPassword(),
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    lastPasswordResetAt: ""
-  };
-  data.accounts.push(account);
+  const account = createLinkedAccountForStaff(staff, {
+    reuseExisting: false,
+    loginId: $("#account-login-id").value,
+    displayName: $("#account-name").value,
+    password: $("#account-password").value || makeInitialPassword()
+  });
+  if (!account) return;
   selectedAccountId = account.id;
   saveData(`${account.displayName}のログインIDを作成しました`);
   openEditSheet("#account-form");
@@ -1598,6 +1717,30 @@ function setAccountActive(isActive) {
   saveData(isActive ? "アカウントを復帰しました" : "アカウントを停止しました");
 }
 
+function createStaffAccountFromStaffForm(event) {
+  event?.preventDefault();
+  const staff = getStaff();
+  if (!staff) return;
+  const account = createLinkedAccountForStaff(staff, { activate: true });
+  if (!account) return;
+  selectedAccountId = account.id;
+  saveData(`${staff.displayName || "スタッフ"}の従業員IDを作成しました`);
+}
+
+function resetStaffAccountPassword(event) {
+  event?.preventDefault();
+  const staff = getStaff();
+  const account = getStaffAccount(staff?.id);
+  if (!account) {
+    toast("先に従業員IDを作成してください");
+    return;
+  }
+  account.password = makeInitialPassword();
+  account.lastPasswordResetAt = new Date().toISOString();
+  selectedAccountId = account.id;
+  saveData(`${staff.displayName || "スタッフ"}のパスワードを0000に戻しました`);
+}
+
 function employeePortalUrl(params = {}) {
   const url = new URL("../06_employee_portal/index.html", location.href);
   Object.entries(params).forEach(([key, value]) => {
@@ -1606,24 +1749,43 @@ function employeePortalUrl(params = {}) {
   return url.href;
 }
 
+function commonAttendanceQrUrl() {
+  return employeePortalUrl({ qr: primaryQrCheckpoint().code });
+}
+
 async function copyEmployeeLoginInfo(event) {
   event?.preventDefault();
   const account = getAccount();
   if (!account) return;
+  await copyAccountLoginInfo(account);
+}
+
+async function copyStaffLoginInfo(event) {
+  event?.preventDefault();
+  const staff = getStaff();
+  const account = getStaffAccount(staff?.id);
+  if (!account) {
+    toast("先に従業員IDを作成してください");
+    return;
+  }
+  await copyAccountLoginInfo(account);
+}
+
+async function copyAccountLoginInfo(account) {
   const text = [
     "NAUGHTY 従業員ログイン",
     `URL: ${employeePortalUrl()}`,
     `ログインID: ${account.loginId}`,
     `初期パスワード: ${account.password}`,
-    "※メールアドレス入力は不要です。"
+    `勤怠QR: ${commonAttendanceQrUrl()}`,
+    "※メールアドレス入力は不要です。勤怠QRは全従業員共通です。"
   ].join("\n");
   await copyText(text, "ログイン情報をコピーしました");
 }
 
 async function copyAttendanceQrUrl(event) {
   event?.preventDefault();
-  const checkpoint = data.qrCheckpoints.find((item) => item.isActive) || data.qrCheckpoints[0];
-  await copyText(employeePortalUrl({ qr: checkpoint?.code || "NTY-HQ-2026" }), "勤怠QR用URLをコピーしました");
+  await copyText(commonAttendanceQrUrl(), "店舗共通QR URLをコピーしました");
 }
 
 async function copyText(text, doneMessage) {

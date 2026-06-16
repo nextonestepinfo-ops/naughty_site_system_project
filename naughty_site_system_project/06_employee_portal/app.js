@@ -128,11 +128,17 @@ function previewAccounts(staff) {
 function normalizeQrCheckpoints(checkpoints) {
   const list = checkpoints.filter((item) => item && item.code).map((item) => ({
     id: item.id || id("qr"),
-    label: item.label || "店舗QR",
+    label: item.label || "店舗共通QR",
     code: String(item.code),
-    isActive: item.isActive !== false
+    isActive: true
   }));
-  return list.length ? list : [{ id: "qr_main", label: "店舗固定QR", code: "NTY-HQ-2026", isActive: true }];
+  const primary = list.find((item) => item.isActive) || list[0] || {
+    id: "qr_main",
+    label: "店舗共通QR",
+    code: "NTY-HQ-2026",
+    isActive: true
+  };
+  return [{ ...primary, id: primary.id || "qr_main", label: "店舗共通QR", isActive: true }];
 }
 
 function bindEvents() {

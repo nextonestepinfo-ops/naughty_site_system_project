@@ -224,7 +224,7 @@ function Schedule2() {
         ))}
       </div>
 
-      <div className="cal-note">※ 予定は変更になる場合があります。最新情報は Instagram をご確認ください。<br />※ 出勤キャスト・時間は後日 CMS（shifts データ）から編集できるようにします。</div>
+      <div className="cal-note">※ 予定は変更になる場合があります。最新情報は Instagram をご確認ください。<br />※ 出勤キャスト・時間は管理画面から更新されます。</div>
     </section>
   );
 }
