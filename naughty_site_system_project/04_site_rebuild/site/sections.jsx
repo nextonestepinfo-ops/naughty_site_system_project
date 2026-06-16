@@ -180,16 +180,6 @@ function Schedule2() {
   const { days } = window.NTY.schedule;
   const last = days[13];
   const weeks = [days.slice(0, 7), days.slice(7, 14)];
-  // モバイル：カレンダー(月表示)⇄リスト を切替。既定=カレンダー。選択日は今日(index 0)
-  const [sel, setSel] = useState(0);
-  const [calView, setCalView] = useState("month");
-  const selDay = days[sel];
-  // 月表示用グリッド（曜日揃え）。先頭は days[0] の曜日ぶん空セル、末尾は週を埋める
-  const DOW = ["日", "月", "火", "水", "木", "金", "土"];
-  const cells = [...Array(days[0].dow).fill(null), ...days];
-  while (cells.length % 7) cells.push(null);
-  const calWeeks = [];
-  for (let i = 0; i < cells.length; i += 7) calWeeks.push(cells.slice(i, i + 7));
   return (
     <section className="section tone-panel" id="schedule" data-section-id="schedule" data-screen-label="02 Schedule">
       <Head num="02" en="Schedule / Next 14 days" jp="出勤予定" />
@@ -234,82 +224,6 @@ function Schedule2() {
         ))}
       </div>
 
-      {/* MOBILE — カレンダー/リスト切替（PCでは非表示） */}
-      <div className="cal-mobile">
-        <div className="cal-switch" role="tablist">
-          <button className={calView === "month" ? "on" : ""} onClick={() => setCalView("month")}>カレンダー</button>
-          <button className={calView === "list" ? "on" : ""} onClick={() => setCalView("list")}>リスト</button>
-        </div>
-
-        {calView === "month" ? (
-          <div className="cal-month">
-            <div className="cm-dow">
-              {DOW.map((d, i) => (
-                <span key={d} className={i === 0 ? "sun" : i === 6 ? "sat" : ""}>{d}</span>
-              ))}
-            </div>
-            {calWeeks.map((w, wi) => (
-              <div className="cm-week" key={wi}>
-                {w.map((d, di) =>
-                  d ? (
-                    <button
-                      key={d.idx}
-                      className={`cm-cell st-${d.state} ${d.isToday ? "today" : ""} ${d.idx === sel ? "on" : ""} ${d.weekend ? "wknd" : ""}`}
-                      onClick={() => setSel(d.idx)}
-                      aria-label={`${d.month}/${d.d}`}
-                    >
-                      <span className="cm-n">{d.d}</span>
-                      <span className="cm-dot" />
-                    </button>
-                  ) : (
-                    <span className="cm-cell blank" key={`b${wi}-${di}`} />
-                  )
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="cal-strip">
-            {days.map((d, i) => (
-              <button
-                key={d.idx}
-                className={`cal-chip st-${d.state} ${d.weekend ? "wknd" : ""} ${i === sel ? "on" : ""}`}
-                onClick={() => setSel(i)}
-                aria-label={`${d.month}/${d.d} ${d.dowEn}`}
-              >
-                <span className="cc-dow">{d.dowEn}</span>
-                <span className="cc-num">{d.d}</span>
-                <span className="cc-dot" />
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className={`cal-day st-${selDay.state}`}>
-          <div className="cd-top">
-            <span className="cd-date">
-              {selDay.month}/{selDay.d}
-              <small>{selDay.dowEn}{selDay.isToday ? " ・本日" : ""}</small>
-            </span>
-            {selDay.closed ? (
-              <span className="cd-cnt off">休み</span>
-            ) : (
-              <span className="cd-cnt">{selDay.entries.length}人出勤</span>
-            )}
-          </div>
-          {!selDay.closed && (
-            <ul className="cd-list">
-              {selDay.entries.map(({ cast: c, time }) => (
-                <li key={c.en} className={time === "未定" ? "tbd" : ""}>
-                  <span className="cd-nm">{c.jp}</span>
-                  <span className="cd-tm">{time === "未定" ? "未定" : time.replace(" — ", "–")}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
       <div className="cal-note">※ 予定は変更になる場合があります。最新情報は Instagram をご確認ください。<br />※ 出勤キャスト・時間は後日 CMS（shifts データ）から編集できるようにします。</div>
     </section>
   );
@@ -330,7 +244,7 @@ function CastSection() {
 
   return (
     <section className="section tone-ink" id="cast" data-section-id="cast" data-screen-label="03 Cast">
-      <Head num="03" en="Cast / NAUGHTY GIRLS" jp="キャスト一覧" />
+      <Head num="03" en="Cast / NAUGHTY GIRLS" jp="キャスト一覧・キャスト図" />
 
       {/* THUMBNAIL RAIL */}
       <div className="cast-rail">
@@ -349,7 +263,6 @@ function CastSection() {
 
       {/* STAGE */}
       <div className="cast-stage">
-        <div className="cs-count">{String(active + 1).padStart(2, "0")}<span> / {String(cast.length).padStart(2, "0")}</span></div>
         <button className="cs-nav prev" onClick={() => move(-1)} aria-label="前のキャスト">PREV</button>
         <button className="cs-nav next" onClick={() => move(1)} aria-label="次のキャスト">NEXT</button>
 
@@ -371,7 +284,7 @@ function CastSection() {
           <p className="csi-catch">{cur.catch}</p>
           <p className="csi-comment">{cur.comment}</p>
           <div className="csi-tags">
-            {cur.tags.map((t) => <span key={t}>#{t}</span>)}
+            {cur.tags.map((t) => <span key={t}>{t}</span>)}
           </div>
         </div>
       </div>
@@ -379,11 +292,41 @@ function CastSection() {
   );
 }
 
+// ── GALLERY (CAST直下の店内ギャラリー) ───────────────
+function GallerySection() {
+  const gallery = window.NTY.gallery || [];
+  return (
+    <section className="section tone-panel" id="gallery" data-section-id="gallery" data-screen-label="04 Gallery">
+      <Head num="04" en="Gallery / Interior" jp="店内ギャラリー" />
+      {gallery.length ? (
+        <div className="gallery-grid">
+          {gallery.map((item) => (
+            <article className="gallery-card" key={item.id}>
+              <div className="gallery-media">
+                <image-slot id={`gallery-${item.id}`} src={item.image || ""} placeholder="ギャラリー画像をドロップ" shape="rounded" radius="2"
+                  style={{ width: "100%", height: "100%", display: "block" }}></image-slot>
+                <span>{item.no}</span>
+              </div>
+              <div className="gallery-meta">
+                <small>{String(item.kind || "photo").toUpperCase()}</small>
+                <h3>{item.title}</h3>
+                <p>{item.caption}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="gallery-empty">ギャラリー画像は管理画面から追加できます。</div>
+      )}
+    </section>
+  );
+}
+
 // ── INSIDE (店内紹介) ─────────────────────────────────
 function Inside() {
   return (
-    <section className="section tone-panel" id="inside" data-section-id="inside" data-screen-label="04 Inside">
-      <Head num="04" en="Inside / Interior" jp="店内紹介" />
+    <section className="section tone-panel" id="inside" data-section-id="inside" data-screen-label="05 Inside">
+      <Head num="05" en="Inside / Interior" jp="店内紹介" />
       <div className="inside-list">
         {window.NTY.inside.map((b, i) => (
           <div key={b.slot} className={`inside-row ${i % 2 ? "rev" : ""}`}>
@@ -408,8 +351,8 @@ function Inside() {
 function EventSection() {
   const ev = window.NTY.event;
   return (
-    <section className="section tone-pink" id="event" data-section-id="event" data-screen-label="05 Event">
-      <Head num="05" en="Event / Upcoming" jp="イベント" />
+    <section className="section tone-pink" id="event" data-section-id="event" data-screen-label="06 Event">
+      <Head num="06" en="Event / Upcoming" jp="イベント" />
       <div className="event-lead">
         <p className="el-big">{ev.lead}</p>
         <p className="el-note">{ev.note}</p>
@@ -439,8 +382,8 @@ function EventSection() {
 function AccessSection() {
   const v = window.NTY.venue;
   return (
-    <section className="section tone-ink" id="access" data-section-id="access" data-screen-label="06 Access">
-      <Head num="06" en="Access / Info" jp="アクセス" />
+    <section className="section tone-ink" id="access" data-section-id="access" data-screen-label="07 Access">
+      <Head num="07" en="Access / Info" jp="アクセス" />
       <div className="access-grid">
         <div className="access-map">
           <div className="grid-bg" />
@@ -476,7 +419,7 @@ function AccessSection() {
 function Recruit() {
   const r = window.NTY.recruit;
   return (
-    <section className="cta-strip recruit-strip" id="recruit" data-section-id="recruit" data-screen-label="07 Recruit">
+    <section className="cta-strip recruit-strip" id="recruit" data-section-id="recruit" data-screen-label="08 Recruit">
       <div className="ribbon">RECRUIT · NAUGHTY GIRLS · 募集中 · RECRUIT · NAUGHTY GIRLS · 募集中 · </div>
       <div className="recruit-inner">
         <div className="recruit-head">
@@ -502,7 +445,7 @@ function Recruit() {
 function Footer2() {
   const links = window.NTY.sections.filter((s) => s.id !== "top");
   return (
-    <footer className="foot" data-screen-label="08 Footer">
+    <footer className="foot" data-screen-label="09 Footer">
       <div className="foot-grid">
         <div className="foot-brand">
           <div className="logo"><img src="assets/logo-naughty-dark.png" alt="NAUGHTY" /></div>
@@ -548,4 +491,4 @@ function Footer2() {
   );
 }
 
-Object.assign(window, { Nav2, Today, Schedule2, CastSection, Inside, EventSection, AccessSection, Recruit, Footer2, goTo, Head, MobileHeroCast });
+Object.assign(window, { Nav2, Today, Schedule2, CastSection, GallerySection, Inside, EventSection, AccessSection, Recruit, Footer2, goTo, Head, MobileHeroCast });

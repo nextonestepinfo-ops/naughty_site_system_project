@@ -356,6 +356,19 @@
     ];
   }
 
+  function buildGallery(data) {
+    return data.materials
+      .filter((item) => item.publicVisible !== false)
+      .map((item, index) => ({
+        id: item.id || `gallery-${index + 1}`,
+        no: `GALLERY ${String(index + 1).padStart(2, "0")}`,
+        title: item.title || "NAUGHTY GALLERY",
+        caption: item.caption || "店内の雰囲気を切り取ったギャラリーです。",
+        kind: item.kind || "photo",
+        image: asset(item.image, "assets/interior/sample-interior-counter.webp")
+      }));
+  }
+
   function buildNty() {
     const data = readData();
     const shop = buildShop(data);
@@ -382,10 +395,11 @@
       { id: "today", num: "01", en: "TODAY", jp: "本日の出勤", tone: "pink" },
       { id: "schedule", num: "02", en: "SCHEDULE", jp: "出勤予定", tone: "panel" },
       { id: "cast", num: "03", en: "CAST", jp: "キャスト", tone: "ink" },
-      { id: "inside", num: "04", en: "INSIDE", jp: "店内紹介", tone: "panel" },
-      { id: "event", num: "05", en: "EVENT", jp: "イベント", tone: "pink" },
-      { id: "access", num: "06", en: "ACCESS", jp: "アクセス", tone: "ink" },
-      { id: "recruit", num: "07", en: "RECRUIT", jp: "採用情報", tone: "panel" }
+      { id: "gallery", num: "04", en: "GALLERY", jp: "店内ギャラリー", tone: "panel" },
+      { id: "inside", num: "05", en: "INSIDE", jp: "店内紹介", tone: "panel" },
+      { id: "event", num: "06", en: "EVENT", jp: "イベント", tone: "pink" },
+      { id: "access", num: "07", en: "ACCESS", jp: "アクセス", tone: "ink" },
+      { id: "recruit", num: "08", en: "RECRUIT", jp: "採用情報", tone: "panel" }
     ];
 
     return {
@@ -398,6 +412,7 @@
       todayCounts: today.counts,
       events,
       event: events,
+      gallery: buildGallery(data),
       inside: buildInside(data),
       recruit,
       sections,

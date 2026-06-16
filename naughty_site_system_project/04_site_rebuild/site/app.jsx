@@ -27,6 +27,7 @@ function SiteApp() {
       <Today />
       <Schedule2 />
       <CastSection />
+      <GallerySection />
       <Inside />
       <EventSection />
       <AccessSection />

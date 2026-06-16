@@ -465,8 +465,8 @@ a {
 
 .small-action {
   min-width: 36px;
-  background: var(--fill);
-  color: var(--ink2);
+  background: var(--pink-bg);
+  color: var(--pink-ink);
 }
 
 .danger-action {
@@ -605,31 +605,6 @@ a {
 
 .image-controls .small-command {
   width: 100%;
-}
-
-#staff-form .image-field {
-  align-items: stretch;
-}
-
-#staff-form .image-preview {
-  width: 112px;
-  min-height: 112px;
-}
-
-#staff-form .image-controls {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: center;
-}
-
-#staff-form .image-controls strong,
-#staff-form .image-controls span {
-  grid-column: 1 / -1;
-}
-
-#staff-form .image-controls .small-command {
-  width: auto;
-  min-height: 38px;
-  padding-inline: 10px;
 }
 
 .tool-grid,
@@ -877,6 +852,17 @@ span.thumb {
   display: block;
 }
 
+.account-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pink-ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
 .admin-preview,
 .material-preview {
   margin-top: 14px;
@@ -1000,32 +986,107 @@ span.thumb {
 }
 
 .pay-row {
-  grid-template-columns: minmax(120px, 1fr) repeat(4, minmax(92px, auto));
+  grid-template-columns: minmax(120px, 1fr) repeat(4, minmax(80px, auto));
 }
 
-.pay-row span,
-.pay-row b {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-  justify-items: end;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.pay-row span::before,
-.pay-row b::before {
-  content: attr(data-label);
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1.1;
-}
-
-.pay-row b {
+.primary-command {
+  background: var(--pink-bg);
   color: var(--pink-ink);
-  font-size: 16px;
+}
+
+.supabase-note,
+.csv-preview {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--fill) 84%, var(--pink-bg) 16%);
+}
+
+.supabase-note strong,
+.csv-preview strong {
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.supabase-note span,
+.csv-preview span,
+.punch-note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.csv-preview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.csv-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.csv-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--hair);
+  color: var(--ink2);
+  font-size: 12px;
   font-weight: 700;
+}
+
+.attendance-table {
+  display: grid;
+  gap: 8px;
+}
+
+.attendance-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) 88px minmax(120px, 1fr) 86px 104px;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  background: var(--fill);
+}
+
+.attendance-row.head {
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.attendance-row.empty {
+  grid-template-columns: 1fr;
+}
+
+.attendance-row span {
+  color: var(--ink2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.punch-note {
+  display: block;
+  margin-top: 4px;
+  font-weight: 500;
 }
 
 .toast {
@@ -1159,8 +1220,12 @@ span.thumb {
     grid-template-columns: 1fr 1fr;
   }
 
-  .pay-row strong {
-    grid-column: 1 / -1;
+  .attendance-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .attendance-row.head {
+    display: none;
   }
 
   .tool-grid,
@@ -1476,12 +1541,15 @@ span.thumb {
   }
 
   .sync-row,
-  .sale-row {
+  .sale-row,
+  .pay-row,
+  .attendance-row {
     grid-template-columns: 1fr;
   }
 
-  .pay-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .csv-preview-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .image-field,
@@ -1491,21 +1559,8 @@ span.thumb {
     grid-template-columns: 1fr;
   }
 
-  #staff-form .image-field {
-    grid-template-columns: 104px minmax(0, 1fr);
-  }
-
   .image-preview {
     width: 100%;
     max-width: 180px;
-  }
-
-  #staff-form .image-preview {
-    width: 104px;
-    max-width: none;
-  }
-
-  #staff-form .image-controls {
-    grid-template-columns: 1fr;
   }
 }

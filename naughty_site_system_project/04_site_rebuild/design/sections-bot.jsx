@@ -181,7 +181,7 @@ function Footer({ variant }) {
                 fontFamily: "var(--f-mono)", fontSize: 11,
                 background: "transparent", outline: "none"
               }} />
-
+            
             <button type="submit" style={{
               background: "var(--ink)", color: "var(--paper)",
               border: 0, padding: "10px 14px",

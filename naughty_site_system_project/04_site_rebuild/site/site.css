@@ -220,11 +220,6 @@ html, body { background: #0b0b0d; }
 .nty .cal-range em { font-family: var(--f-italic); font-style: italic; color: var(--pink); margin-right: 6px; }
 .nty .cal-range .arrow { color: var(--ink-3); margin: 0 6px; }
 .nty .cal-sub { font-family: var(--f-mono); font-size: 11px; letter-spacing: .14em; color: var(--ink-3); text-transform: uppercase; }
-.nty .cal-legend { display: flex; gap: 16px; align-items: center; }
-.nty .cal-legend .ll { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; color: var(--ink-2); }
-.nty .cal-legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; background: var(--mute); border: 1px solid var(--line); }
-.nty .cal-legend .sw.on { background: var(--pink); border-color: var(--pink); }
-.nty .cal-legend .sw.off { background: #4a4a52; }
 
 .nty .cal2 { display: grid; gap: 10px; }
 .nty .cal2-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
@@ -263,9 +258,6 @@ html, body { background: #0b0b0d; }
 .nty .c2-off { flex: 1; display: grid; place-items: center; font-family: var(--f-mono); font-size: 10px; letter-spacing: .18em; color: var(--mute); }
 
 .nty .cal-note { margin-top: 18px; font-family: var(--f-mono); font-size: 10px; line-height: 1.9; letter-spacing: .06em; color: var(--ink-3); }
-
-/* モバイル専用の日付チップ＋選択日（PCでは非表示。表示切替は @media 側） */
-.nty .cal-mobile { display: none; }
 
 /* ── CAST — thumbnail rail + stage slider (添付デザイン準拠) ─ */
 .nty .cast-rail {
@@ -375,24 +367,86 @@ html, body { background: #0b0b0d; }
 .nty .csi-tags { display: flex; gap: 10px; flex-wrap: wrap; }
 .nty .csi-tags span {
   font-family: var(--f-mono); font-size: 12px; letter-spacing: .04em;
-  padding: 6px 15px; border-radius: 999px;
-  background: rgba(255,62,126,.08); color: var(--pink-2);
-  border: 1px solid var(--pink-deep);
-  transition: background .2s, color .2s;
+  padding: 6px 16px; border-radius: 999px;
+  background: var(--pink); color: #fff;
 }
-.nty .csi-tags span:hover { background: var(--pink); color: #fff; }
-
-/* キャスト枚数カウンター（例: 01 / 07） */
-.nty .cs-count {
-  position: absolute; top: 18px; right: 22px; z-index: 4;
-  font-family: var(--f-mono); font-size: 12px; letter-spacing: .18em; color: var(--ink-2);
-}
-.nty .cs-count span { color: var(--ink-3); }
 
 .nty .today-ph .ph-img {
   background-size: 150% auto;
   background-position: center -8%;
   background-repeat: no-repeat;
+}
+
+/* ── GALLERY ─────────────────────────────────────── */
+.nty .gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.nty .gallery-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(20, 20, 24, .46);
+  display: grid;
+  grid-template-rows: auto minmax(156px, 1fr);
+}
+
+.nty .gallery-media {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+}
+
+.nty .gallery-media span {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 2;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  background: rgba(11, 11, 13, .72);
+  color: var(--ink);
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+}
+
+.nty .gallery-meta {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 18px;
+}
+
+.nty .gallery-meta small {
+  color: var(--pink);
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: .18em;
+}
+
+.nty .gallery-meta h3 {
+  margin: 0;
+  font-family: var(--f-jp-display);
+  font-size: clamp(18px, 1.7vw, 24px);
+  line-height: 1.35;
+}
+
+.nty .gallery-meta p,
+.nty .gallery-empty {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 13.5px;
+  line-height: 1.85;
+}
+
+.nty .gallery-empty {
+  border: 1px dashed var(--line);
+  padding: 24px;
+  text-align: center;
+  background: rgba(20, 20, 24, .36);
 }
 
 /* ── INSIDE ───────────────────────────────────────── */
@@ -469,25 +523,25 @@ html, body { background: #0b0b0d; }
   }
   .fv-mcast .mc-group {
     position: absolute; inset: 0; opacity: 0;
-    transition: opacity .28s var(--ease-out);
+    transition: opacity .7s var(--ease-out);
   }
   .fv-mcast .mc-group.on { opacity: 1; }
-  /* 全員 left:50% を基準に、左右対称の vw オフセットで配置 → アートの幅差に
-     依存せず並びが固定される（中央=最前面 z3、左右=背面 z2）。 */
   .fv-mcast .mc-fig {
-    position: absolute; bottom: 0; left: 50%; width: auto; max-width: none;
+    position: absolute; bottom: 0; width: auto; max-width: none;
     object-fit: contain; object-position: bottom center;
     filter: drop-shadow(0 18px 30px rgba(0,0,0,.5));
-    transform: translateX(-50%);
-    animation: mc-fade .5s var(--ease-out) both;
+    animation: mc-rise .9s var(--ease-out) both;
   }
-  .fv-mcast .mc-group.n3 .mc-fig { height: 74%; }
-  .fv-mcast .mc-group.n3 .mc-fig.pos-0 { transform: translateX(calc(-50% - 27vw)); z-index: 2; }
-  .fv-mcast .mc-group.n3 .mc-fig.pos-1 { transform: translateX(-50%); z-index: 3; }
-  .fv-mcast .mc-group.n3 .mc-fig.pos-2 { transform: translateX(calc(-50% + 27vw)); z-index: 2; }
-  .fv-mcast .mc-group.n2 .mc-fig { height: 80%; }
-  .fv-mcast .mc-group.n2 .mc-fig.pos-0 { transform: translateX(calc(-50% - 16vw)); z-index: 2; }
-  .fv-mcast .mc-group.n2 .mc-fig.pos-1 { transform: translateX(calc(-50% + 16vw)); z-index: 3; }
+  /* 全員ほぼ同じ身長感に統一（サイズはキャストごとに変えない）。
+     左右は背面(z2)、中央が最前面(z3)。 */
+  .fv-mcast .mc-group.n3 .mc-fig { height: 78%; }
+  .fv-mcast .mc-group.n3 .mc-fig.pos-0 { left: -6%;  z-index: 2; }
+  .fv-mcast .mc-group.n3 .mc-fig.pos-1 { left: 50%; transform: translateX(-50%); z-index: 3; }
+  .fv-mcast .mc-group.n3 .mc-fig.pos-2 { right: -6%; z-index: 2; }
+  /* 2人組も同じ身長感で並べる */
+  .fv-mcast .mc-group.n2 .mc-fig { height: 82%; }
+  .fv-mcast .mc-group.n2 .mc-fig.pos-0 { left: 2%;  z-index: 2; }
+  .fv-mcast .mc-group.n2 .mc-fig.pos-1 { right: 2%; z-index: 3; }
 
   /* 切替時のノイズ演出（デスクトップと同じ cast-noise を再利用） */
   .fv-mcast::after {
@@ -514,8 +568,9 @@ html, body { background: #0b0b0d; }
   64% { opacity: 1; }
   76% { opacity: .5; }
 }
-/* mobile cast: 透明度だけのフェード（transform は配置用に保持） */
-@keyframes mc-fade { from { opacity: 0; } }
+@media (max-width: 820px) {
+  .fv-mcast .mc-group.n3 .mc-fig.pos-1 { animation-name: mc-rise-center; }
+}
 @keyframes mc-rise-center {
   from { opacity: 0; transform: translateX(-50%) translateY(18px) scale(.98); }
   to { opacity: 1; transform: translateX(-50%); }
@@ -578,88 +633,28 @@ html, body { background: #0b0b0d; }
   /* sections — comfortable mobile padding */
   .nty .section { padding-left: 18px; padding-right: 18px; }
 
-  /* SCHEDULE — モバイルは PC グリッドを隠し、日付チップ＋選択日を表示 */
-  .nty .cal2 { display: none; }
-  .nty .cal-mobile { display: block; }
-  .nty .cal-head { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 16px; }
-  .nty .cal-range { font-size: 17px; }
-  .nty .cal-legend { gap: 16px; }
+  .nty .cal2-week { grid-template-columns: 1fr; gap: 8px; }
+  .nty .cal2-day { min-height: 0; }
+  .nty .cal2-day.is-off .c2-off { padding: 14px; }
+  .nty .c2-list { grid-template-columns: 1fr 1fr; gap: 7px 16px; }
 
-  /* カレンダー/リスト 切替トグル */
-  .nty .cal-switch { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.04); }
-  .nty .cal-switch button { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; padding: 8px 18px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-3); }
-  .nty .cal-switch button.on { background: var(--pink); color: #fff; }
-
-  /* 月カレンダー（既定） */
-  .nty .cm-dow { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 8px; }
-  .nty .cm-dow span { text-align: center; font-family: var(--f-mono); font-size: 10px; letter-spacing: .04em; color: var(--ink-3); }
-  .nty .cm-dow .sat, .nty .cm-dow .sun { color: var(--pink-2); }
-  .nty .cm-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 6px; }
-  .nty .cm-cell { aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--line-soft); border-radius: 10px; background: rgba(18,18,22,.55); color: var(--ink); cursor: pointer; }
-  .nty .cm-cell.blank { border: 0; background: transparent; cursor: default; }
-  .nty .cm-n { font-family: var(--f-display); font-weight: 700; font-size: 15px; line-height: 1; }
-  .nty .cm-dot { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
-  .nty .cm-cell.st-open .cm-dot { background: var(--pink); }
-  .nty .cm-cell.st-tbd .cm-dot { background: #caa24a; }
-  .nty .cm-cell.st-closed .cm-dot { background: #4a4a52; }
-  .nty .cm-cell.wknd .cm-n { color: var(--pink-2); }
-  .nty .cm-cell.today { border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink); }
-  .nty .cm-cell.on { background: var(--pink); border-color: var(--pink); box-shadow: 0 0 0 1px var(--pink); }
-  .nty .cm-cell.on .cm-n { color: #fff; }
-  .nty .cm-cell.on .cm-dot { background: #fff; }
-
-  .nty .cal-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
-  .nty .cal-strip::-webkit-scrollbar { height: 4px; }
-  .nty .cal-strip::-webkit-scrollbar-thumb { background: var(--pink-deep); border-radius: 99px; }
-  .nty .cal-strip::-webkit-scrollbar-track { background: #1a1a20; border-radius: 99px; }
-  .nty .cal-chip {
-    flex: 0 0 auto; width: 52px; scroll-snap-align: start;
-    border: 1px solid var(--line); border-radius: 14px; padding: 8px 0 7px;
-    background: rgba(18,18,22,.6); color: var(--ink); cursor: pointer; text-align: center;
-    transition: border-color .2s, background .2s, box-shadow .2s;
-  }
-  .nty .cal-chip .cc-dow { display: block; font-family: var(--f-mono); font-size: 8px; letter-spacing: .1em; color: var(--ink-3); }
-  .nty .cal-chip .cc-num { display: block; font-family: var(--f-display); font-weight: 700; font-size: 20px; line-height: 1.1; }
-  .nty .cal-chip .cc-dot { display: block; width: 6px; height: 6px; border-radius: 50%; margin: 5px auto 0; background: var(--mute); }
-  .nty .cal-chip.st-open .cc-dot { background: var(--pink); }
-  .nty .cal-chip.st-tbd .cc-dot { background: #caa24a; }
-  .nty .cal-chip.st-closed .cc-dot { background: #4a4a52; }
-  .nty .cal-chip.wknd .cc-dow { color: var(--pink-2); }
-  .nty .cal-chip.on { border-color: var(--pink); background: rgba(255,62,126,.12); box-shadow: 0 0 0 1px var(--pink); }
-  .nty .cal-chip.on .cc-num { color: var(--pink-2); }
-
-  .nty .cal-day { margin-top: 16px; border: 1px solid var(--pink); border-radius: 18px; background: rgba(255,62,126,.06); padding: 18px 16px; }
-  .nty .cal-day.st-closed { border-color: var(--line); background: rgba(16,16,20,.5); }
-  .nty .cal-day .cd-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
-  .nty .cal-day .cd-date { font-family: var(--f-jp-display); font-weight: 800; font-size: 22px; }
-  .nty .cal-day .cd-date small { font-family: var(--f-mono); font-size: 10px; color: var(--ink-3); margin-left: 6px; }
-  .nty .cal-day .cd-cnt { font-family: var(--f-mono); font-size: 11px; color: #fff; background: var(--pink); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
-  .nty .cal-day .cd-cnt.off { background: none; color: var(--mute); }
-  .nty .cal-day .cd-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
-  .nty .cal-day .cd-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line-soft); padding-bottom: 6px; }
-  .nty .cal-day .cd-nm { font-family: var(--f-jp-display); font-weight: 600; font-size: 15px; }
-  .nty .cal-day .cd-tm { font-family: var(--f-mono); font-size: 10px; color: var(--ink-2); white-space: nowrap; }
-
-  /* CAST — 立ち姿を低くして情報を近づける。ナビは立ち姿中央、レイルは細スクロールバー */
-  .nty .cast-stage { grid-template-columns: 1fr; min-height: 0; padding: 18px 14px 22px; gap: 6px; }
-  .nty .cs-figwrap { min-height: 0; height: 46vh; max-height: 400px; order: 1; }
-  .nty .cs-info { order: 2; padding: 20px 18px; }
-  .nty .csi-name { font-size: clamp(40px, 13vw, 60px); margin-bottom: 16px; }
-  .nty .csi-comment { font-size: 13.5px; }
-  .nty .cs-nav { width: 42px; height: 42px; font-size: 9px; top: 23vh; transform: translateY(-50%); }
-  .nty .cs-nav.prev { left: 8px; }
-  .nty .cs-nav.next { right: 8px; }
-  .nty .cs-count { top: 12px; right: 14px; font-size: 11px; }
+  .nty .cast-stage { grid-template-columns: 1fr; min-height: 0; padding: 22px 14px 26px; gap: 4px; }
+  .nty .cs-figwrap { min-height: 56vh; max-height: 460px; order: 1; }
+  .nty .cs-info { order: 2; padding: 22px 20px; }
+  .nty .csi-name { font-size: clamp(44px, 14vw, 68px); }
+  .nty .cs-nav { width: 44px; height: 44px; font-size: 9px; top: 38%; }
+  .nty .cs-nav.prev { left: 6px; }
+  .nty .cs-nav.next { right: 6px; }
   .nty .cast-rail { padding: 14px 12px; border-radius: 16px; }
-  .nty .cr-track { gap: 10px; overflow-x: auto; justify-content: flex-start; -webkit-overflow-scrolling: touch; padding-bottom: 8px; scroll-snap-type: x proximity; }
-  .nty .cr-track::-webkit-scrollbar { height: 4px; }
-  .nty .cr-track::-webkit-scrollbar-thumb { background: var(--pink-deep); border-radius: 99px; }
-  .nty .cr-track::-webkit-scrollbar-track { background: #1a1a20; border-radius: 99px; }
-  .nty .cr-thumb { width: 84px; scroll-snap-align: start; }
+  .nty .cr-track { gap: 10px; overflow-x: auto; justify-content: flex-start; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
   .nty .cr-line { display: none; }
+  .nty .cr-thumb { width: 84px; }
 
   .nty .inside-row, .nty .inside-row.rev { grid-template-columns: 1fr; gap: 22px; }
   .nty .inside-row.rev .inside-media { order: 0; }
+  .nty .gallery-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .nty .gallery-card { grid-template-rows: auto minmax(140px, 1fr); }
+  .nty .gallery-meta { padding: 14px; }
 
   .nty .event-grid { grid-template-columns: 1fr; }
   .nty .today-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
@@ -676,6 +671,7 @@ html, body { background: #0b0b0d; }
 
 @media (max-width: 480px) {
   .nty .today-grid { grid-template-columns: 1fr 1fr; }
+  .nty .gallery-grid { grid-template-columns: 1fr; }
 }
 
 /* ===================================================
@@ -731,7 +727,7 @@ html, body { background: #0b0b0d; }
 .nty .cast-card .cc-next b { font-family: var(--f-jp-display); font-weight: 600; color: var(--pink-2); letter-spacing: 0; }
 
 /* SCHEDULE — legend tbd swatch + day-state styling */
-.nty .cal-legend .sw.tbd { background: #caa24a; border-color: #caa24a; }
+.nty .cal-legend .sw.tbd { background: repeating-linear-gradient(45deg, rgba(244,241,236,.14) 0 4px, transparent 4px 8px); border-color: var(--line); }
 .nty .cal2-day.st-tbd { background: rgba(16,16,20,.55); }
 .nty .cal2-day.st-closed { background: rgba(14,14,17,.5); }
 .nty .c2-list li.tbd .c2-nm { color: var(--ink-2); }

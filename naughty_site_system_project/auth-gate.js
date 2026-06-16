@@ -1,5 +1,5 @@
 (function () {
-  const AUTH_KEY = "naughty.auth.v2";
+  const AUTH_KEY = "naughty.auth.v1";
   const PASS_HASH = "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0";
   const script = document.currentScript;
   const redirect = script?.dataset.redirect || "";

@@ -3,21 +3,24 @@ const THEME_KEY = "naughty.admin.theme";
 const BACKUP_KEY = "naughty.siteData.backups.v1";
 const BACKUP_LIMIT = 5;
 const DATA_URL = "../03_system_seed/naughty_site_data.json";
-const ASSET_ROOT = "../04_site_rebuild/";
-const LEGACY_ASSET_ROOT = "../01_existing_site/";
-const MORE_VIEWS = new Set(["site", "gallery", "menu", "events", "payroll"]);
+const ASSET_ROOT = "../01_existing_site/";
+const MORE_VIEWS = new Set(["site", "accounts", "gallery", "menu", "events", "payroll"]);
 const IMAGE_MAX_SIDE = 1400;
 const IMAGE_QUALITY = 0.86;
+const INTERNAL_EMAIL_DOMAIN = "naughty.local";
+const DEFAULT_EMPLOYEE_PASSWORD = "0000";
+const BUSINESS_DAY_START_HOUR = 5;
+const ROUNDING_MINUTES = 15;
 
 const statusLabel = {
   working: "出勤中",
-  soon: "まもなく",
   scheduled: "予定",
   off: "休み"
 };
 
 let data = null;
 let selectedStaffId = "";
+let selectedAccountId = "";
 let selectedProductId = "";
 let selectedEventId = "";
 let selectedMaterialId = "";
@@ -39,6 +42,7 @@ async function loadData() {
   data = normalizeData(mergeSavedData(fallback, saved));
   lastSavedSnapshot = clone(data);
   selectedStaffId = data.staff[0]?.id || "";
+  selectedAccountId = data.accounts[0]?.id || "";
   selectedProductId = data.products[0]?.id || "";
   selectedEventId = data.events[0]?.id || "";
   selectedMaterialId = data.materials[0]?.id || "";
@@ -77,36 +81,63 @@ function mergeSavedData(fallback, savedText) {
       : fallback.materials;
     merged.assetVersion = fallback.assetVersion;
   }
-  return hydrateStaffImages(merged, fallback);
-}
-
-function hydrateStaffImages(next, fallback) {
-  const seedStaff = new Map((fallback.staff || []).map((staff) => [staff.id, staff]));
-  return {
-    ...next,
-    staff: (next.staff || []).map((staff) => {
-      const seed = seedStaff.get(staff.id) || {};
-      return {
-        ...staff,
-        photo: staff.photo || seed.photo || "",
-        heroPhoto: staff.heroPhoto || seed.heroPhoto || staff.photo || seed.photo || ""
-      };
-    })
-  };
+  return merged;
 }
 
 function normalizeData(next) {
+  const staff = next.staff || [];
+  const accounts = normalizeAccounts(next.accounts || [], staff);
   return {
     ...next,
-    staff: next.staff || [],
+    staff,
+    accounts,
     products: next.products || [],
     events: next.events || [],
     materials: next.materials || [],
     shifts: next.shifts || [],
     sales: next.sales || [],
     punches: next.punches || [],
+    qrCheckpoints: normalizeQrCheckpoints(next.qrCheckpoints || []),
     shop: next.shop || {}
   };
+}
+
+function normalizeAccounts(accounts, staff) {
+  const validStaffIds = new Set(staff.map((item) => item.id));
+  return accounts
+    .filter((account) => account && account.loginId)
+    .map((account) => {
+      const loginId = normalizeLoginId(account.loginId);
+      return {
+        id: account.id || id("acct"),
+        role: account.role || "employee",
+        staffId: validStaffIds.has(account.staffId) ? account.staffId : (staff[0]?.id || ""),
+        displayName: account.displayName || staff.find((item) => item.id === account.staffId)?.displayName || loginId,
+        loginId,
+        internalEmail: account.internalEmail || internalEmailForLogin(loginId),
+        password: normalizeAccountPassword(account.password),
+        isActive: account.isActive !== false,
+        createdAt: account.createdAt || new Date().toISOString(),
+        lastPasswordResetAt: account.lastPasswordResetAt || ""
+      };
+    });
+}
+
+function normalizeQrCheckpoints(checkpoints) {
+  const list = checkpoints.filter((item) => item && item.code).map((item) => ({
+    id: item.id || id("qr"),
+    label: item.label || "店舗QR",
+    code: String(item.code),
+    isActive: item.isActive !== false,
+    createdAt: item.createdAt || new Date().toISOString()
+  }));
+  return list.length ? list : [{
+    id: "qr_main",
+    label: "店舗固定QR",
+    code: "NTY-HQ-2026",
+    isActive: true,
+    createdAt: "2026-06-16T00:00:00+09:00"
+  }];
 }
 
 function clone(value) {
@@ -147,6 +178,13 @@ function statusText(status) {
   return statusLabel[status] || "休み";
 }
 
+function punchStatusText(status) {
+  if (status === "working") return "出勤";
+  if (status === "off") return "退勤";
+  if (status === "scheduled") return "予定";
+  return statusText(status);
+}
+
 function uploadedImage(value) {
   return /^data:image\//i.test(String(value || ""));
 }
@@ -163,7 +201,6 @@ function asset(path) {
   if (!path) return "../01_existing_site/assets/cast/g1.png";
   if (/^(https?:|data:|blob:)/i.test(path)) return path;
   if (String(path).startsWith("../") || String(path).startsWith("/")) return path;
-  if (String(path).startsWith("uploads/") || String(path).startsWith("assets/transparent/")) return `${LEGACY_ASSET_ROOT}${path}`;
   return `${ASSET_ROOT}${path}`;
 }
 
@@ -202,8 +239,58 @@ function dateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
+function businessDateKey(value = new Date()) {
+  const date = new Date(value);
+  if (date.getHours() < BUSINESS_DAY_START_HOUR) {
+    date.setDate(date.getDate() - 1);
+  }
+  return dateKey(date);
+}
+
+function timeKey(date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function floorDateToQuarter(value = new Date()) {
+  const date = new Date(value);
+  date.setMinutes(Math.floor(date.getMinutes() / ROUNDING_MINUTES) * ROUNDING_MINUTES, 0, 0);
+  return date;
+}
+
+function normalizeLoginId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "")
+    .slice(0, 32);
+}
+
+function internalEmailForLogin(loginId) {
+  return `${normalizeLoginId(loginId) || "staff"}@${INTERNAL_EMAIL_DOMAIN}`;
+}
+
+function makeInitialPassword() {
+  return DEFAULT_EMPLOYEE_PASSWORD;
+}
+
+function normalizeAccountPassword(value) {
+  const password = String(value || "").trim();
+  if (!password || password === "1234" || /^\d{4}-\d{4}$/.test(password)) return DEFAULT_EMPLOYEE_PASSWORD;
+  return password;
+}
+
+function suggestedLoginId(staff) {
+  const base = normalizeLoginId(staff?.romanName || staff?.displayName || "staff") || "staff";
+  const suffix = String((data?.staff || []).findIndex((item) => item.id === staff?.id) + 1 || 1).padStart(3, "0");
+  return `${base}${suffix}`;
+}
+
 function getStaff() {
   return data.staff.find((staff) => staff.id === selectedStaffId) || data.staff[0];
+}
+
+function getAccount() {
+  return data.accounts.find((account) => account.id === selectedAccountId) || data.accounts[0];
 }
 
 function getProduct() {
@@ -236,6 +323,7 @@ function renderAll() {
   renderOperations();
   renderSiteSettings();
   renderStaff();
+  renderAccounts();
   renderMaterialsAdmin();
   renderShift();
   renderProducts();
@@ -249,11 +337,12 @@ function renderDashboard() {
   const working = data.staff.filter((staff) => staff.workStatus === "working").length;
   const activeProducts = data.products.filter((product) => product.active).length;
   const gallery = data.materials.length;
+  const activeAccounts = data.accounts.filter((account) => account.isActive).length;
   const payroll = computePayroll().reduce((sum, row) => sum + row.total, 0);
   $("#metric-grid").innerHTML = [
     ["Web表示", visibleStaff],
     ["出勤中", working],
-    ["商品/画像", `${activeProducts}/${gallery}`],
+    ["ID/商品/画像", `${activeAccounts}/${activeProducts}/${gallery}`],
     ["未払目安", yen(payroll)]
   ].map(([label, value]) => `<article class="metric"><b>${value}</b><span>${label}</span></article>`).join("");
   $("#last-updated").textContent = data.updatedAt ? `更新 ${formatDateTime(data.updatedAt)}` : "";
@@ -273,7 +362,8 @@ function renderDashboard() {
 }
 
 function renderOperations() {
-  const operationDate = shiftDates()[0] || dateKey(new Date());
+  const operationDate = businessDateKey(new Date());
+  const activeQr = data.qrCheckpoints.filter((item) => item.isActive).length;
   $("#operation-date").textContent = `営業日 ${operationDate}`;
   $("#operation-staff").innerHTML = data.staff.map((staff) => `
     <option value="${staff.id}" ${staff.id === selectedStaffId ? "selected" : ""}>${staff.displayName}</option>
@@ -282,6 +372,8 @@ function renderOperations() {
     ["Web表示スタッフ", `${data.staff.filter((staff) => staff.publicVisible).length}名`],
     ["公開メニュー", `${data.products.filter((product) => product.active).length}件`],
     ["ギャラリー", `${data.materials.length}件`],
+    ["従業員ID", `${data.accounts.filter((account) => account.isActive).length}件`],
+    ["勤怠QR", `${activeQr}件 / 15分切り捨て`],
     ["イベント", `${data.events.filter((event) => event.publicVisible).length}件`],
     ["売上登録", `${data.sales.length}件`],
     ["最終保存", data.updatedAt ? formatDateTime(data.updatedAt) : "未保存"]
@@ -291,6 +383,46 @@ function renderOperations() {
       <strong>${value}</strong>
     </div>
   `).join("");
+}
+
+function renderAccounts() {
+  const list = $("#account-list");
+  if (!list) return;
+  list.innerHTML = data.accounts.length ? data.accounts.map((account) => {
+    const staff = data.staff.find((item) => item.id === account.staffId);
+    return `
+      <button class="list-item ${account.id === selectedAccountId ? "active" : ""}" type="button" data-account-select="${account.id}">
+        <span class="thumb account-thumb">${account.isActive ? "ID" : "停止"}</span>
+        <span>
+          <strong>${account.displayName || staff?.displayName || account.loginId}</strong>
+          <small>${account.loginId} / ${staff?.displayName || "未紐づけ"}</small>
+        </span>
+        <small>${account.isActive ? "有効" : "停止中"}</small>
+      </button>
+    `;
+  }).join("") : `<div class="empty-note">スタッフを選んで「作成」を押すと、メール不要のログインIDを発行できます。</div>`;
+
+  const staffOptions = data.staff.map((staff) => `<option value="${staff.id}">${staff.displayName}</option>`).join("");
+  $("#account-staff").innerHTML = staffOptions;
+  const account = getAccount();
+  if (!account) {
+    const staff = getStaff();
+    const loginId = suggestedLoginId(staff);
+    $("#account-staff").value = staff?.id || "";
+    $("#account-name").value = staff?.displayName || "";
+    $("#account-login-id").value = loginId;
+    $("#account-password").value = makeInitialPassword();
+    $("#account-internal-email").value = internalEmailForLogin(loginId);
+    $("#account-status").textContent = "未作成";
+    return;
+  }
+
+  $("#account-staff").value = account.staffId || "";
+  $("#account-name").value = account.displayName || "";
+  $("#account-login-id").value = account.loginId || "";
+  $("#account-password").value = account.password || "";
+  $("#account-internal-email").value = account.internalEmail || internalEmailForLogin(account.loginId);
+  $("#account-status").textContent = account.isActive ? "有効" : "停止中";
 }
 
 function renderSiteSettings() {
@@ -363,12 +495,13 @@ function renderMaterialsAdmin() {
     <button class="list-item ${item.id === selectedMaterialId ? "active" : ""}" type="button" data-material-select="${item.id}">
       <img class="thumb" src="${asset(item.image)}" alt="" />
       <span><strong>${item.title}</strong><small>${item.kind === "lineup" ? "集合" : "写真"}</small></span>
-      <small>${item.image ? "画像あり" : "未設定"}</small>
+      <small>${item.publicVisible === false ? "非表示" : (item.image ? "画像あり" : "未設定")}</small>
     </button>
   `).join("");
 
   const item = getMaterial();
   if (!item) {
+    $("#material-visible").checked = true;
     $("#material-title").value = "";
     $("#material-caption").value = "";
     $("#material-image").value = "";
@@ -376,6 +509,7 @@ function renderMaterialsAdmin() {
     $("#material-preview").innerHTML = "";
     return;
   }
+  $("#material-visible").checked = item.publicVisible !== false;
   $("#material-title").value = item.title || "";
   $("#material-caption").value = item.caption || "";
   $("#material-image").value = item.image || "";
@@ -408,9 +542,10 @@ function renderShift() {
   renderShiftTools(dates);
   $("#shift-editor").innerHTML = data.staff.map((staff) => {
     const shift = getOrCreateShift(selectedDate, staff.id);
+    const summary = punchSummary(staff.id, selectedDate);
     return `
       <div class="shift-row" data-staff="${staff.id}">
-        <strong>${staff.displayName}</strong>
+        <strong>${staff.displayName}<small class="punch-note">${summary}</small></strong>
         <label>状態
           <select data-shift-field="status">
             ${["working", "scheduled", "off"].map((status) => `<option value="${status}" ${shift.status === status ? "selected" : ""}>${statusText(status)}</option>`).join("")}
@@ -422,6 +557,20 @@ function renderShift() {
       </div>
     `;
   }).join("");
+}
+
+function punchSummary(staffId, businessDate) {
+  const punches = data.punches
+    .filter((punch) => punch.staffId === staffId && (punch.businessDate || punch.date) === businessDate)
+    .sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+  if (!punches.length) return "打刻なし";
+  const first = punches[0];
+  const last = punches[punches.length - 1];
+  const firstTime = first.roundedTime || timeKey(floorDateToQuarter(first.at));
+  const lastTime = last.roundedTime || timeKey(floorDateToQuarter(last.at));
+  return punches.length === 1
+    ? `${statusText(last.status)} ${lastTime}`
+    : `${firstTime} - ${lastTime} / ${punches.length}打刻`;
 }
 
 function renderProducts() {
@@ -468,7 +617,10 @@ function renderSales() {
 
   const range = getFilterRange("sales");
   const sales = getSalesInRange(range);
-  $("#sales-filter-summary").textContent = filterSummary(range, `${sales.length}件 / ${yen(sales.reduce((sum, sale) => sum + Number(sale.total || 0), 0))}`);
+  const totalSales = sales.reduce((sum, sale) => sum + Number(sale.total || 0), 0);
+  const totalBack = sales.reduce((sum, sale) => sum + Number(sale.backTotal || 0), 0);
+  $("#sales-filter-summary").textContent = filterSummary(range, `${sales.length}件 / 売上 ${yen(totalSales)} / バック ${yen(totalBack)}`);
+  renderSalesCsvPreview(sales, range);
 
   if (!sales.length) {
     $("#sales-list").innerHTML = `<div class="sale-row"><strong>対象期間の売上なし</strong><small>期間を変えるか売上を登録してください</small></div>`;
@@ -482,12 +634,26 @@ function renderSales() {
       <div class="sale-row">
         <div>
           <strong>${staff?.displayName || ""} / ${product?.name || ""}</strong>
-          <small>${formatDateTime(sale.createdAt)} × ${sale.qty}</small>
+          <small>${formatDateTime(sale.createdAt)} × ${sale.qty} / ${sale.source === "employee" ? "従業員登録" : "管理登録"}</small>
         </div>
         <b>${yen(sale.total)}</b>
       </div>
     `;
   }).join("");
+}
+
+function renderSalesCsvPreview(sales, range) {
+  const target = $("#sales-csv-preview");
+  if (!target) return;
+  const fields = ["登録日時", "営業日", "スタッフ", "商品", "数量", "単価", "バック単価", "売上合計", "バック合計", "登録元"];
+  target.innerHTML = `
+    <div class="csv-preview-head">
+      <strong>CSV出力プレビュー</strong>
+      <span>${rangeName(range)} / ${sales.length}件</span>
+    </div>
+    <div class="csv-chip-row">${fields.map((field) => `<span class="csv-chip">${field}</span>`).join("")}</div>
+    <p class="mini-note">期間指定中の売上だけを出力します。従業員ポータルから登録された伝票も「登録元」で判別できます。</p>
+  `;
 }
 
 function renderPayroll() {
@@ -497,12 +663,50 @@ function renderPayroll() {
   $("#payroll-table").innerHTML = rows.map((row) => `
     <div class="pay-row">
       <strong>${row.staff.displayName}</strong>
-      <span data-label="勤務時間">${row.hours.toFixed(2)}h</span>
-      <span data-label="時給分">${yen(row.basePay)}</span>
-      <span data-label="バック">${yen(row.backPay)}</span>
-      <b data-label="合計">${yen(row.total)}</b>
+      <span>${row.hours.toFixed(2)}h</span>
+      <span>${yen(row.basePay)}</span>
+      <span>${yen(row.backPay)}</span>
+      <b>${yen(row.total)}</b>
     </div>
   `).join("");
+  renderAttendanceTable(range);
+}
+
+function renderAttendanceTable(range) {
+  const target = $("#attendance-table");
+  if (!target) return;
+  const punches = data.punches
+    .filter((punch) => inDateRange(punch.businessDate || punch.date || dateKeyFromValue(punch.at), range))
+    .slice()
+    .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+
+  if (!punches.length) {
+    target.innerHTML = `<div class="attendance-row empty"><strong>勤怠打刻なし</strong><span>QRまたは管理画面で打刻するとここに表示されます。</span></div>`;
+    return;
+  }
+
+  target.innerHTML = `
+    <div class="attendance-row head">
+      <strong>スタッフ</strong>
+      <span>種別</span>
+      <span>実打刻</span>
+      <span>計算時刻</span>
+      <span>営業日</span>
+    </div>
+    ${punches.map((punch) => {
+      const staff = data.staff.find((item) => item.id === punch.staffId);
+      const roundedTime = punch.roundedTime || timeKey(floorDateToQuarter(punch.at));
+      return `
+        <div class="attendance-row">
+          <strong>${staff?.displayName || ""}</strong>
+          <span>${punchStatusText(punch.status)}</span>
+          <span>${formatDateTime(punch.at)}</span>
+          <span>${roundedTime}</span>
+          <span>${punch.businessDate || punch.date || ""}</span>
+        </div>
+      `;
+    }).join("")}
+  `;
 }
 
 function computePayroll(range = null) {
@@ -512,7 +716,7 @@ function computePayroll(range = null) {
       .reduce((sum, shift) => sum + shiftHours(shift), 0);
     const basePay = Math.floor(hours * Number(staff.hourlyWage || 0));
     const backPay = data.sales
-      .filter((sale) => sale.staffId === staff.id && inDateRange(dateKeyFromValue(sale.createdAt), range))
+      .filter((sale) => sale.staffId === staff.id && inDateRange(sale.businessDate || dateKeyFromValue(sale.createdAt), range))
       .reduce((sum, sale) => sum + Number(sale.backTotal || 0), 0);
     return { staff, hours, basePay, backPay, total: basePay + backPay };
   });
@@ -611,7 +815,7 @@ function filterSummary(range, suffix) {
 }
 
 function getSalesInRange(range = getFilterRange("sales")) {
-  return data.sales.filter((sale) => inDateRange(dateKeyFromValue(sale.createdAt), range));
+  return data.sales.filter((sale) => inDateRange(sale.businessDate || dateKeyFromValue(sale.createdAt), range));
 }
 
 function initializeDateFilters() {
@@ -738,7 +942,12 @@ function summarizePublishChanges(before, after) {
     changes.push({ title: "スタッフ", detail: `追加${staffDiff.added} / 更新${staffDiff.changed} / 削除${staffDiff.removed}` });
   }
 
-  const materialDiff = diffById(before.materials || [], after.materials || [], ["title", "caption", "image", "kind"]);
+  const accountDiff = diffById(before.accounts || [], after.accounts || [], ["staffId", "displayName", "loginId", "internalEmail", "password", "isActive"]);
+  if (accountDiff.changed || accountDiff.added || accountDiff.removed) {
+    changes.push({ title: "従業員アカウント", detail: `追加${accountDiff.added} / 更新${accountDiff.changed} / 停止/削除${accountDiff.removed}` });
+  }
+
+  const materialDiff = diffById(before.materials || [], after.materials || [], ["title", "caption", "image", "kind", "publicVisible"]);
   if (materialDiff.changed || materialDiff.added || materialDiff.removed) {
     changes.push({ title: "ギャラリー", detail: `追加${materialDiff.added} / 更新${materialDiff.changed} / 削除${materialDiff.removed}` });
   }
@@ -968,6 +1177,16 @@ function bindActions() {
       return;
     }
 
+    const accountButton = event.target.closest("[data-account-select]");
+    if (accountButton) {
+      selectedAccountId = accountButton.dataset.accountSelect;
+      const account = getAccount();
+      if (account?.staffId) selectedStaffId = account.staffId;
+      renderAccounts();
+      openEditSheet("#account-form");
+      return;
+    }
+
     const statusButton = event.target.closest("[data-status]");
     if (statusButton) {
       const row = statusButton.closest("[data-staff]");
@@ -1034,6 +1253,13 @@ function bindActions() {
     openEditSheet("#staff-form");
   });
 
+  $("#create-account").addEventListener("click", createEmployeeAccount);
+  $("#reset-account-password").addEventListener("click", resetAccountPassword);
+  $("#copy-employee-login").addEventListener("click", copyEmployeeLoginInfo);
+  $("#copy-attendance-qr").addEventListener("click", copyAttendanceQrUrl);
+  $("#suspend-account").addEventListener("click", () => setAccountActive(false));
+  $("#activate-account").addEventListener("click", () => setAccountActive(true));
+
   $("#add-product").addEventListener("click", () => {
     const product = {
       id: id("prod"),
@@ -1070,7 +1296,8 @@ function bindActions() {
       title: "new visual",
       caption: "ノーティらしい雰囲気の画像です。",
       image: "uploads/589820627_17899106706346662_4066901980983006318_n.jpg",
-      kind: "photo"
+      kind: "photo",
+      publicVisible: true
     };
     data.materials.push(material);
     selectedMaterialId = material.id;
@@ -1089,7 +1316,7 @@ function bindActions() {
   });
 
   $("#copy-public-url").addEventListener("click", async () => {
-  const url = new URL("../04_site_rebuild/index.html?v=v6", location.href).href;
+  const url = new URL("../04_site_rebuild/index.html?v=vnext-mvp-20260616", location.href).href;
     try {
       await navigator.clipboard.writeText(url);
       toast("公開URLをコピーしました");
@@ -1121,19 +1348,22 @@ function bindActions() {
     data.sales.push({
       id: id("sale"),
       createdAt: new Date().toISOString(),
+      businessDate: businessDateKey(new Date()),
       staffId,
       productId,
       qty,
       salePrice: Number(product.salePrice || 0),
       backAmount: Number(product.backAmount || 0),
       total: Number(product.salePrice || 0) * qty,
-      backTotal: Number(product.backAmount || 0) * qty
+      backTotal: Number(product.backAmount || 0) * qty,
+      source: "admin"
     });
     saveData("売上を登録しました");
   });
 
   $("#download-sales").addEventListener("click", downloadSalesCsv);
   $("#download-payroll").addEventListener("click", downloadPayrollCsv);
+  $("#download-attendance").addEventListener("click", downloadAttendanceCsv);
   $("#download-backup").addEventListener("click", downloadBackupJson);
   $("#restore-backup").addEventListener("click", () => $("#backup-file").click());
   $("#backup-file").addEventListener("change", restoreBackupJson);
@@ -1199,6 +1429,33 @@ function bindForms() {
     renderAll();
   });
 
+  $("#account-form").addEventListener("input", () => {
+    const account = getAccount();
+    const staffId = $("#account-staff").value;
+    const loginId = normalizeLoginId($("#account-login-id").value);
+    $("#account-login-id").value = loginId;
+    $("#account-internal-email").value = internalEmailForLogin(loginId);
+    selectedStaffId = staffId || selectedStaffId;
+    if (!account) return;
+    account.staffId = staffId;
+    account.displayName = $("#account-name").value;
+    account.loginId = loginId;
+    account.internalEmail = internalEmailForLogin(loginId);
+    account.password = $("#account-password").value;
+    renderDashboard();
+  });
+  $("#account-staff").addEventListener("change", () => {
+    const account = getAccount();
+    const staff = data.staff.find((item) => item.id === $("#account-staff").value);
+    if (!account && staff) {
+      $("#account-name").value = staff.displayName || "";
+      const loginId = uniqueLoginId(suggestedLoginId(staff), "");
+      $("#account-login-id").value = loginId;
+      $("#account-internal-email").value = internalEmailForLogin(loginId);
+    }
+    $("#account-form").dispatchEvent(new Event("input"));
+  });
+
   $("#shift-editor").addEventListener("input", updateShiftFromInput);
   $("#shift-editor").addEventListener("change", updateShiftFromInput);
 
@@ -1230,6 +1487,7 @@ function bindForms() {
   $("#material-form").addEventListener("input", () => {
     const item = getMaterial();
     if (!item) return;
+    item.publicVisible = $("#material-visible").checked;
     item.title = $("#material-title").value;
     item.caption = $("#material-caption").value;
     item.image = $("#material-image").value;
@@ -1238,6 +1496,7 @@ function bindForms() {
     renderOperations();
     renderMaterialPreviewOnly();
   });
+  $("#material-visible").addEventListener("change", () => $("#material-form").dispatchEvent(new Event("input")));
 
   bindImageUpload("staff-photo-file", "staff-photo", () => $("#staff-form").dispatchEvent(new Event("input", { bubbles: true })));
   bindImageUpload("staff-hero-photo-file", "staff-hero-photo", () => $("#staff-form").dispatchEvent(new Event("input", { bubbles: true })));
@@ -1281,6 +1540,99 @@ function clearImageField(targetInputId) {
   form?.dispatchEvent(new Event("input", { bubbles: true }));
   renderImagePreview(targetInputId, "");
   toast("画像を未設定にしました");
+}
+
+function uniqueLoginId(baseValue, currentAccountId = "") {
+  const base = normalizeLoginId(baseValue) || "staff";
+  const used = new Set(data.accounts
+    .filter((account) => account.id !== currentAccountId)
+    .map((account) => account.loginId));
+  if (!used.has(base)) return base;
+  for (let index = 2; index < 1000; index += 1) {
+    const candidate = `${base}${index}`;
+    if (!used.has(candidate)) return candidate;
+  }
+  return `${base}${Date.now().toString(36).slice(-4)}`;
+}
+
+function createEmployeeAccount(event) {
+  event?.preventDefault();
+  const staffId = $("#account-staff").value || selectedStaffId || data.staff[0]?.id || "";
+  const staff = data.staff.find((item) => item.id === staffId);
+  const existing = data.accounts.find((account) => account.staffId === staffId && account.isActive);
+  if (existing && !confirm(`${staff?.displayName || "このスタッフ"}には有効なアカウントがあります。追加で作成しますか？`)) return;
+
+  const loginId = uniqueLoginId($("#account-login-id").value || suggestedLoginId(staff));
+  const account = {
+    id: id("acct"),
+    role: "employee",
+    staffId,
+    displayName: $("#account-name").value || staff?.displayName || loginId,
+    loginId,
+    internalEmail: internalEmailForLogin(loginId),
+    password: $("#account-password").value || makeInitialPassword(),
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    lastPasswordResetAt: ""
+  };
+  data.accounts.push(account);
+  selectedAccountId = account.id;
+  saveData(`${account.displayName}のログインIDを作成しました`);
+  openEditSheet("#account-form");
+}
+
+function resetAccountPassword(event) {
+  event?.preventDefault();
+  const account = getAccount();
+  if (!account) return;
+  account.password = makeInitialPassword();
+  account.lastPasswordResetAt = new Date().toISOString();
+  saveData("初期パスワードを再発行しました");
+}
+
+function setAccountActive(isActive) {
+  const account = getAccount();
+  if (!account) return;
+  account.isActive = isActive;
+  account.updatedAt = new Date().toISOString();
+  saveData(isActive ? "アカウントを復帰しました" : "アカウントを停止しました");
+}
+
+function employeePortalUrl(params = {}) {
+  const url = new URL("../06_employee_portal/index.html", location.href);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) url.searchParams.set(key, value);
+  });
+  return url.href;
+}
+
+async function copyEmployeeLoginInfo(event) {
+  event?.preventDefault();
+  const account = getAccount();
+  if (!account) return;
+  const text = [
+    "NAUGHTY 従業員ログイン",
+    `URL: ${employeePortalUrl()}`,
+    `ログインID: ${account.loginId}`,
+    `初期パスワード: ${account.password}`,
+    "※メールアドレス入力は不要です。"
+  ].join("\n");
+  await copyText(text, "ログイン情報をコピーしました");
+}
+
+async function copyAttendanceQrUrl(event) {
+  event?.preventDefault();
+  const checkpoint = data.qrCheckpoints.find((item) => item.isActive) || data.qrCheckpoints[0];
+  await copyText(employeePortalUrl({ qr: checkpoint?.code || "NTY-HQ-2026" }), "勤怠QR用URLをコピーしました");
+}
+
+async function copyText(text, doneMessage) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(doneMessage);
+  } catch {
+    toast(text);
+  }
 }
 
 function fileToCompressedDataUrl(file) {
@@ -1372,15 +1724,16 @@ function applyPunch(status) {
   const staffId = $("#operation-staff").value || selectedStaffId;
   const staff = data.staff.find((item) => item.id === staffId);
   if (!staff) return;
-  const operationDate = shiftDates()[0] || dateKey(new Date());
   const now = new Date();
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(Math.floor(now.getMinutes() / 15) * 15).padStart(2, "0");
+  const operationDate = businessDateKey(now);
+  const rounded = floorDateToQuarter(now);
+  const actualTime = timeKey(now);
+  const roundedTime = timeKey(rounded);
   const shift = getOrCreateShift(operationDate, staffId);
   staff.workStatus = status;
   shift.status = status;
   if (status === "working") {
-    shift.start = shift.start || `${hh}:${mm}`;
+    shift.start = shift.start || roundedTime;
     shift.publicNote = "出勤中";
   }
   if (status === "scheduled") {
@@ -1389,7 +1742,7 @@ function applyPunch(status) {
     shift.publicNote = "出勤予定";
   }
   if (status === "off") {
-    shift.end = `${hh}:${mm}`;
+    shift.end = roundedTime;
     shift.publicNote = "退勤済";
   }
   data.punches.push({
@@ -1397,26 +1750,34 @@ function applyPunch(status) {
     staffId,
     status,
     at: now.toISOString(),
-    date: operationDate
+    roundedAt: rounded.toISOString(),
+    actualTime,
+    roundedTime,
+    date: operationDate,
+    businessDate: operationDate,
+    source: "admin",
+    method: "manual"
   });
   saveData(`${staff.displayName}を${statusText(status)}にしました`);
 }
 
 function downloadSalesCsv() {
-  const header = ["createdAt", "staff", "product", "qty", "salePrice", "backAmount", "total", "backTotal"];
+  const header = ["登録日時", "営業日", "スタッフ", "商品", "数量", "単価", "バック単価", "売上合計", "バック合計", "登録元"];
   const range = getFilterRange("sales");
   const rows = getSalesInRange(range).map((sale) => {
     const staff = data.staff.find((item) => item.id === sale.staffId);
     const product = data.products.find((item) => item.id === sale.productId);
     return [
       sale.createdAt,
+      sale.businessDate || businessDateKey(sale.createdAt),
       staff?.displayName || "",
       product?.name || "",
       sale.qty,
       sale.salePrice,
       sale.backAmount,
       sale.total,
-      sale.backTotal
+      sale.backTotal,
+      sale.source === "employee" ? "従業員" : "管理画面"
     ];
   });
   const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
@@ -1431,7 +1792,7 @@ function downloadSalesCsv() {
 
 function downloadPayrollCsv() {
   const range = getFilterRange("payroll");
-  const header = ["staff", "hours", "basePay", "backPay", "total"];
+  const header = ["スタッフ", "勤務時間", "基本給", "バック", "合計"];
   const rows = computePayroll(range).map((row) => [
     row.staff.displayName,
     row.hours.toFixed(2),
@@ -1445,6 +1806,33 @@ function downloadPayrollCsv() {
   const link = document.createElement("a");
   link.href = url;
   link.download = `naughty_payroll_${rangeName(range)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadAttendanceCsv() {
+  const range = getFilterRange("payroll");
+  const header = ["営業日", "スタッフ", "種別", "実打刻", "計算時刻", "登録元", "QR"];
+  const rows = data.punches
+    .filter((punch) => inDateRange(punch.businessDate || punch.date || dateKeyFromValue(punch.at), range))
+    .map((punch) => {
+      const staff = data.staff.find((item) => item.id === punch.staffId);
+      return [
+        punch.businessDate || punch.date || "",
+        staff?.displayName || "",
+        punchStatusText(punch.status),
+        punch.at || "",
+        punch.roundedTime || timeKey(floorDateToQuarter(punch.at)),
+        punch.source === "employee" ? "従業員" : "管理画面",
+        punch.qrCode || punch.checkpointId || ""
+      ];
+    });
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `naughty_attendance_${rangeName(range)}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -1513,6 +1901,7 @@ function restoreBackupJson(event) {
 
 function resetSelections() {
   selectedStaffId = data.staff[0]?.id || "";
+  selectedAccountId = data.accounts[0]?.id || "";
   selectedProductId = data.products[0]?.id || "";
   selectedEventId = data.events[0]?.id || "";
   selectedMaterialId = data.materials[0]?.id || "";

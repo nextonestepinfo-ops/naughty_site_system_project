@@ -10,16 +10,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=admin-redesign-3" />
+  <link rel="stylesheet" href="styles.css?v=admin-vnext-20260616" />
 </head>
 <body>
   <div class="admin-app">
     <header class="admin-header">
-      <a class="admin-brand" href="../04_site_rebuild/index.html?v=v6">
+      <a class="admin-brand" href="../04_site_rebuild/index.html?v=vnext-mvp-20260616">
         <img src="../04_site_rebuild/assets/logo-naughty-white-circle.png" alt="naughty" />
       </a>
       <div class="header-actions">
-        <a class="icon-link" href="../04_site_rebuild/index.html?v=v6" aria-label="公開サイトを開く" title="公開サイト">
+        <a class="icon-link" href="../04_site_rebuild/index.html?v=vnext-mvp-20260616" aria-label="公開サイトを開く" title="公開サイト">
           <span aria-hidden="true">↗</span>
         </a>
         <button class="tbtn" id="theme-toggle" type="button" aria-label="テーマ切替" title="テーマ切替">
@@ -43,6 +43,7 @@
         <button class="nav-item active" type="button" data-view="dashboard"><span>⌂</span><b>ホーム</b></button>
         <button class="nav-item" type="button" data-view="site"><span>✦</span><b>サイト</b></button>
         <button class="nav-item" type="button" data-view="staff"><span>＋</span><b>スタッフ</b></button>
+        <button class="nav-item" type="button" data-view="accounts"><span>ID</span><b>アカウント</b></button>
         <button class="nav-item" type="button" data-view="gallery"><span>□</span><b>ギャラリー</b></button>
         <button class="nav-item" type="button" data-view="shift"><span>▦</span><b>シフト</b></button>
         <button class="nav-item" type="button" data-view="menu"><span>￥</span><b>メニュー</b></button>
@@ -77,7 +78,7 @@
             <div class="panel site-sync-panel">
               <div class="panel-head">
                 <h2>公開サイト反映</h2>
-                <a class="mini-link" href="../04_site_rebuild/index.html?v=v6">開く</a>
+                <a class="mini-link" href="../04_site_rebuild/index.html?v=vnext-mvp-20260616">開く</a>
               </div>
               <div class="sync-list" id="site-sync-list"></div>
             </div>
@@ -100,7 +101,7 @@
             <form class="panel edit-form" id="site-form" data-sheet-title="店舗情報">
               <div class="panel-head">
                 <h2>店舗情報</h2>
-                <a class="mini-link" href="../04_site_rebuild/index.html?v=v6">確認</a>
+                <a class="mini-link" href="../04_site_rebuild/index.html?v=vnext-mvp-20260616">確認</a>
               </div>
               <label>表示名<input id="shop-display-name" type="text" /></label>
               <label>コンセプト<textarea id="shop-concept-input" rows="4"></textarea></label>
@@ -199,6 +200,47 @@
           </div>
         </section>
 
+        <section class="view" id="view-accounts">
+          <div class="view-head">
+            <p>EMPLOYEE ACCOUNTS</p>
+            <h1>従業員アカウント</h1>
+          </div>
+          <div class="two-column">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>ログインID一覧</h2>
+                <button class="small-action" id="create-account" type="button">作成</button>
+              </div>
+              <div class="list-stack" id="account-list"></div>
+            </div>
+            <form class="panel edit-form" id="account-form" data-sheet-title="従業員アカウント">
+              <div class="panel-head">
+                <h2>メール不要ログイン</h2>
+                <span id="account-status"></span>
+              </div>
+              <label>紐づけスタッフ
+                <select id="account-staff"></select>
+              </label>
+              <label>表示名<input id="account-name" type="text" placeholder="例: なの" /></label>
+              <label>ログインID<input id="account-login-id" type="text" inputmode="latin" autocomplete="off" placeholder="例: nano001" /></label>
+              <label>初期パスワード<input id="account-password" type="text" autocomplete="off" placeholder="例: 0000" /></label>
+              <label>内部メール<input id="account-internal-email" type="text" readonly /></label>
+              <p class="mini-note">従業員には内部メールを見せません。画面上はログインIDとパスワードだけで使えます。</p>
+              <div class="account-actions">
+                <button class="small-command primary-command" id="reset-account-password" type="button">パスワード再発行</button>
+                <button class="small-command" id="copy-employee-login" type="button">ログイン情報コピー</button>
+                <button class="small-command" id="copy-attendance-qr" type="button">勤怠QR URLコピー</button>
+                <button class="danger-action" id="suspend-account" type="button">停止</button>
+                <button class="small-command" id="activate-account" type="button">復帰</button>
+              </div>
+              <div class="supabase-note">
+                <strong>Supabase本番移行メモ</strong>
+                <span>本番では create-employee Edge Function が同じログインIDを内部メールに変換してAuthユーザーを作成します。</span>
+              </div>
+            </form>
+          </div>
+        </section>
+
         <section class="view" id="view-gallery">
           <div class="view-head">
             <p>GALLERY</p>
@@ -215,6 +257,10 @@
             <form class="panel edit-form" id="material-form" data-sheet-title="ギャラリー編集">
               <div class="panel-head">
                 <h2>編集</h2>
+                <label class="switch">
+                  <input type="checkbox" id="material-visible" />
+                  <span>Web表示</span>
+                </label>
                 <button class="danger-action" id="delete-material" type="button">削除</button>
               </div>
               <label>タイトル<input id="material-title" type="text" /></label>
@@ -365,6 +411,7 @@
                 <label>終了<input id="sales-to" type="date" /></label>
               </div>
               <p class="mini-note" id="sales-filter-summary"></p>
+              <div class="csv-preview" id="sales-csv-preview"></div>
               <div class="sales-list" id="sales-list"></div>
             </div>
           </div>
@@ -385,9 +432,11 @@
               <label>開始<input id="payroll-from" type="date" /></label>
               <label>終了<input id="payroll-to" type="date" /></label>
               <button class="small-command primary-command" id="download-payroll" type="button">給与CSV</button>
+              <button class="small-command" id="download-attendance" type="button">勤怠CSV</button>
             </div>
             <p class="mini-note" id="payroll-filter-summary"></p>
             <div class="payroll-table" id="payroll-table"></div>
+            <div class="attendance-table" id="attendance-table"></div>
           </div>
         </section>
       </main>
@@ -423,6 +472,7 @@
     <h2>もっと</h2>
     <div class="more-grid">
       <button type="button" data-view="site">サイト設定</button>
+      <button type="button" data-view="accounts">アカウント</button>
       <button type="button" data-view="gallery">ギャラリー</button>
       <button type="button" data-view="menu">メニュー</button>
       <button type="button" data-view="events">イベント</button>
@@ -446,8 +496,8 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="../03_system_seed/naughty_site_data.js?v=production-4"></script>
-  <script src="../auth-gate.js?v=0000"></script>
-  <script src="app.js?v=admin-redesign-3"></script>
+  <script src="../03_system_seed/naughty_site_data.js?v=vnext-mvp-20260616"></script>
+  <script src="../auth-gate.js"></script>
+  <script src="app.js?v=admin-vnext-20260616"></script>
 </body>
 </html>

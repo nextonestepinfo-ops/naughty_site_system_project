@@ -109,34 +109,27 @@ function FV({ variant, copy, fvStyle }) {
     if (!root) return;
     let raf = 0,tx = 0,ty = 0,dx = 0,dy = 0;
     const apply = () => {
-      tx += (dx - tx) * 0.12;
-      ty += (dy - ty) * 0.12;
+      tx += (dx - tx) * 0.08;
+      ty += (dy - ty) * 0.08;
       root.style.setProperty("--mx", tx.toFixed(3));
       root.style.setProperty("--my", ty.toFixed(3));
       if (Math.abs(dx - tx) > 0.001 || Math.abs(dy - ty) > 0.001) {
         raf = requestAnimationFrame(apply);
       } else {raf = 0;}
     };
-    // FV中心からの相対位置。±1 にクランプして「一定以上は傾かない」ようにする
-    const clamp = (v) => (v < -1 ? -1 : v > 1 ? 1 : v);
     const onMove = (e) => {
       const fv = root.closest(".fv") || root;
       const r = fv.getBoundingClientRect();
-      dx = clamp(((e.clientX - r.left) / r.width - 0.5) * 2);
-      dy = clamp(((e.clientY - r.top) / r.height - 0.5) * 2);
+      dx = ((e.clientX - r.left) / r.width - 0.5) * 2;
+      dy = ((e.clientY - r.top) / r.height - 0.5) * 2;
       if (!raf) raf = requestAnimationFrame(apply);
     };
-    // カーソルが画面外/ウィンドウ外へ出たら既定値（中立）へ戻す
     const onLeave = () => {dx = 0;dy = 0;if (!raf) raf = requestAnimationFrame(apply);};
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerleave", onLeave);
-    window.addEventListener("blur", onLeave);
-    document.addEventListener("mouseleave", onLeave);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerleave", onLeave);
-      window.removeEventListener("blur", onLeave);
-      document.removeEventListener("mouseleave", onLeave);
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
@@ -217,7 +210,7 @@ function FV({ variant, copy, fvStyle }) {
             fontFamily: "var(--f-mono)", fontSize: 9, letterSpacing: ".18em",
             textTransform: "uppercase"
           }}>
-
+          
             ↻ Replay
           </button>
         }

@@ -166,6 +166,23 @@
     font-size: 24px;
   }
 
+  .nty .cast-grid {
+    grid-template-columns: repeat(2, 1fr); gap: 18px 12px;
+  }
+
+  /* mobile schedule = list */
+  .nty .matrix-wrap {
+    overflow-x: auto;
+  }
+
+  .nty .matrix {
+    grid-template-columns: 120px repeat(7, 80px); min-width: 700px;
+  }
+
+  .nty .matrix .cell.head .d-num {
+    font-size: 18px;
+  }
+
   .nty .news-grid {
     grid-template-columns: 1fr;
   }
@@ -272,19 +289,4 @@
   .nty .loader-sub .italic {
     font-size: 13px;
   }
-
-  /* TOP — モバイルのずれ修正：装飾アイコンを小さく端へ寄せ、タグラインを厳密に中央寄せ */
-  .nty .fv-decor .dec-cat { top: 8%; left: 3%; width: 34px; }
-  .nty .fv-decor .dec-bubble { top: 11%; right: 4%; width: 32px; }
-  .nty .fv-tagline { width: 100%; margin-left: auto; margin-right: auto; text-align: center; }
-
-  /* TOP — 全体に走るノイズはモバイルで無効化（ノイズはキャスト切替＝.fv-mcast 専用に） */
-  .nty .fv-wordmark-img::after { display: none !important; }
-
-  /* TOP 背景ロゴ — 中央のまま、マウス追従の傾きを止め、透明すぎたので濃く＆くっきり */
-  .nty .fv-logo-band {
-    transform: translateY(-50%) translateZ(-520px) scale(1.18) !important;
-  }
-  .nty .fv-logo-band-track { width: 150%; }
-  .nty .fv-logo-band-track img { opacity: .28; filter: none; }
 }
