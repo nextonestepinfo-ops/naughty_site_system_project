@@ -1,0 +1,333 @@
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, ArrowRight, BellRing, CalendarClock, Check, Clock3, Home, Smartphone } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { LoadingPanel } from "@/components/domain/loading";
+import { PageHeader } from "@/components/domain/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { apiFetch, useScopedPath, useScopedQuery } from "@/lib/hooks/use-api";
+import type { Notification as AppNotification } from "@/lib/types";
+import { cn, formatDateTime } from "@/lib/utils";
+
+type PushConfig = {
+  enabled: boolean;
+  publicKey: string;
+  needsVapidKeys: boolean;
+};
+
+type PushSubscriptionResult = {
+  ok: boolean;
+  stored: boolean;
+  enabled: boolean;
+  reason?: string;
+};
+
+type NoticeFilter = "all" | "today" | "deadline" | "unread";
+
+const notificationTypeLabels: Record<AppNotification["type"], string> = {
+  task_created: "タスク追加",
+  due_tomorrow: "明日期限",
+  due_today: "本日期限",
+  overdue: "期限超過",
+  attendance_missing: "勤怠確認",
+  admin: "管理",
+};
+
+function urlBase64ToUint8Array(value: string) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(window.atob(base64), (char) => char.charCodeAt(0));
+}
+
+export default function NotificationsPage() {
+  const queryClient = useQueryClient();
+  const notifications = useScopedQuery<AppNotification[]>(["notifications"], "/api/notifications");
+  const pushPath = useScopedPath("/api/notifications/push-subscription");
+  const [permission, setPermission] = useState(typeof Notification !== "undefined" ? Notification.permission : "default");
+  const [pushStatus, setPushStatus] = useState("");
+  const [filter, setFilter] = useState<NoticeFilter>("all");
+  const [setupOpen, setSetupOpen] = useState(false);
+
+  const markRead = useMutation({
+    mutationFn: (id: string) => apiFetch<AppNotification>(`/api/notifications/${id}/read`, { method: "PATCH" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+
+  const makeToday = useMutation({
+    mutationFn: (taskId: string) =>
+      apiFetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ dueDate: todayInputValue(), status: "in_progress" }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  async function requestPush() {
+    if (!("Notification" in window)) {
+      setPushStatus("このブラウザは通知に未対応です。");
+      return;
+    }
+    const result = await window.Notification.requestPermission();
+    setPermission(result);
+    if (result !== "granted") {
+      setPushStatus("通知が許可されていません。");
+      return;
+    }
+
+    const config = await apiFetch<PushConfig>(pushPath).catch(() => ({ enabled: false, publicKey: "", needsVapidKeys: true }));
+    if (!config.enabled || !config.publicKey || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      const response = await apiFetch<PushSubscriptionResult>(pushPath, {
+        method: "POST",
+        body: JSON.stringify({ permission: result }),
+      }).catch(() => null);
+      setPushStatus(response?.enabled ? "通知許可を保存しました。" : "通知許可OK。サーバーPushはVAPID設定後に有効になります。");
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+    const subscription =
+      existing ??
+      (await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.publicKey),
+      }));
+    const response = await apiFetch<PushSubscriptionResult>(pushPath, {
+      method: "POST",
+      body: JSON.stringify({ permission: result, subscription: subscription.toJSON() }),
+    });
+    setPushStatus(response.stored ? "バックグラウンド通知を登録しました。" : "通知許可OK。購読保存はまだ未完了です。");
+  }
+
+  if (notifications.isLoading || !notifications.data) return <LoadingPanel label="通知を準備中" />;
+
+  const unread = notifications.data.filter((notice) => !notice.readAt);
+  const summary = {
+    overdue: unread.filter((notice) => notice.type === "overdue").length,
+    today: unread.filter((notice) => notice.type === "due_today").length,
+    tomorrow: unread.filter((notice) => notice.type === "due_tomorrow").length,
+    unread: unread.length,
+  };
+  const filteredNotifications = notifications.data.filter((notice) => {
+    if (filter === "today") return notice.type === "due_today";
+    if (filter === "deadline") return notice.type === "due_today" || notice.type === "due_tomorrow" || notice.type === "overdue";
+    if (filter === "unread") return !notice.readAt;
+    return true;
+  });
+
+  return (
+    <>
+      <PageHeader
+        title="通知"
+        description="期限、本日対応、勤怠の確認をここに集約します。"
+        kicker="NOTIFICATIONS"
+        actions={
+          <Button variant="ghost" onClick={requestPush}>
+            <Smartphone className="h-4 w-4" />
+            PWA通知 {permission}
+          </Button>
+        }
+      />
+      {pushStatus ? <p className="mb-3 rounded-panel bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 dark:bg-indigo-400/15 dark:text-indigo-100">{pushStatus}</p> : null}
+
+      <section className="sticky top-[73px] z-10 -mx-4 mb-4 bg-background/92 px-4 py-3 backdrop-blur lg:top-0">
+        <div className="grid grid-cols-4 gap-2 rounded-[18px] bg-slate-100 p-1 dark:bg-white/10">
+          {([
+            ["all", "すべて"],
+            ["today", "今日"],
+            ["deadline", "期限"],
+            ["unread", "未読"],
+          ] as Array<[NoticeFilter, string]>).map(([value, label]) => (
+            <button
+              key={value}
+              className={cn("h-11 rounded-[14px] text-xs font-extrabold text-slate-500 transition dark:text-slate-200", filter === value && "bg-white text-[#0B1226] shadow-soft dark:bg-[#F4F6FA] dark:text-[#050816]")}
+              onClick={() => setFilter(value)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <NoticeMetric icon={<CalendarClock className="h-4 w-4" />} label="本日期限" value={summary.today} tone={summary.today ? "amber" : "green"} />
+        <NoticeMetric icon={<CalendarClock className="h-4 w-4" />} label="明日期限" value={summary.tomorrow} tone={summary.tomorrow ? "blue" : "green"} />
+        <NoticeMetric icon={<AlertTriangle className="h-4 w-4" />} label="超過" value={summary.overdue} tone={summary.overdue ? "red" : "green"} />
+        <NoticeMetric icon={<BellRing className="h-4 w-4" />} label="未読" value={summary.unread} tone={summary.unread ? "blue" : "green"} />
+      </section>
+
+      <Card className="mb-5">
+        <CardContent className="p-3">
+          <button className="flex min-h-11 w-full items-center justify-between gap-3 text-left" onClick={() => setSetupOpen((value) => !value)} type="button">
+            <span>
+              <span className="block font-extrabold text-[#0B1226] dark:text-white">通知設定</span>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-300">ホーム画面追加・PWA通知・期限確認</span>
+            </span>
+            <Badge tone={permission === "granted" ? "green" : "amber"}>{setupOpen ? "閉じる" : "開く"}</Badge>
+          </button>
+          {setupOpen ? (
+            <div className="mt-3 grid gap-3 lg:grid-cols-3">
+              <SetupCard
+                icon={<Home className="h-4 w-4" />}
+                title="ホーム画面に追加"
+                body="iPhoneは共有メニューからホーム画面に追加。追加後はアプリのように開けます。"
+                badge="スマホ推奨"
+              />
+              <SetupCard
+                icon={<Smartphone className="h-4 w-4" />}
+                title="通知許可"
+                body={permission === "granted" ? "このブラウザは通知許可済みです。" : "ボタンから通知を許可すると、期限通知の準備ができます。"}
+                badge={permission === "granted" ? "許可済み" : "未許可"}
+                tone={permission === "granted" ? "green" : "amber"}
+              />
+              <SetupCard
+                icon={<CalendarClock className="h-4 w-4" />}
+                title="期限の確認"
+                body="毎朝、期限超過・本日期限・明日期限を確認できます。対象タスクは開くボタンから直接移動できます。"
+                badge="社員テスト"
+              />
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3">
+        {filteredNotifications.length ? filteredNotifications.map((notice) => {
+          const taskId = taskIdFromNotice(notice);
+          const canMakeToday = Boolean(taskId) && (notice.type === "due_today" || notice.type === "due_tomorrow" || notice.type === "overdue");
+          return (
+          <Card key={notice.id} className={cn(notice.readAt && "opacity-60")}>
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+              <div className={cn("grid h-10 w-10 place-items-center rounded-full", severityClass(notice.severity))}>
+                <BellRing className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-extrabold text-[#0B1226] dark:text-white">{notice.title}</p>
+                  <Badge tone={notice.severity === "danger" ? "red" : notice.severity === "warning" ? "amber" : "blue"}>{notificationTypeLabels[notice.type]}</Badge>
+                  {notice.readAt ? <Badge tone="green">既読</Badge> : null}
+                </div>
+                <p className="mt-1 text-sm font-medium leading-6 text-slate-500 dark:text-slate-200">{notice.body}</p>
+                <p className="mt-1 text-xs font-medium text-slate-400 dark:text-slate-300">{formatDateTime(notice.createdAt)}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                {notice.targetHref ? (
+                  <Link href={notice.targetHref}>
+                    <Button variant="ghost">
+                      <ArrowRight className="h-4 w-4" />
+                      開く
+                    </Button>
+                  </Link>
+                ) : null}
+                {canMakeToday ? (
+                  <Button variant="secondary" disabled={makeToday.isPending} onClick={() => taskId && makeToday.mutate(taskId)}>
+                    <Clock3 className="h-4 w-4" />
+                    今日やる
+                  </Button>
+                ) : null}
+                <Button variant="ghost" disabled={Boolean(notice.readAt) || markRead.isPending} onClick={() => markRead.mutate(notice.id)}>
+                  <Check className="h-4 w-4" />
+                  既読
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          );
+        }) : (
+          <Card>
+            <CardContent className="p-4 text-sm font-medium text-slate-500 dark:text-slate-200">この条件の通知はありません。期限が近づくとここに表示されます。</CardContent>
+          </Card>
+        )}
+      </section>
+    </>
+  );
+}
+
+function taskIdFromNotice(notice: AppNotification) {
+  const href = notice.targetHref ?? "";
+  const match = href.match(/[?&]taskId=([^&]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
+
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function NoticeMetric({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  tone: "blue" | "green" | "red" | "amber";
+}) {
+  const toneClass = {
+    blue: "bg-indigo-50 text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-100",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-100",
+    red: "bg-red-50 text-red-700 dark:bg-red-400/20 dark:text-red-100",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-400/20 dark:text-amber-100",
+  }[tone];
+
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between gap-3">
+          <span className={`grid h-8 w-8 place-items-center rounded-full ${toneClass}`}>{icon}</span>
+          <span className="text-2xl font-extrabold text-[#0B1226] dark:text-white">{value}</span>
+        </div>
+        <p className="mt-2 text-xs font-bold text-slate-500 dark:text-slate-300">{label}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SetupCard({
+  icon,
+  title,
+  body,
+  badge,
+  tone = "blue",
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  badge: string;
+  tone?: "blue" | "green" | "amber";
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-100">{icon}</span>
+            <p className="font-extrabold text-[#0B1226] dark:text-white">{title}</p>
+          </div>
+          <Badge tone={tone}>{badge}</Badge>
+        </div>
+        <p className="mt-3 text-sm font-medium leading-6 text-slate-500 dark:text-slate-200">{body}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function severityClass(severity: AppNotification["severity"]) {
+  if (severity === "danger") return "bg-red-50 text-red-600 dark:bg-red-400/20 dark:text-red-100";
+  if (severity === "warning") return "bg-amber-50 text-amber-700 dark:bg-amber-400/20 dark:text-amber-100";
+  if (severity === "success") return "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/20 dark:text-emerald-100";
+  return "bg-indigo-50 text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-100";
+}

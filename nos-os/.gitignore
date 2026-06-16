@@ -1,0 +1,17 @@
+.next/
+node_modules/
+out/
+build/
+.env*.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+.dev-server-*
+public/sales-page-preview.png
+public/sales-page-logged-in-preview.png
+public/sales-page-simple-preview.png
+public/sales-showcase-embedded-preview.png
+public/test-sales-preview.png
+public/home-tidy-preview.png
+public/profile-revenue-preview.png
+public/home-calendar-goal-preview.png

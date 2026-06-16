@@ -1,0 +1,32 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createTask, getTasks } from "@/lib/data/repository";
+import { getRequestScope } from "@/lib/data/request";
+import type { TaskFilter } from "@/lib/types";
+
+export async function GET(request: NextRequest) {
+  const { role, employeeId } = getRequestScope(request);
+  const params = request.nextUrl.searchParams;
+  const filters: TaskFilter = {
+    assigneeId: params.get("assigneeId") ?? undefined,
+    projectId: params.get("projectId") ?? undefined,
+    priority: (params.get("priority") as TaskFilter["priority"]) ?? undefined,
+    status: (params.get("status") as TaskFilter["status"]) ?? undefined,
+    due: (params.get("due") as TaskFilter["due"]) ?? undefined,
+    sort: (params.get("sort") as TaskFilter["sort"]) ?? "dueDate",
+  };
+  return NextResponse.json({ data: await getTasks(role, employeeId, filters) });
+}
+
+export async function POST(request: NextRequest) {
+  const { role, employeeId } = getRequestScope(request);
+  const body = await request.json().catch(() => ({}));
+  const safeBody =
+    role === "admin"
+      ? body
+      : {
+          ...body,
+          primaryAssigneeId: employeeId,
+          assigneeIds: [employeeId],
+        };
+  return NextResponse.json({ data: await createTask(safeBody) }, { status: 201 });
+}

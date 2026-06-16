@@ -1,0 +1,125 @@
+import type { SecretaryReply } from "@/lib/types";
+import { cleanOpenAIEnvValue, resolveOpenAIApiKey, resolveOpenAIModel, supportsOpenAITuning } from "@/lib/integrations/openai-config";
+import { buildSecretaryInput, localSecretaryReply, secretaryInstructions } from "@/lib/integrations/secretary-local";
+
+const openaiEndpoint = "https://api.openai.com/v1/responses";
+const defaultModel = "gpt-5.4-mini";
+
+type OpenAIContentItem = {
+  type?: string;
+  text?: string;
+};
+
+type OpenAIOutputItem = {
+  type?: string;
+  content?: OpenAIContentItem[];
+};
+
+type OpenAIResponsePayload = {
+  output_text?: string;
+  output?: OpenAIOutputItem[];
+};
+
+function extractOpenAIText(payload: OpenAIResponsePayload) {
+  if (typeof payload.output_text === "string" && payload.output_text.trim()) {
+    return payload.output_text.trim();
+  }
+
+  for (const item of payload.output ?? []) {
+    for (const content of item.content ?? []) {
+      if ((content.type === "output_text" || content.type === "text") && content.text?.trim()) {
+        return content.text.trim();
+      }
+    }
+  }
+
+  return null;
+}
+
+function numericEnv(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function summarizeOpenAIError(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const error = (value as { error?: { type?: string; code?: string; message?: string } }).error;
+  if (!error) return null;
+  return {
+    type: error.type,
+    code: error.code,
+    message: error.message?.slice(0, 180),
+  };
+}
+
+export async function askSecretaryWithOpenAI(input: {
+  message: string;
+  context?: string;
+}): Promise<SecretaryReply> {
+  const message = input.message.trim();
+  if (!message) return localSecretaryReply(message);
+
+  const apiKey = resolveOpenAIApiKey(process.env.OPENAI_API_KEY);
+  const model = resolveOpenAIModel(process.env.OPENAI_MODEL, defaultModel);
+  if (!apiKey) return localSecretaryReply(message);
+
+  const maxOutputTokens = numericEnv("OPENAI_MAX_OUTPUT_TOKENS", 520);
+  const reasoningEffort = cleanOpenAIEnvValue(process.env.OPENAI_REASONING_EFFORT);
+  const textVerbosity = cleanOpenAIEnvValue(process.env.OPENAI_TEXT_VERBOSITY);
+  const body: Record<string, unknown> = {
+    model,
+    instructions: secretaryInstructions,
+    input: buildSecretaryInput({ message, context: input.context }),
+    max_output_tokens: maxOutputTokens,
+  };
+
+  if (reasoningEffort && supportsOpenAITuning(model)) {
+    body.reasoning = { effort: reasoningEffort };
+  }
+
+  if (textVerbosity && supportsOpenAITuning(model)) {
+    body.text = { verbosity: textVerbosity };
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  const organizationId = process.env.OPENAI_ORGANIZATION_ID;
+  const projectId = process.env.OPENAI_PROJECT_ID;
+
+  if (organizationId) {
+    headers["OpenAI-Organization"] = organizationId;
+  }
+
+  if (projectId) {
+    headers["OpenAI-Project"] = projectId;
+  }
+
+  try {
+    const response = await fetch(openaiEndpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => null);
+      console.warn("[openai] secretary request failed", { status: response.status, model, error: summarizeOpenAIError(errorPayload) });
+      return localSecretaryReply(message);
+    }
+
+    const payload = (await response.json()) as OpenAIResponsePayload;
+    const text = extractOpenAIText(payload);
+    if (!text) {
+      console.warn("[openai] secretary response had no text", { model });
+      return localSecretaryReply(message);
+    }
+
+    return { reply: text, source: "openai", configured: true };
+  } catch (error) {
+    console.warn("[openai] secretary request threw", { model, message: error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180) });
+    return localSecretaryReply(message);
+  }
+}
