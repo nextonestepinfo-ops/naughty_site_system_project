@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NAUGHTY employee portal</title>
+  <link rel="icon" href="../04_site_rebuild/assets/logo-naughty-white-circle.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@600;700;800&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=employee-vnext-20260616" />
+</head>
+<body>
+  <main class="employee-app">
+    <section class="login-view" id="login-view">
+      <div class="login-panel">
+        <img class="login-logo" src="../04_site_rebuild/assets/logo-naughty-white-circle.png" alt="NAUGHTY" />
+        <p class="eyebrow">EMPLOYEE</p>
+        <h1>従業員ログイン</h1>
+        <form id="login-form" class="login-form">
+          <label>ログインID<input id="login-id" type="text" autocomplete="username" inputmode="latin" /></label>
+          <label>パスワード<input id="login-password" type="password" autocomplete="current-password" /></label>
+          <button class="primary-button" type="submit">ログイン</button>
+        </form>
+        <p class="status-text" id="login-status"></p>
+      </div>
+    </section>
+
+    <section class="portal-view" id="portal-view" hidden>
+      <header class="portal-header">
+        <div>
+          <p class="eyebrow">NAUGHTY PORTAL</p>
+          <h1 id="portal-name">従業員</h1>
+        </div>
+        <button class="ghost-button" id="logout-button" type="button">ログアウト</button>
+      </header>
+
+      <nav class="portal-tabs" aria-label="従業員メニュー">
+        <button class="active" type="button" data-tab="attendance">勤怠</button>
+        <button type="button" data-tab="order">伝票</button>
+        <button type="button" data-tab="sales">売上</button>
+        <button type="button" data-tab="profile">プロフィール</button>
+      </nav>
+
+      <section class="tab-panel active" id="tab-attendance">
+        <div class="status-card">
+          <div>
+            <span class="mini-label">今日の勤怠</span>
+            <strong id="attendance-status">未打刻</strong>
+            <small id="attendance-date"></small>
+          </div>
+          <div class="attendance-times" id="attendance-times"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>QRで打刻</h2>
+            <span>15分切り捨て</span>
+          </div>
+          <div class="qr-actions">
+            <button class="primary-button" id="scan-qr" type="button">カメラで読み取り</button>
+            <button class="ghost-button" id="demo-punch" type="button">店舗QRで打刻</button>
+          </div>
+          <video id="qr-video" class="qr-video" playsinline muted hidden></video>
+          <div class="manual-qr">
+            <input id="qr-code-input" type="text" placeholder="QRコード" />
+            <button class="ghost-button" id="submit-qr" type="button">打刻</button>
+          </div>
+          <p class="status-text" id="qr-status"></p>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-order">
+        <form class="panel order-form" id="order-form">
+          <div class="panel-head">
+            <h2>注文伝票</h2>
+            <span id="order-date"></span>
+          </div>
+          <label>商品<select id="order-product"></select></label>
+          <label>数量<input id="order-qty" type="number" min="1" step="1" value="1" /></label>
+          <div class="order-preview" id="order-preview"></div>
+          <button class="primary-button" type="submit">伝票を登録</button>
+          <p class="status-text" id="order-status"></p>
+        </form>
+      </section>
+
+      <section class="tab-panel" id="tab-sales">
+        <div class="status-card">
+          <div>
+            <span class="mini-label">自分の売上</span>
+            <strong id="sales-total">¥0</strong>
+            <small id="sales-count">0件</small>
+          </div>
+          <div>
+            <span class="mini-label">バック目安</span>
+            <strong id="back-total">¥0</strong>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>伝票履歴</h2>
+            <span id="sales-range"></span>
+          </div>
+          <div class="sale-list" id="sale-list"></div>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-profile">
+        <div class="panel profile-panel">
+          <img id="profile-photo" alt="" />
+          <div>
+            <span class="mini-label">プロフィール</span>
+            <h2 id="profile-name"></h2>
+            <p id="profile-text"></p>
+            <div class="profile-tags" id="profile-tags"></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="../03_system_seed/naughty_site_data.js"></script>
+  <script src="app.js?v=employee-vnext-20260616"></script>
+</body>
+</html>
